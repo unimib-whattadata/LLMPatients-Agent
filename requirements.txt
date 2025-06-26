@@ -1,0 +1,20 @@
+# Core
+pandas
+tqdm
+python-dotenv
+json-repair
+pydantic  # or >=2.0 if you're using the newer syntax
+
+# LLM
+vllm  # Check your installed version; adjust if needed
+
+# Optional safety
+transformers  # Not directly used in this snippet, but often needed with vllm
+huggingface-hub  # Required if you use Hugging Face auth/tokens
+
+# System (standard lib — listed here for completeness, but not needed in requirements.txt)
+# argparse
+# json
+# logging
+# pickle
+# os, sys, pathlib
