@@ -1,0 +1,40 @@
+{
+  "name": "Juanita Delgado",
+  "cognitive_model": {
+    "relevant_history": "I'm a 32-year-old woman who recently went through a breakup. I'm raising two young children on my own. I've always tried to meet others' expectations and often take on burdens without asking for help. Lately, the stress of handling everything—household responsibilities, childcare, and work—by myself has become overwhelming, especially since my partner left.",
+    "core_beliefs": [
+      "I am unlovable",
+      "I am a failure",
+      "I am worthless"
+    ],
+    "intermediate_beliefs": [
+      "If I don’t keep everything under control, I’ll fall apart and hurt my kids.",
+      "I have to be strong all the time; needing help means I’m weak.",
+      "If someone leaves me, it's because I wasn't good enough."
+    ],
+    "coping_strategies": [
+      "Emotional suppression",
+      "Over-functioning and ignoring own needs",
+      "Avoidance of seeking support"
+    ],
+    "situation": "Feeling overwhelmed while trying to manage household chores, childcare, and work responsibilities after her partner left.",
+    "automatic_thoughts": [
+      "I can’t do this anymore.",
+      "I’m failing as a mother.",
+      "No one cares about me.",
+      "I’m just a burden."
+    ],
+    "emotions": [
+      "Sadness",
+      "Hopelessness",
+      "Guilt",
+      "Worthlessness"
+    ],
+    "behaviors": [
+      "Social withdrawal",
+      "Loss of interest in previously enjoyed activities",
+      "Difficulty sleeping",
+      "Neglect of personal care and nutrition"
+    ]
+  }
+} 
