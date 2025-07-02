@@ -1,3 +1,5 @@
+import re
+
 from langgraph.graph import StateGraph
 from langchain_core.runnables import RunnableLambda
 from pydantic import BaseModel
@@ -38,7 +40,32 @@ def build_graph(patient_profile: PatientProfile, llm_runner):
 
     # Nodo 5: stampa la risposta
     def postprocess(state):
-        print(f"\n🧠 Patient says: {state.response}\n")
+        raw = state.response.strip()
+        prompt = state.prompt.strip()
+
+        cleaned = raw  # default fallback
+
+        # First attempt: remove full prompt if echoed
+        if raw.startswith(prompt):
+            cleaned = raw[len(prompt):].strip()
+        else:
+            # Try to locate the last "{name}:" and extract only what's after
+            pattern = re.escape(state.profile.name) + r":\s*"
+            match = re.search(pattern, raw)
+            if match:
+                cleaned = raw[match.end():].strip()
+            else:
+                print("\n[WARNING] No matching speaker cue or prompt found — returning full output.\n")
+
+        # Avoid printing nothing
+        if not cleaned:
+            print(f"\n[WARNING] Empty cleaned response. Showing raw output instead.\n")
+            cleaned = raw
+
+        # Print formatted response
+        print(f"\n{state.profile.name}: {cleaned}\n")
+
+        state.response = cleaned
         return state
 
     # Costruzione del grafo

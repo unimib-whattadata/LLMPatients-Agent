@@ -1,8 +1,9 @@
 import os
+import torch
 import logging
+
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,23 +25,25 @@ class LLMRunner:
             logger.info(f"Initializing LLMRunner with model: {self.model_id}")
             self._ensure_model_downloaded()
 
-            # Load model and tokenizer
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_id,
                 cache_dir=self.cache_dir,
-                token=self.hf_token
+                token=self.hf_token,
+                use_fast=True
             )
+            # Important for generation
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_id,
                 cache_dir=self.cache_dir,
                 token=self.hf_token,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                torch_dtype=torch.float32,
+                device_map="auto",
+                attn_implementation="eager"  # ← disable FlashAttention
             )
 
             self.model.eval()
-            if torch.cuda.is_available():
-                self.model = self.model.to("cuda")
 
             logger.info("Transformers model loaded successfully.")
         except Exception as e:
@@ -48,7 +51,6 @@ class LLMRunner:
             raise
 
     def _ensure_model_downloaded(self):
-        # Forces early download for cache verification
         try:
             AutoTokenizer.from_pretrained(self.model_id, cache_dir=self.cache_dir, token=self.hf_token)
             AutoModelForCausalLM.from_pretrained(self.model_id, cache_dir=self.cache_dir, token=self.hf_token)
@@ -57,15 +59,16 @@ class LLMRunner:
             logger.warning(f"Model download failed or partially cached: {e}")
             raise
 
-    def generate(self, prompt: str, temperature: float = 0.7, max_tokens: int = 300) -> str:
+    def generate(self, prompt: str, temperature: float = 0.8, max_tokens: int = 300) -> str:
         try:
-            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+            inputs = self.tokenizer(prompt, return_tensors="pt", padding=True).to(self.model.device)
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_tokens,
                 temperature=temperature,
                 do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id
             )
             return self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
         except Exception as e:
