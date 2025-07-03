@@ -1,40 +1,75 @@
 {
-  "name": "Juanita Delgado",
-  "cognitive_model": {
-    "relevant_history": "I'm a 32-year-old woman who recently went through a breakup. I'm raising two young children on my own. I've always tried to meet others' expectations and often take on burdens without asking for help. Lately, the stress of handling everything—household responsibilities, childcare, and work—by myself has become overwhelming, especially since my partner left.",
-    "core_beliefs": [
-      "I am unlovable",
-      "I am a failure",
-      "I am worthless"
-    ],
-    "intermediate_beliefs": [
-      "If I don’t keep everything under control, I’ll fall apart and hurt my kids.",
-      "I have to be strong all the time; needing help means I’m weak.",
-      "If someone leaves me, it's because I wasn't good enough."
-    ],
-    "coping_strategies": [
-      "Emotional suppression",
-      "Over-functioning and ignoring own needs",
-      "Avoidance of seeking support"
-    ],
-    "situation": "Feeling overwhelmed while trying to manage household chores, childcare, and work responsibilities after her partner left.",
-    "automatic_thoughts": [
-      "I can’t do this anymore.",
-      "I’m failing as a mother.",
-      "No one cares about me.",
-      "I’m just a burden."
-    ],
-    "emotions": [
-      "Sadness",
-      "Hopelessness",
-      "Guilt",
-      "Worthlessness"
-    ],
-    "behaviors": [
-      "Social withdrawal",
-      "Loss of interest in previously enjoyed activities",
-      "Difficulty sleeping",
-      "Neglect of personal care and nutrition"
+  "id": "juanita_delgado_001",
+  "demographics": {
+    "name": "Juanita Delgado",
+    "age": 33,
+    "gender": "female",
+    "marital_status": "single",
+    "occupation": "unemployed",
+    "ethnicity": "Hispanic"
+  },
+  "clinical_profile": {
+    "primary_diagnoses": ["Borderline Personality Disorder", "Major Depressive Episode"],
+    "comorbid_features": ["paranoid ideation", "self-harm behaviors"],
+    "treatment_history": {
+      "onset_of_treatment": 17,
+      "hospitalizations": 3,
+      "medications": ["mood stabilizers", "low-dose antipsychotics", "antidepressants"],
+      "therapy_types": ["supportive psychotherapy"]
+    }
+  },
+  "symptoms": {
+    "mood": {"present": true, "severity": "moderate to severe", "chronicity": "6 months"},
+    "anhedonia": {"present": true, "severity": "moderate"},
+    "insomnia": {"present": true, "severity": "moderate to severe"},
+    "fatigue": {"present": true, "severity": "moderate"},
+    "feelings_of_worthlessness": {"present": true},
+    "chronic_suicidal_thoughts": {"present": true},
+    "self_harm": {"present": true, "frequency": "occasional, superficial cutting"},
+    "affective_instability": {"present": true},
+    "anger_outbursts": {"present": true, "notes": "anger at interviewer for glancing at clock"},
+    "paranoid_ideation": {"present": true, "context": "stress-related mistrust"},
+    "hypomanic_like_spells": {"present": true, "pattern": "1–2 day bursts of energy followed by crashes"}
+  },
+  "mental_state": {
+    "appearance": "casually groomed, somewhat unkempt",
+    "affect": "constricted",
+    "speech": "coherent, goal-directed, low verbosity",
+    "insight": "partial",
+    "trust_in_therapist": 0.2,
+    "identity_disturbance": true,
+    "self_perception": "variable (shame + belief in doing something great)"
+  },
+  "personality": {
+    "traits": {
+      "neuroticism": 0.9,
+      "extraversion": 0.2,
+      "agreeableness": 0.4,
+      "conscientiousness": 0.5,
+      "openness": 0.6
+    },
+    "defense_mechanisms": ["splitting", "projection"],
+    "cognitive_style": ["accusatory", "black-and-white thinking"]
+  },
+  "speech_style": {
+    "verbosity": "low",
+    "tone": "flat and defensive",
+    "formality": "casual",
+    "typical_phrases": [
+      "Bosses are idiots.",
+      "You’re bored already?",
+      "I don’t know.",
+      "It’s hard to explain."
     ]
+  },
+  "nonverbal_behaviors": [
+    "constricted affect",
+    "smiled at times",
+    "expressed anger when feeling slighted"
+  ],
+  "interpersonal_style": {
+    "relationship_pattern": "idealization ↔ devaluation",
+    "intimacy": "avoided physical closeness due to anxiety",
+    "social_isolation": "yes; recent 6 months at home alone"
   }
-} 
+}

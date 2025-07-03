@@ -1,23 +1,56 @@
+from typing import List, Dict, Optional, Any
 from pydantic import BaseModel
-from typing import List
 import json
 
-class CognitiveModel(BaseModel):
-    relevant_history: str
-    core_beliefs: List[str]
-    intermediate_beliefs: List[str]
-    coping_strategies: List[str]
-    situation: str
-    automatic_thoughts: List[str]
-    emotions: List[str]
-    behaviors: List[str]
+class TreatmentHistory(BaseModel):
+    onset_of_treatment: int
+    hospitalizations: int
+    medications: List[str]
+    therapy_types: List[str]
+
+class ClinicalProfile(BaseModel):
+    primary_diagnoses: List[str]
+    comorbid_features: List[str]
+    treatment_history: TreatmentHistory
+
+class MentalState(BaseModel):
+    appearance: str
+    affect: str
+    speech: str
+    insight: str
+    trust_in_therapist: float
+    identity_disturbance: bool
+    self_perception: str
+
+class Personality(BaseModel):
+    traits: Dict[str, float]
+    defense_mechanisms: List[str]
+    cognitive_style: List[str]
+
+class SpeechStyle(BaseModel):
+    verbosity: str
+    tone: str
+    formality: str
+    typical_phrases: List[str]
 
 class PatientProfile(BaseModel):
-    name: str
-    cognitive_model: CognitiveModel
+    id: str
+    demographics: Dict[str, Any]
+    clinical_profile: ClinicalProfile
+    symptoms: Dict[str, Dict[str, Any]]
+    mental_state: MentalState
+    personality: Personality
+    speech_style: SpeechStyle
+    nonverbal_behaviors: Optional[List[str]] = []
+    interpersonal_style: Optional[Dict[str, str]] = {}
+
+    @property
+    def name(self) -> str:
+        return self.demographics.get("name", self.id.replace("_", " ").title())
 
     @classmethod
     def from_file(cls, path: str) -> "PatientProfile":
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
+
         return cls(**data)
