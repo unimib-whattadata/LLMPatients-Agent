@@ -40,7 +40,7 @@ llm_patient_simulator/
 │   ├── main.py                  # Entry point (Streamlit or FastAPI interface)
 │   ├── config.py                # Configuration and environment loading
 │   ├── core/                    # Core logic of the system
-│   │   ├── orchestrator.py      # Coordinates chat flow, memory, prompt, and LLM
+│   │   ├── langgraph_builder.py # Builds the graph 
 │   │   ├── prompt_builder.py    # Builds LLM prompt with memory and persona
 │   │   ├── memory.py            # Short- and long-term memory management
 │   │   ├── patient_profile.py   # Loads and tracks patient state/persona
@@ -52,7 +52,9 @@ llm_patient_simulator/
 │   └── utils/                   # Utility functions (logging, formatting, etc.)
 ├── requirements.txt             # Python dependencies
 ├── README.md                    # Project documentation
-└── .env                         # API keys and config variables (use dotenv)
+└── config/                      # contains all of the configuration information
+    ├── .env.                    # enviroment info
+    └── prompt_template.py       # File containing the prompt templates
 ```
 
 ## 🗂️ Modules & Responsibilities
