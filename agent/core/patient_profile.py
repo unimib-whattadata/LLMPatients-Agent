@@ -7,11 +7,14 @@ class TreatmentHistory(BaseModel):
     hospitalizations: int
     medications: List[str]
     therapy_types: List[str]
+    therapy_engagement: Optional[str] = None
 
 class ClinicalProfile(BaseModel):
     primary_diagnoses: List[str]
     comorbid_features: List[str]
     treatment_history: TreatmentHistory
+    icd11_reference: Optional[str] = None
+    active_symptoms: Optional[Dict[str, str]] = {}
 
 class MentalState(BaseModel):
     appearance: str
@@ -19,7 +22,6 @@ class MentalState(BaseModel):
     speech: str
     insight: str
     trust_in_therapist: float
-    identity_disturbance: bool
     self_perception: str
 
 class Personality(BaseModel):
@@ -33,16 +35,18 @@ class SpeechStyle(BaseModel):
     formality: str
     typical_phrases: List[str]
 
-class PatientProfile(BaseModel):
-    id: str
-    demographics: Dict[str, Any]
-    clinical_profile: ClinicalProfile
-    symptoms: Dict[str, Dict[str, Any]]
+class BehavioralCognitiveStyle(BaseModel):
     mental_state: MentalState
     personality: Personality
     speech_style: SpeechStyle
     nonverbal_behaviors: Optional[List[str]] = []
     interpersonal_style: Optional[Dict[str, str]] = {}
+
+class PatientProfile(BaseModel):
+    id: str
+    demographics: Dict[str, Any]
+    clinical_profile: ClinicalProfile
+    behavioral_cognitive_style: BehavioralCognitiveStyle
 
     @property
     def name(self) -> str:
@@ -52,5 +56,4 @@ class PatientProfile(BaseModel):
     def from_file(cls, path: str) -> "PatientProfile":
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-
         return cls(**data)

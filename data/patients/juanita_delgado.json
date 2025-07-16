@@ -1,0 +1,87 @@
+{
+  "id": "juanita_delgado_001",
+  "demographics": {
+    "name": "Juanita Delgado",
+    "age": 33,
+    "gender": "female",
+    "marital_status": "single",
+    "occupation": "unemployed",
+    "ethnicity": "Hispanic",
+    "background": {
+      "education": "high school graduate",
+      "family": "estranged from parents, no siblings",
+      "social": "lives alone, few social contacts",
+      "notable_events": [
+        "lost job 2 years ago",
+        "terminated romantic relationship recently",
+        "history of emotional abuse"
+      ]
+    }
+  },
+  "clinical_profile": {
+    "primary_diagnoses": ["Borderline Personality Disorder", "Major Depressive Episode"],
+    "icd11_reference": "borderline_disorder",
+    "comorbid_features": ["paranoid ideation", "self-harm behaviors"],
+    "treatment_history": {
+      "onset_of_treatment": 17,
+      "hospitalizations": 3,
+      "medications": ["mood stabilizers", "low-dose antipsychotics", "antidepressants"],
+      "therapy_types": ["supportive psychotherapy"],
+      "therapy_engagement": "inconsistent but improving"
+    },
+    "active_symptoms": {
+      "emotional instability": "present",
+      "identity disturbance": "present",
+      "intense anger": "present",
+      "self_harm": "present",
+      "chronic_suicidal_thoughts": "present",
+      "paranoid_ideation": "present under stress",
+      "unstable relationships": "idealization/devaluation",
+      "anhedonia": "moderate",
+      "fatigue": "moderate",
+      "insomnia": "moderate to severe"
+    }
+  },
+  "behavioral_cognitive_style": {
+    "mental_state": {
+      "appearance": "casually groomed, somewhat unkempt",
+      "affect": "constricted",
+      "speech": "coherent, low verbosity",
+      "insight": "partial",
+      "trust_in_therapist": 0.2,
+      "self_perception": "variable (shame + belief in doing something great)"
+    },
+    "personality": {
+      "traits": {
+        "neuroticism": 0.9,
+        "extraversion": 0.2,
+        "agreeableness": 0.4,
+        "conscientiousness": 0.5,
+        "openness": 0.6
+      },
+      "defense_mechanisms": ["splitting", "projection"],
+      "cognitive_style": ["accusatory", "black-and-white thinking"]
+    },
+    "speech_style": {
+      "verbosity": "low",
+      "tone": "flat and defensive",
+      "formality": "casual",
+      "typical_phrases": [
+        "Bosses are idiots.",
+        "You’re bored already?",
+        "I don’t know.",
+        "It’s hard to explain."
+      ]
+    },
+    "nonverbal_behaviors": [
+      "constricted affect",
+      "smiled at times",
+      "expressed anger when feeling slighted"
+    ],
+    "interpersonal_style": {
+      "relationship_pattern": "idealization ↔ devaluation",
+      "intimacy": "avoided physical closeness due to anxiety",
+      "social_isolation": "yes; recent 6 months at home alone"
+    }
+  }
+}
