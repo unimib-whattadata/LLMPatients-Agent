@@ -1,76 +1,47 @@
 import os
-import torch
 import logging
 
+from google import genai
 from dotenv import load_dotenv
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from google.genai.types import GenerationConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
+# Load environment variables from config/.env
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../../config/.env"))
 
 class LLMRunner:
     def __init__(self):
-        self.model_id = os.getenv("model_id")
-        self.cache_dir = os.getenv("cache_dir", None)
-        self.hf_token = os.getenv("HUGGINGFACE_TOKEN")
+        self.api_key = os.getenv("GOOGLE_API_KEY")
+        self.model_id = os.getenv("model_id")  # e.g. gemini-2.5-flash
 
+        if not self.api_key:
+            raise ValueError("Missing `GOOGLE_API_KEY` in .env file.")
         if not self.model_id:
             raise ValueError("Missing `model_id` in .env file.")
 
         try:
             logger.info(f"Initializing LLMRunner with model: {self.model_id}")
-            self._ensure_model_downloaded()
-
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_id,
-                cache_dir=self.cache_dir,
-                token=self.hf_token,
-                use_fast=True
-            )
-            # Important for generation
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_id,
-                cache_dir=self.cache_dir,
-                token=self.hf_token,
-                torch_dtype=torch.float32,
-                device_map="auto",
-                attn_implementation="eager"  # ← disable FlashAttention
-            )
-
-            self.model.eval()
-
-            logger.info("Transformers model loaded successfully.")
+            self.client = genai.Client(api_key=self.api_key)
+            logger.info("Gemini client initialized successfully.")
         except Exception as e:
-            logger.error(f"Failed to initialize Transformers model: {e}")
-            raise
-
-    def _ensure_model_downloaded(self):
-        try:
-            AutoTokenizer.from_pretrained(self.model_id, cache_dir=self.cache_dir, token=self.hf_token)
-            AutoModelForCausalLM.from_pretrained(self.model_id, cache_dir=self.cache_dir, token=self.hf_token)
-            logger.info(f"Model {self.model_id} verified/downloaded successfully.")
-        except Exception as e:
-            logger.warning(f"Model download failed or partially cached: {e}")
+            logger.error(f"Failed to initialize Gemini client: {e}")
             raise
 
     def generate(self, prompt: str, temperature: float = 0.8, max_tokens: int = 300) -> str:
         try:
-            inputs = self.tokenizer(prompt, return_tensors="pt", padding=True).to(self.model.device)
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=max_tokens,
-                temperature=temperature,
-                do_sample=True,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id
+            response = self.client.models.generate_content(
+                model=self.model_id,
+                contents=prompt,
+                generation_config=GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens
+                )
             )
-            return self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+            return response.text.strip()
         except Exception as e:
             logger.error(f"Failed during generation: {e}")
-            return "[ERROR] Model failed to generate response."
+            return "[ERROR] Gemini API failed to generate response."
+            

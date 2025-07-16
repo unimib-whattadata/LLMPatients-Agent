@@ -1,2 +1,5 @@
 venv/
 config/.env
+google-cloud-sdk/
+notebooks/
+__pycache__/
