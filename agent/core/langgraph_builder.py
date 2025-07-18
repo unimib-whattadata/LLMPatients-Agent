@@ -1,108 +1,113 @@
+import os
 import re
+import json
+import logging
 
+from pathlib import Path
+from typing import Optional
+from pydantic import BaseModel
 from langgraph.graph import StateGraph
 from langchain_core.runnables import RunnableLambda
-from pydantic import BaseModel
-from typing import Optional
-from .patient_profile import PatientProfile
-from .prompt_builder import build_prompt
 
-SYMPTOM_BEHAVIOR_MAP = {
-    "anhedonia": {"tone": "flat", "disclosure": "low"},
-    "paranoid_ideation": {"tone": "suspicious", "intent": "deflect", "trust_delta": -0.2},
-    "self_harm": {"tone": "ashamed", "avoid_topics": ["cutting", "relapse"]},
-    "anger_outbursts": {"tone": "irritable", "intent": "confront"},
-}
+from dotenv import load_dotenv
+from core.patient_profile import PatientProfile
+from core.prompt_builder import build_prompt
+from core.llm_runner import create_llm_runner
 
-def apply_reasoning(state):
-    modifiers = {"tone": "neutral", "intent": "neutral", "disclosure": "medium"}
-    symptoms = state.profile.symptoms
+# === Configure Logging ===
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-    for symptom, behavior in SYMPTOM_BEHAVIOR_MAP.items():
-        if symptom in symptoms and symptoms[symptom].get("present"):
-            for k, v in behavior.items():
-                if k == "trust_delta":
-                    state.profile.mental_state.trust_in_therapist += v
-                else:
-                    modifiers[k] = v
+# === Load Environment ===
+env_path = Path(__file__).resolve().parent.parent / "config" / ".env"
+load_dotenv(dotenv_path=env_path)
 
-    return {"reasoning": modifiers}
+# === Load Persona Path ===
+PATIENT_PATH = Path("../data/patients/juanita_delgado.json")
+with open(PATIENT_PATH, "r") as f:
+    PATIENT = json.load(f)
 
-# Stato condiviso tra tutti i nodi del grafo
+# === Initialize LLM Runner ===
+llm_runner = create_llm_runner()
+
+# === LangGraph State ===
 class State(BaseModel):
     user_input: Optional[str] = None
-    profile: Optional[PatientProfile] = None
-    reasoning: Optional[dict] = None
-    memory: Optional[str] = None
+    patient_profile: Optional[PatientProfile] = None
+    intent_topic: Optional[dict] = None
     prompt: Optional[str] = None
     response: Optional[str] = None
 
-def build_graph(patient_profile: PatientProfile, llm_runner):
-    def load_profile(state):
-        return {"profile": patient_profile}
+# === Build Nodes ===
+def load_profile(state):
+    logger.info("🔄 Loading patient profile...")
+    profile = PatientProfile.from_file(str(PATIENT_PATH))
+    logger.info("✅ Patient profile loaded.")
+    return {"patient_profile": profile}
 
-    def retrieve_memory(state):
-        return {"memory": "You mentioned feeling hopeless last session."}
+def load_prompt_template(path: str) -> str:
+    logger.info(f"📄 Loading prompt template from: {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
-    def build_prompt_node(state):
-        prompt = build_prompt(
-            profile=state.profile,
-            memory=state.memory,
-            user_input=state.user_input,
-            reasoning=state.reasoning
-        )
-        return {"prompt": prompt}
 
-    def run_llm_node(state):
-        response = llm_runner.generate(state.prompt)
-        return {"response": response}
+def detect_intent_topic(state):
+    logger.info("🔍 Detecting intent and topic...")
 
+    # Get path from .env
+    prompt_rel_path = os.getenv("INTENT_TOPIC_PROMPT_PATH", "prompts/intent_topic.txt")
     
-    def postprocess(state):
-        raw = state.response.strip()
+    # Compute absolute path relative to this file
+    prompt_abs_path = (Path(__file__).resolve().parent.parent / prompt_rel_path).resolve()
+    logger.info(f"📄 Loading prompt template from: {prompt_abs_path}")
 
-        # 1. Remove prompt echo if present
-        if state.prompt and raw.startswith(state.prompt.strip()):
-            raw = raw[len(state.prompt.strip()):].strip()
+    with open(prompt_abs_path, "r", encoding="utf-8") as f:
+        template = f.read()
 
-        # 2. Remove speaker cue (e.g., "Juanita Delgado:") if present
-        raw = re.sub(r"^Juanita Delgado:\s*", "", raw, flags=re.IGNORECASE)
+    formatted_prompt = template.format(therapist_input=state.user_input.strip())
+    output = llm_runner.generate(prompt=formatted_prompt)
+    logger.info(f"🧾 Raw model output:\n{output}")
 
-        # 3. Remove any trailing instruction-like lines
-        cleaned_lines = []
-        for line in raw.splitlines():
-            if re.match(r"^\*\*.*\*\*$", line.strip()) or "please provide" in line.lower():
-                continue  # skip lines that are not part of response
-            cleaned_lines.append(line.strip())
+    # Try to extract JSON safely
+    match = re.search(r'{.*?}', output, re.DOTALL)
+    if match:
+        try:
+            parsed = json.loads(match.group(0))
+            logger.info(f"🧠 Detected intent and topic: {parsed}")
+            return {"intent_topic": parsed}
+        except json.JSONDecodeError as e:
+            logger.warning(f"[WARNING] JSON parse error: {e}\nMatched:\n{match.group(0)}")
+    else:
+        logger.warning(f"[WARNING] No JSON object found in output.")
 
-        cleaned = "\n".join(line for line in cleaned_lines if line)
+    return {"intent_topic": {"intent": "unknown", "topic": "unknown"}}
 
-        # fallback to raw if cleaning stripped everything
-        if not cleaned:
-            print("[WARNING] Response cleaning stripped everything; reverting to raw.")
-            cleaned = raw
+def generate_response(state):
+    logger.info("💬 Generating response to therapist input...")
+    result = llm_runner.generate(prompt=state.prompt)
+    logger.info("✅ Response generated.")
+    return {"response": result}
 
-        # Print result
-        print(f"\n{state.profile.name}: {cleaned}\n")
+def display_response(state):
+    logger.info("🖨️ Displaying response:")
+    print(f"\n🧠 Juanita: {state.response.strip()}\n")
+    return state
 
-        state.response = cleaned
-        return state
-
-    builder = StateGraph(state_schema=State)
+# === Build LangGraph ===
+def build_graph():
+    builder = StateGraph(State)
 
     builder.add_node("load_profile", RunnableLambda(load_profile))
-    builder.add_node("retrieve_memory", RunnableLambda(retrieve_memory))
-    builder.add_node("build_prompt", RunnableLambda(build_prompt_node))
-    builder.add_node("reason", RunnableLambda(apply_reasoning))
-    builder.add_node("run_llm", RunnableLambda(run_llm_node))
-    builder.add_node("postprocess", RunnableLambda(postprocess))
-    
+    builder.add_node("detect_intent_topic", RunnableLambda(detect_intent_topic))
+    builder.add_node("build_prompt", RunnableLambda(build_prompt))
+    builder.add_node("generate", RunnableLambda(generate_response))
+    builder.add_node("display", RunnableLambda(display_response))
 
     builder.set_entry_point("load_profile")
-    builder.add_edge("load_profile", "retrieve_memory")
-    builder.add_edge("retrieve_memory", "build_prompt")
-    builder.add_edge("build_prompt", "reason")
-    builder.add_edge("reason", "run_llm")
-    builder.add_edge("run_llm", "postprocess")
+    builder.add_edge("load_profile", "detect_intent_topic")
+    builder.add_edge("detect_intent_topic", "build_prompt")
+    builder.add_edge("build_prompt", "generate")
+    builder.add_edge("generate", "display")
 
+    logger.info("✅ LangGraph pipeline built and compiled.")
     return builder.compile()
