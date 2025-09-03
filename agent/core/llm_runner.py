@@ -6,7 +6,9 @@ from typing import Optional
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from vllm import LLM, SamplingParams
-from vertexai.generative_models import GenerativeModel
+
+from vertexai.generative_models import GenerativeModel, SafetySetting
+from vertexai.generative_models import HarmCategory, HarmBlockThreshold
 
 # === Configure Logging ===
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +45,7 @@ class LocalLLMRunner(LLMRunnerBase):
         self.model_id = model_id
         self.cache_path = cache_path
         self.llm = self._build_llm()
+
 
     def _build_llm(self) -> LLM:
         try:
@@ -102,6 +105,14 @@ class VertexLLMRunner(LLMRunnerBase):
         logger.info(f"Initialized Vertex AI (project={project}, location={location})")
 
         self.model = GenerativeModel(model_id)
+        
+        self.safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: HarmBlockThreshold.BLOCK_NONE,
+        }
 
     def generate(self, prompt: str, temperature: Optional[float] = None, max_tokens: Optional[int] = None) -> str:
         temp = temperature if temperature is not None else self.temperature
@@ -116,7 +127,8 @@ class VertexLLMRunner(LLMRunnerBase):
                     "stop_sequences": ["\nTherapist:", "Therapist:"],
                     "top_p": 0.95,
                     "top_k": 40,
-                }
+                },
+                safety_settings=self.safety_settings
             )
             return response.text.strip()
         except Exception as e:

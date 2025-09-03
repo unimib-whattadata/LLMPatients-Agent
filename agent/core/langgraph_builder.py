@@ -40,40 +40,39 @@ class State(BaseModel):
 
 # === Build Nodes ===
 def load_profile(state):
-    logger.info("🔄 Loading patient profile...")
+    logger.info("\ud83d\udd04 Loading patient profile...")
     profile = PatientProfile.from_file(str(PATIENT_PATH))
-    logger.info("✅ Patient profile loaded.")
+    logger.info("\u2705 Patient profile loaded.")
     return {"patient_profile": profile}
 
 def load_prompt_template(path: str) -> str:
-    logger.info(f"📄 Loading prompt template from: {path}")
+    logger.info(f"\ud83d\udcc4 Loading prompt template from: {path}")
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
-
 def detect_intent_topic(state):
-    logger.info("🔍 Detecting intent and topic...")
+    logger.info("\ud83d\udd0d Detecting intent and topic...")
 
     # Get path from .env
     prompt_rel_path = os.getenv("INTENT_TOPIC_PROMPT_PATH", "prompts/intent_topic.txt")
-    
+
     # Compute absolute path relative to this file
     prompt_abs_path = (Path(__file__).resolve().parent.parent / prompt_rel_path).resolve()
-    logger.info(f"📄 Loading prompt template from: {prompt_abs_path}")
+    logger.info(f"\ud83d\udcc4 Loading prompt template from: {prompt_abs_path}")
 
     with open(prompt_abs_path, "r", encoding="utf-8") as f:
         template = f.read()
 
     formatted_prompt = template.format(therapist_input=state.user_input.strip())
     output = llm_runner.generate(prompt=formatted_prompt)
-    logger.info(f"🧾 Raw model output:\n{output}")
+    logger.info(f"\ud83e\uddfe Raw model output:\n{output}")
 
     # Try to extract JSON safely
     match = re.search(r'{.*?}', output, re.DOTALL)
     if match:
         try:
             parsed = json.loads(match.group(0))
-            logger.info(f"🧠 Detected intent and topic: {parsed}")
+            logger.info(f"\ud83e\udde0 Detected intent and topic: {parsed}")
             return {"intent_topic": parsed}
         except json.JSONDecodeError as e:
             logger.warning(f"[WARNING] JSON parse error: {e}\nMatched:\n{match.group(0)}")
@@ -83,14 +82,14 @@ def detect_intent_topic(state):
     return {"intent_topic": {"intent": "unknown", "topic": "unknown"}}
 
 def generate_response(state):
-    logger.info("💬 Generating response to therapist input...")
+    logger.info(" Generating response to therapist input...")
     result = llm_runner.generate(prompt=state.prompt)
-    logger.info("✅ Response generated.")
+    logger.info(" Response generated.")
     return {"response": result}
 
 def display_response(state):
-    logger.info("🖨️ Displaying response:")
-    print(f"\n🧠 Juanita: {state.response.strip()}\n")
+    logger.info("Displaying response:")
+    print(f"\n Juanita: {state.response}\n")
     return state
 
 # === Build LangGraph ===
@@ -109,5 +108,5 @@ def build_graph():
     builder.add_edge("build_prompt", "generate")
     builder.add_edge("generate", "display")
 
-    logger.info("✅ LangGraph pipeline built and compiled.")
+    logger.info("\u2705 LangGraph pipeline built and compiled.")
     return builder.compile()
