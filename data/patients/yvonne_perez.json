@@ -1,0 +1,109 @@
+{
+  "patient_id": "yvonne_perez_001",
+  "disorder_id": "6A70",
+  "DemographicInfo": {
+    "Age": 23,
+    "Gender": "female",
+    "MaritalStatus": "married",
+    "CulturalBackground": "Hispanic",
+    "ReligiousBeliefs": "Catholic (implied, refused abortion due to religion)",
+    "SpokenLanguage": "English",
+    "MigrationStatus": "relocated after husband’s work transfer"
+  },
+  "FamilySocialHistory": {
+    "ChildhoodFamilyDynamics": "raised in a supportive home with parents and large extended family",
+    "CurrentParentRelations": "supportive but geographically distant",
+    "ChildhoodExperiences": null,
+    "AbuseHistory": null,
+    "SocialSupport": "currently limited (no nearby relatives, husband often absent, some support from mother-in-law)",
+    "SupportNetwork": "family at a distance, minimal local support"
+  },
+  "EducationOccupation": {
+    "EducationLevel": "high school graduate",
+    "WorkHistory": "worked in a coffee shop until midway through first pregnancy (~2 years ago)",
+    "HousingStability": "stable (lives with husband and children)",
+    "FinancialSituation": "dependent on husband’s income",
+    "HobbiesInterests": null
+  },
+  "PsychologicalProfile": {
+    "PsychiatricDiagnoses": ["Postpartum Depression (Major Depressive Episode, peripartum onset)"],
+    "MainSymptoms": ["depressed mood", "flat affect", "fatigue", "crying spells", "hopelessness"],
+    "EmotionalReactions": "sad, flat, self-blaming",
+    "Aggressiveness": "not observed",
+    "SelfPerceptionIdentity": "self-blaming, feels inadequate as a mother",
+    "SelfEsteem": "low",
+    "SenseOfSelfOthers": "perceives baby as rejecting her, feels judged by husband",
+    "CognitiveStyle": ["self-critical", "punishment interpretation"],
+    "AttachmentStyle": "anxious",
+    "ExecutiveFunctioning": "partially impaired (worry, fatigue, low concentration)",
+    "Memory": "mild impairment (1/3 recall after 5 minutes)",
+    "AttentionConcentration": "reduced due to worry and fatigue",
+    "SensoryPerception": "normal",
+    "HigherCognitiveFunctions": "average intelligence, intact"
+  },
+  "CopingDefenses": {
+    "CopingStrategies": "crying, rumination, reliance on limited family support",
+    "DefenseMechanisms": ["self-blame", "guilt projection"],
+    "SelfHarmSuicidality": "denied",
+    "SubstanceAbuse": "none",
+    "Avoidance": "moderate (withdraws when overwhelmed)",
+    "ImpulsiveRiskBehaviors": "none reported",
+    "Morality": "religion strongly influences moral decisions"
+  },
+  "SocialRelations": {
+    "Friendships": "not reported",
+    "RomanticRelationships": "strained with husband (critical, often absent)",
+    "SexualRelationships": "not discussed",
+    "FamilyInteractions": "supportive but distant parents, mother-in-law present locally",
+    "PeerColleagueRelations": "none currently (not working)",
+    "SocialMediaBehavior": null
+  },
+  "TreatmentsInterventions": {
+    "PastTherapies": [],
+    "ProgressResistance": "not initiated",
+    "TherapeuticGoals": null,
+    "MedicationHistory": ["multivitamin with iron"],
+    "MedicationResponse": null,
+    "Hospitalizations": 0,
+    "EmergencyRoomVisits": null,
+    "PastPsychiatricDiagnoses": []
+  },
+  "ClinicalJudgment": {
+    "JudgmentCapacity": "fair to good",
+    "Insight": "fair to good",
+    "ImpulseControl": "intact"
+  },
+  "ResilienceWellbeing": {
+    "PsychologicalResilience": "low (current overwhelm, hopelessness)",
+    "SelfCompassion": "low",
+    "LifeSatisfaction": "low since second childbirth",
+    "PersonalGrowth": "unclear",
+    "SenseOfCoherence": "fragmented (feels punished, overwhelmed)",
+    "Empowerment": "low",
+    "HopeForFuture": "limited",
+    "LongTermLifeGoals": "unclear"
+  },
+  "MedicalHistory": {
+    "PreexistingConditions": "asthma",
+    "CurrentMedications": ["multivitamin with iron"],
+    "Allergies": null,
+    "Lifestyle": "nonsmoker since pregnancy, denies alcohol or illicit drug use",
+    "GeneralHealth": "otherwise stable",
+    "SleepPatterns": "insomnia (difficulty sleeping, poor rest)",
+    "EatingHabits": null
+  },
+  "SocialEnvironment": {
+    "SocialSupport": "limited (mostly mother-in-law currently)",
+    "HousingConditions": "lives with husband and children",
+    "SocialSecurity": "dependent on husband’s income",
+    "SocialCohesion": "low (no relatives nearby, socially isolated)",
+    "SocialDeterminantsMentalHealth": "financial dependency, childcare stress, lack of local family"
+  },
+  "TestBehavior": {
+    "RecurringDynamics": "self-blame, belief current hardship is punishment",
+    "PredominantEmotions": ["sadness", "hopelessness", "guilt"],
+    "Speech": "fluent but slow, increased latency, flat tone",
+    "EyeContactPostureGestures": "avoids eye contact (looks down), cooperative",
+    "AvoidantAttitudesMoodChange": "present (withdraws when overwhelmed)"
+  }
+}

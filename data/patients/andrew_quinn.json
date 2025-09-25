@@ -1,0 +1,118 @@
+{
+  "patient_id": "andrew_quinn_001",
+  "disorder_id": "6A72",
+  "DemographicInfo": {
+    "Age": 60,
+    "Gender": "male",
+    "MaritalStatus": "married",
+    "CulturalBackground": null,
+    "ReligiousBeliefs": null,
+    "SpokenLanguage": "English",
+    "MigrationStatus": null
+  },
+  "FamilySocialHistory": {
+    "ChildhoodFamilyDynamics": "parents described as 'depressive', no treatment",
+    "CurrentParentRelations": "parents deceased",
+    "ChildhoodExperiences": null,
+    "AbuseHistory": null,
+    "SocialSupport": "married, previously socially active, now withdrawn",
+    "SupportNetwork": "longtime psychiatrist, spouse (not detailed)"
+  },
+  "EducationOccupation": {
+    "EducationLevel": null,
+    "WorkHistory": "businessman, reduced concentration and work functioning since son’s death",
+    "HousingStability": "stable",
+    "FinancialSituation": "stable",
+    "HobbiesInterests": null
+  },
+  "PsychologicalProfile": {
+    "PsychiatricDiagnoses": ["Major Depressive Disorder (bereavement-related, recurrent)"],
+    "MainSymptoms": [
+      "depressed mood",
+      "rumination and self-blame",
+      "fatigue",
+      "insomnia (initial and early morning awakening)",
+      "worthlessness",
+      "loss of confidence",
+      "anhedonia",
+      "passive suicidal ideation"
+    ],
+    "EmotionalReactions": "sad, tearful, hopeless",
+    "Aggressiveness": "not observed",
+    "SelfPerceptionIdentity": "believes he failed as a father, feels worthless",
+    "SelfEsteem": "low",
+    "SenseOfSelfOthers": "preoccupied with son’s death, guilt about parental role",
+    "CognitiveStyle": ["ruminative", "counterfactual thinking", "self-critical"],
+    "AttachmentStyle": null,
+    "ExecutiveFunctioning": "partially impaired (concentration difficulties)",
+    "Memory": "not impaired",
+    "AttentionConcentration": "impaired due to preoccupation and fatigue",
+    "SensoryPerception": "normal",
+    "HigherCognitiveFunctions": "intact"
+  },
+  "CopingDefenses": {
+    "CopingStrategies": "increased alcohol intake, rumination",
+    "DefenseMechanisms": ["self-blame", "rumination", "avoidant withdrawal"],
+    "SelfHarmSuicidality": "passive suicidal ideation ('should have been the one to die')",
+    "SubstanceAbuse": "increased alcohol use (half bottle wine nightly post-bereavement)",
+    "Avoidance": "moderate (withdraws socially, avoids work engagement)",
+    "ImpulsiveRiskBehaviors": "none reported",
+    "Morality": null
+  },
+  "SocialRelations": {
+    "Friendships": "previously active, now withdrawn",
+    "RomanticRelationships": "married, not detailed",
+    "SexualRelationships": "loss of sexual interest",
+    "FamilyInteractions": "very close to deceased son; guilt over time spent on career",
+    "PeerColleagueRelations": "withdrawn from work contacts",
+    "SocialMediaBehavior": null
+  },
+  "TreatmentsInterventions": {
+    "PastTherapies": ["psychotherapy", "antidepressant medication (prior episodes)"],
+    "ProgressResistance": "previous good response, currently symptomatic despite support",
+    "TherapeuticGoals": "determine distinction between grief and major depressive disorder",
+    "MedicationHistory": ["antidepressants (past)", "none current"],
+    "MedicationResponse": "positive in past episodes",
+    "Hospitalizations": 0,
+    "EmergencyRoomVisits": null,
+    "PastPsychiatricDiagnoses": ["Major Depressive Disorder (recurrent)"]
+  },
+  "ClinicalJudgment": {
+    "JudgmentCapacity": "fair",
+    "Insight": "fair (asks whether grief vs. depression)",
+    "ImpulseControl": "generally intact"
+  },
+  "ResilienceWellbeing": {
+    "PsychologicalResilience": "low after son’s death",
+    "SelfCompassion": "very low (blames self for son’s death)",
+    "LifeSatisfaction": "very low",
+    "PersonalGrowth": "unclear",
+    "SenseOfCoherence": "fragmented (life lost meaning after son’s suicide)",
+    "Empowerment": "low",
+    "HopeForFuture": "limited",
+    "LongTermLifeGoals": "unclear, disrupted by bereavement"
+  },
+  "MedicalHistory": {
+    "PreexistingConditions": null,
+    "CurrentMedications": [],
+    "Allergies": null,
+    "Lifestyle": "previously moderate alcohol, increased intake post-loss",
+    "GeneralHealth": "otherwise stable",
+    "SleepPatterns": "difficulty falling asleep, early morning awakening",
+    "EatingHabits": null
+  },
+  "SocialEnvironment": {
+    "SocialSupport": "psychiatrist, spouse (unclear degree of support)",
+    "HousingConditions": "stable housing with spouse",
+    "SocialSecurity": "financially secure",
+    "SocialCohesion": "reduced due to social withdrawal",
+    "SocialDeterminantsMentalHealth": "bereavement, family suicide history, work stress"
+  },
+  "TestBehavior": {
+    "RecurringDynamics": "rumination on guilt, passive suicidality",
+    "PredominantEmotions": ["sadness", "guilt", "worthlessness"],
+    "Speech": "fluent, slowed, preoccupied",
+    "EyeContactPostureGestures": "withdrawn, tearful, fatigued",
+    "AvoidantAttitudesMoodChange": "present (withdraws socially and occupationally)"
+  }
+}

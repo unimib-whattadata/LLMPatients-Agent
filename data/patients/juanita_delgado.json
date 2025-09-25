@@ -1,5 +1,6 @@
 {
   "patient_id": "juanita_delgado_001",
+  "disorder_id": "borderline_disorder",
   "DemographicInfo": {
     "Age": 33,
     "Gender": "female",

@@ -1,0 +1,119 @@
+{
+  "patient_id": "barbara_reiss_001",
+  "disorder_id": "6A72",
+  "DemographicInfo": {
+    "Age": 51,
+    "Gender": "female",
+    "MaritalStatus": "married",
+    "CulturalBackground": "white",
+    "ReligiousBeliefs": null,
+    "SpokenLanguage": "English",
+    "MigrationStatus": null
+  },
+  "FamilySocialHistory": {
+    "ChildhoodFamilyDynamics": null,
+    "CurrentParentRelations": null,
+    "ChildhoodExperiences": null,
+    "AbuseHistory": null,
+    "SocialSupport": "married, three school-age children; sister with history of depression",
+    "SupportNetwork": "family at home (spouse/children), workplace contacts"
+  },
+  "EducationOccupation": {
+    "EducationLevel": null,
+    "WorkHistory": "administrative job at dog food processing plant for 13 years",
+    "HousingStability": "stable",
+    "FinancialSituation": null,
+    "HobbiesInterests": null
+  },
+  "PsychologicalProfile": {
+    "PsychiatricDiagnoses": ["Major Depressive Disorder (current episode, severe)"],
+    "MainSymptoms": [
+      "depressed mood",
+      "anhedonia (loss of interest in life)",
+      "insomnia (difficulty falling asleep; early morning awakening)",
+      "weight loss (9 lb without dieting)",
+      "diminished energy",
+      "impaired concentration",
+      "psychomotor agitation",
+      "preoccupying false beliefs about work-related mistake",
+      "active suicidal ideation ('I feel like killing myself')"
+    ],
+    "EmotionalReactions": "hopeless, overwhelmed, agitated",
+    "Aggressiveness": "none reported",
+    "SelfPerceptionIdentity": "convinced she made a mistake leading to catastrophic consequences",
+    "SelfEsteem": "low",
+    "SenseOfSelfOthers": "preoccupied with perceived impending arrest and guilt",
+    "CognitiveStyle": ["ruminative", "catastrophizing", "fixed belief about error"],
+    "AttachmentStyle": null,
+    "ExecutiveFunctioning": "impaired (reduced concentration and job performance)",
+    "Memory": "grossly intact (recent and remote memory intact)",
+    "AttentionConcentration": "reduced",
+    "SensoryPerception": "normal (denies hallucinations)",
+    "HigherCognitiveFunctions": "intact"
+  },
+  "CopingDefenses": {
+    "CopingStrategies": "increased alcohol at night to try to sleep (2 glasses sometimes)",
+    "DefenseMechanisms": ["rumination", "avoidance (reported low engagement)"],
+    "SelfHarmSuicidality": "active suicidal ideation with plan-level intent expressed verbally ('I feel like killing myself') — high risk",
+    "SubstanceAbuse": "mild increased alcohol use (second glass of wine before bed)",
+    "Avoidance": "moderate",
+    "ImpulsiveRiskBehaviors": "not reported",
+    "Morality": null
+  },
+  "SocialRelations": {
+    "Friendships": null,
+    "RomanticRelationships": "married, husband present (brought her to ER)",
+    "SexualRelationships": null,
+    "FamilyInteractions": "lives with husband and three children; family aware and involved",
+    "PeerColleagueRelations": "employment maintained but performance impaired",
+    "SocialMediaBehavior": null
+  },
+  "TreatmentsInterventions": {
+    "PastTherapies": [],
+    "ProgressResistance": null,
+    "TherapeuticGoals": "stabilize suicidal ideation, treat major depression symptoms",
+    "MedicationHistory": ["sertraline (started 1 week prior)"],
+    "MedicationResponse": "too early to assess (1 week)",
+    "Hospitalizations": 0,
+    "EmergencyRoomVisits": "presented to ER for acute suicidal ideation",
+    "PastPsychiatricDiagnoses": []
+  },
+  "ClinicalJudgment": {
+    "JudgmentCapacity": "impaired by severe depressive ideation and psychomotor agitation",
+    "Insight": "limited (firm belief she will be arrested and that her mistake is true; patient insists belief is not a delusion)",
+    "ImpulseControl": "reduced (active suicidal ideation and agitation)"
+  },
+  "ResilienceWellbeing": {
+    "PsychologicalResilience": "low",
+    "SelfCompassion": "low",
+    "LifeSatisfaction": "low",
+    "PersonalGrowth": null,
+    "SenseOfCoherence": "fragmented (preoccupied with catastrophic outcome)",
+    "Empowerment": "low",
+    "HopeForFuture": "very limited",
+    "LongTermLifeGoals": null
+  },
+  "MedicalHistory": {
+    "PreexistingConditions": null,
+    "CurrentMedications": ["sertraline", "occasionally 2 glasses wine at night (self-medication)"],
+    "Allergies": null,
+    "Lifestyle": "works full time; increased alcohol use at night recently",
+    "GeneralHealth": "laboratory testing normal (CBC, electrolytes, BUN, creatinine, calcium, glucose, thyroid, folate, B12)",
+    "SleepPatterns": "trouble falling asleep almost every night; wakes at 3:00 a.m. several mornings/week",
+    "EatingHabits": "reduced appetite, unintentional 9 lb weight loss"
+  },
+  "SocialEnvironment": {
+    "SocialSupport": "spouse and children present; sister with depression in family history",
+    "HousingConditions": "stable",
+    "SocialSecurity": null,
+    "SocialCohesion": "moderate within household, limited outside supports noted",
+    "SocialDeterminantsMentalHealth": "work-related stress (fear of arrest), family responsibilities"
+  },
+  "TestBehavior": {
+    "RecurringDynamics": "persistent catastrophic belief about workplace mistake; high guilt",
+    "PredominantEmotions": ["despair", "guilt", "agitation"],
+    "Speech": "short answers, normal rate and tone",
+    "EyeContactPostureGestures": "cooperative but psychomotor agitation observed",
+    "AvoidantAttitudesMoodChange": "present (withdrawal from engagement and concerns about arrest)"
+  }
+}

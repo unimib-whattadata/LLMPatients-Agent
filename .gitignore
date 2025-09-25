@@ -1,4 +1,5 @@
-venv/
+.venv/
 config/
 notebooks/
 __pycache__/
+OLD/

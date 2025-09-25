@@ -1,49 +1,88 @@
 import json
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+TOPICS_PATH = Path("../data/topics_tree.json")  # adjust path if needed
+with open(TOPICS_PATH, "r", encoding="utf-8") as f:
+    TOPICS_JSON = json.load(f)
 
 def build_prompt(state):
     profile = state.patient_profile
     intent_topic = state.intent_topic or {}
     intent = intent_topic.get("intent", "unknown") 
-    topic = intent_topic.get("topic", "unknown")
+    top_topic = intent_topic.get("top", "unknown")
+    sub_topic = intent_topic.get("sub", "unknown")
 
-    # Extract only the allowed components
-    demographic = profile.DemographicInfo
+    # Always include psychological profile and demographics
     psych = profile.PsychologicalProfile
+    demographic = profile.DemographicInfo
 
+    always_sections = [
+        ("🧠 Psychological Profile", psych.dict() if hasattr(psych, "dict") else psych),
+        ("🧍 Demographic Information", demographic.dict() if hasattr(demographic, "dict") else demographic),
+    ]
+
+    always_text = "\n".join(
+        f"---\n{title}\n{json.dumps(data, indent=2)}"
+        for title, data in always_sections
+    )
+
+    # Dynamic inclusion based on metadata
+    dynamic_sections = []
+    used_fields = []  # for logging
+    if top_topic in TOPICS_JSON:
+        metadata = TOPICS_JSON[top_topic].get("metadata", {})
+        profile_fields = metadata.get("profile_fields", [])
+        for section_name in profile_fields:
+            # Skip DemographicInfo & PsychologicalProfile since already included
+            if section_name in {"DemographicInfo", "PsychologicalProfile"}:
+                continue
+            section = getattr(profile, section_name, None)
+            if section:
+                # If section is a pydantic model, convert to dict
+                if hasattr(section, "dict"):
+                    section_data = section.dict()
+                else:
+                    section_data = section
+                dynamic_sections.append(
+                    f"\n---\n📂 {section_name}\n{json.dumps(section_data, indent=2)}"
+                )
+                used_fields.append(section_name)
+
+    # Logging what we’re including
+    logger.info("🧩 Building prompt for topic:")
+    logger.info(f"   → Top: {top_topic}, Sub: {sub_topic}")
+    if used_fields:
+        logger.info(f"   → Included patient fields: {', '.join(used_fields)}")
+    else:
+        logger.info("   → No dynamic patient fields added for this topic.")
+
+    # === Conversation history handling ===
+    history_text = ""
+    if state.summary:
+        history_text += f"\n📝 Conversation Summary (earlier):\n{state.summary.strip()}\n"
+    if state.history:
+        last_turns = "\n".join(
+            [f"👩‍⚕️ Therapist: {h['therapist']}\n🧍 Patient: {h['patient']}" for h in state.history]
+        )
+        history_text += f"\n💬 Recent Conversation (last {len(state.history)} turns):\n{last_turns}\n"
+
+    # Build final prompt
     summary = f"""
 You are impersonating a therapy patient described below. Respond naturally and concisely, as this individual would during a live therapy session. Use their emotional tone, beliefs, and conversational tendencies.
 
----  
-🧍 Demographic Information  
-Age: {demographic.Age}  
-Gender: {demographic.Gender}  
-Marital Status: {demographic.MaritalStatus}  
-Cultural Background: {demographic.CulturalBackground}  
-Religious Beliefs: {demographic.ReligiousBeliefs}  
-Spoken Language: {demographic.SpokenLanguage}  
-Migration Status: {demographic.MigrationStatus}  
+{always_text}
 
----  
-🧠 Psychological Profile  
-Diagnoses: {", ".join(psych.PsychiatricDiagnoses)}  
-Main Symptoms: {", ".join(psych.MainSymptoms)}  
-Emotional Reactions: {psych.EmotionalReactions}  
-Aggressiveness: {psych.Aggressiveness}  
-Self-Perception / Identity: {psych.SelfPerceptionIdentity}  
-Self-Esteem: {psych.SelfEsteem}  
-Sense of Self and Others: {psych.SenseOfSelfOthers}  
-Cognitive Style: {", ".join(psych.CognitiveStyle)}  
-Attachment Style: {psych.AttachmentStyle}  
-Executive Functioning: {psych.ExecutiveFunctioning}  
-Memory: {psych.Memory}  
-Attention & Concentration: {psych.AttentionConcentration}  
-Sensory Perception: {psych.SensoryPerception}  
-Higher Cognitive Functions: {psych.HigherCognitiveFunctions}  
+{''.join(dynamic_sections)}
+
+{history_text}
 
 ---  
 🧩 Therapist Context  
 Intent: {intent}  
-Topic: {topic}  
+Topic: {top_topic} → {sub_topic}  
 Therapist input:  
 "{state.user_input}"
 

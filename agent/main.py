@@ -1,9 +1,11 @@
-from core.langgraph_builder import build_graph  # Assuming your graph builder is here
+from core.langgraph_builder import build_graph
 
 def run_agent():
-    graph = build_graph()
+    # First turn → load profile
+    graph = build_graph(initial=True)
     print("🧠 Simulated patient agent is ready.\n")
 
+    state = {}
     while True:
         try:
             user_input = input("👩‍⚕️ Therapist: ")
@@ -11,7 +13,19 @@ def run_agent():
                 print("Session ended.")
                 break
 
-            result = graph.invoke({"user_input": user_input})
+            # First turn: uses load_profile
+            if not state:
+                result = graph.invoke({"user_input": user_input})
+            else:
+                # Subsequent turns: reuse profile, skip reload
+                graph = build_graph(initial=False)
+                result = graph.invoke({
+                    "user_input": user_input,
+                    "patient_profile": state["patient_profile"]
+                })
+
+            state = result  # keep state for next turn
+
         except KeyboardInterrupt:
             print("\nSession interrupted.")
             break

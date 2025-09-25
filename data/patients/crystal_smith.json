@@ -1,0 +1,119 @@
+{
+  "patient_id": "crystal_smith_001",
+  "disorder_id": "6A71",
+  "DemographicInfo": {
+    "Age": 33,
+    "Gender": "female",
+    "MaritalStatus": "married",
+    "CulturalBackground": "African American",
+    "ReligiousBeliefs": "Christian (previously regular churchgoer, currently disengaged)",
+    "SpokenLanguage": "English",
+    "MigrationStatus": null
+  },
+  "FamilySocialHistory": {
+    "ChildhoodFamilyDynamics": "parents divorced when she was 10–11; mother remarried",
+    "CurrentParentRelations": "limited contact with mother and sisters",
+    "ChildhoodExperiences": "school fights; supportive experience with school counselor",
+    "AbuseHistory": null,
+    "SocialSupport": "husband, mother-in-law (currently less available), pastor (supportive but not contacted)",
+    "SupportNetwork": "family next door, historically sociable but now withdrawn"
+  },
+  "EducationOccupation": {
+    "EducationLevel": "completed high school",
+    "WorkHistory": "worked in retail sales until birth of first child at age 23; homemaker since",
+    "HousingStability": "stable (lives with husband and children)",
+    "FinancialSituation": "supported by husband",
+    "HobbiesInterests": "previously sociable and regular churchgoer, now withdrawn"
+  },
+  "PsychologicalProfile": {
+    "PsychiatricDiagnoses": ["Major Depressive Disorder (current episode)"],
+    "MainSymptoms": [
+      "depressed mood",
+      "anhedonia (loss of pleasure in activities, e.g., wedding attendance)",
+      "insomnia (early morning awakening)",
+      "fatigue",
+      "weight loss (13 lb without dieting)",
+      "irritability",
+      "guilt",
+      "social withdrawal",
+      "low motivation"
+    ],
+    "EmotionalReactions": "sad, tearful, irritable",
+    "Aggressiveness": "irritability with family, pacing and yelling",
+    "SelfPerceptionIdentity": "feels like a burden, guilty, weak in faith",
+    "SelfEsteem": "low",
+    "SenseOfSelfOthers": "guarded, perceives limited understanding from psychiatrist, doubts pastor’s interest",
+    "CognitiveStyle": ["self-critical", "guilty rumination"],
+    "AttachmentStyle": "anxious (conflict with in-laws, guilt over dependency)",
+    "ExecutiveFunctioning": "partially impaired (difficulty completing household activities, children late for school)",
+    "Memory": "intact",
+    "AttentionConcentration": "reduced",
+    "SensoryPerception": "normal",
+    "HigherCognitiveFunctions": "intact"
+  },
+  "CopingDefenses": {
+    "CopingStrategies": "withdrawal, reliance on mother-in-law, suppression of needs",
+    "DefenseMechanisms": ["guilt projection", "avoidance"],
+    "SelfHarmSuicidality": "denies current suicidality; past passive thoughts ('should just give up')",
+    "SubstanceAbuse": "denied; abstinent from alcohol since first pregnancy",
+    "Avoidance": "moderate (social withdrawal, avoids church/pastor)",
+    "ImpulsiveRiskBehaviors": "none reported",
+    "Morality": "influenced by religious beliefs, feels weak in faith"
+  },
+  "SocialRelations": {
+    "Friendships": "previously sociable, now withdrawn from friends",
+    "RomanticRelationships": "married 13 years, marital conflict present",
+    "SexualRelationships": null,
+    "FamilyInteractions": "irritability with husband and mother-in-law, reduced contact with mother and sisters",
+    "PeerColleagueRelations": "not working currently",
+    "SocialMediaBehavior": null
+  },
+  "TreatmentsInterventions": {
+    "PastTherapies": ["brief trial of fluoxetine (discontinued due to fatigue)", "short-term therapy (dropped out, felt misunderstood)"],
+    "ProgressResistance": "limited adherence to past treatment, reluctant engagement",
+    "TherapeuticGoals": "relieve depressive symptoms, improve functioning and relationships",
+    "MedicationHistory": ["fluoxetine (brief, discontinued)"],
+    "MedicationResponse": "negative (increased fatigue, discontinued quickly)",
+    "Hospitalizations": 0,
+    "EmergencyRoomVisits": 0,
+    "PastPsychiatricDiagnoses": []
+  },
+  "ClinicalJudgment": {
+    "JudgmentCapacity": "normal",
+    "Insight": "normal",
+    "ImpulseControl": "intact"
+  },
+  "ResilienceWellbeing": {
+    "PsychologicalResilience": "low (struggling with stress and guilt)",
+    "SelfCompassion": "low",
+    "LifeSatisfaction": "low",
+    "PersonalGrowth": "limited (stagnated since symptom onset)",
+    "SenseOfCoherence": "fragmented (feels weak, disconnected from faith)",
+    "Empowerment": "low",
+    "HopeForFuture": "limited",
+    "LongTermLifeGoals": "unclear"
+  },
+  "MedicalHistory": {
+    "PreexistingConditions": "generally good health, no major conditions reported",
+    "CurrentMedications": [],
+    "Allergies": null,
+    "Lifestyle": "nonsmoker, no alcohol or illicit drugs",
+    "GeneralHealth": "good",
+    "SleepPatterns": "wakes before dawn, insomnia",
+    "EatingHabits": "poor appetite, unintentional weight loss"
+  },
+  "SocialEnvironment": {
+    "SocialSupport": "husband, mother-in-law (less available), pastor (not currently sought out)",
+    "HousingConditions": "lives with husband and children, in-laws live next door",
+    "SocialSecurity": "financially dependent on husband",
+    "SocialCohesion": "decreasing (withdrawn from family and community)",
+    "SocialDeterminantsMentalHealth": "marital conflict, childcare stress, strained support from in-laws, loss of faith engagement"
+  },
+  "TestBehavior": {
+    "RecurringDynamics": "withdrawal, guilt, irritability",
+    "PredominantEmotions": ["sadness", "guilt", "irritability"],
+    "Speech": "coherent, goal directed, slow to respond, short answers",
+    "EyeContactPostureGestures": "avoids eye contact, guarded, tearful",
+    "AvoidantAttitudesMoodChange": "present (social withdrawal, disengaged from faith community)"
+  }
+}
