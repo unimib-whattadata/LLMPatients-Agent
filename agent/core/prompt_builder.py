@@ -4,18 +4,19 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-TOPICS_PATH = Path("../data/topics_tree.json")  # adjust path if needed
+TOPICS_PATH = Path("../data/topics_tree.json")
 with open(TOPICS_PATH, "r", encoding="utf-8") as f:
     TOPICS_JSON = json.load(f)
+
 
 def build_prompt(state):
     profile = state.patient_profile
     intent_topic = state.intent_topic or {}
-    intent = intent_topic.get("intent", "unknown") 
+    intent = intent_topic.get("intent", "unknown")
     top_topic = intent_topic.get("top", "unknown")
     sub_topic = intent_topic.get("sub", "unknown")
 
-    # Always include psychological profile and demographics
+    # === Core patient data ===
     psych = profile.PsychologicalProfile
     demographic = profile.DemographicInfo
 
@@ -29,49 +30,49 @@ def build_prompt(state):
         for title, data in always_sections
     )
 
-    # Dynamic inclusion based on metadata
+    # === Dynamically include extra fields based on topic ===
     dynamic_sections = []
-    used_fields = []  # for logging
+    used_fields = []
     if top_topic in TOPICS_JSON:
         metadata = TOPICS_JSON[top_topic].get("metadata", {})
         profile_fields = metadata.get("profile_fields", [])
         for section_name in profile_fields:
-            # Skip DemographicInfo & PsychologicalProfile since already included
             if section_name in {"DemographicInfo", "PsychologicalProfile"}:
                 continue
             section = getattr(profile, section_name, None)
             if section:
-                # If section is a pydantic model, convert to dict
-                if hasattr(section, "dict"):
-                    section_data = section.dict()
-                else:
-                    section_data = section
+                section_data = section.dict() if hasattr(section, "dict") else section
                 dynamic_sections.append(
                     f"\n---\n📂 {section_name}\n{json.dumps(section_data, indent=2)}"
                 )
                 used_fields.append(section_name)
 
-    # Logging what we’re including
-    logger.info("🧩 Building prompt for topic:")
-    logger.info(f"   → Top: {top_topic}, Sub: {sub_topic}")
+    logger.info(f"🧩 Building prompt for topic: {top_topic} → {sub_topic}")
     if used_fields:
         logger.info(f"   → Included patient fields: {', '.join(used_fields)}")
     else:
         logger.info("   → No dynamic patient fields added for this topic.")
 
-    # === Conversation history handling ===
+    # === Build conversation memory ===
     history_text = ""
-    if state.summary:
-        history_text += f"\n📝 Conversation Summary (earlier):\n{state.summary.strip()}\n"
+    if state.summary.strip():
+        history_text += f"\n🧾 Summary of previous sessions:\n{state.summary.strip()}\n"
     if state.history:
         last_turns = "\n".join(
-            [f"👩‍⚕️ Therapist: {h['therapist']}\n🧍 Patient: {h['patient']}" for h in state.history]
+            [f"👩‍⚕️ Therapist: {h['therapist']}\n🧍 Patient: {h['patient']}" for h in state.history[-5:]]
         )
-        history_text += f"\n💬 Recent Conversation (last {len(state.history)} turns):\n{last_turns}\n"
+        history_text += f"\n💬 Recent conversation (last {len(state.history[-5:])} turns):\n{last_turns}\n"
 
-    # Build final prompt
+    # === Emotional continuity (if tracked) ===
+    emotional_tone = getattr(profile, "current_emotional_state", "not specified")
+    last_topic = (
+        f"{state.last_topic['top']} → {state.last_topic['sub']}"
+        if state.last_topic else "unknown"
+    )
+
+    # === Build final prompt ===
     summary = f"""
-You are impersonating a therapy patient described below. Respond naturally and concisely, as this individual would during a live therapy session. Use their emotional tone, beliefs, and conversational tendencies.
+You are impersonating a therapy patient described below. You must respond naturally and consistently across turns, preserving emotional tone, personality traits, and prior conversational themes.
 
 {always_text}
 
@@ -79,16 +80,20 @@ You are impersonating a therapy patient described below. Respond naturally and c
 
 {history_text}
 
----  
-🧩 Therapist Context  
-Intent: {intent}  
-Topic: {top_topic} → {sub_topic}  
-Therapist input:  
-"{state.user_input}"
+---
+🧩 Context for This Turn
+• Last discussed topic: {last_topic}
+• Current detected topic: {top_topic} → {sub_topic}
+• Current emotional tone: {emotional_tone}
+• Therapist's latest message: "{state.user_input}"
 
----  
-✳️ Instruction  
-Based on the above, generate **a short, emotionally authentic response** that reflects how this patient would react in context. Consider their tone, defenses, and symptoms. The response should sound like a real utterance in session, not an explanation or narration.
+---
+✳️ Instruction
+Generate a **emotionally authentic reply** (1–3 sentences) as this patient would respond *in the middle of a real session*. 
+Your reply must:
+- Be consistent with their personality and emotional patterns.
+- Reflect continuity with the ongoing dialogue and prior mood.
+- Avoid narration or analysis—speak as the patient, not about them.
 """.strip()
 
     return {"prompt": summary}

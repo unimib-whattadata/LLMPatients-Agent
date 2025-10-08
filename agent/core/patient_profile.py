@@ -2,8 +2,10 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 import json
 
-# === Subcomponents ===
+# === Subcomponents (unchanged) ===
 class DemographicInfo(BaseModel):
+    Name: str
+    Surname: str
     Age: int
     Gender: str
     MaritalStatus: str
@@ -124,12 +126,29 @@ class PatientProfile(BaseModel):
     SocialEnvironment: SocialEnvironment
     TestBehavior: TestBehavior
 
+    # === New dynamic state fields ===
+    current_emotional_state: Optional[str] = "neutral, guarded tone"
+    session_notes: Optional[str] = None  # can hold summary or updates
+
     @property
     def name(self) -> str:
         return getattr(self.DemographicInfo, "Name", self.patient_id.replace("_", " ").title())
 
     @classmethod
     def from_file(cls, path: str) -> "PatientProfile":
+        """Safely load JSON and ignore missing dynamic fields."""
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
+
+        # Ensure backward compatibility: ignore unknown fields
         return cls(**data)
+
+    def to_text_summary(self) -> str:
+        """Compact summary for prompt context."""
+        demo = self.DemographicInfo
+        return (
+            f"{self.name}, {demo.Age}-year-old {demo.Gender.lower()} "
+            f"with background: {demo.CulturalBackground.lower()}. "
+            f"Known for {', '.join(self.PsychologicalProfile.MainSymptoms[:3])}. "
+            f"Typical tone: {self.current_emotional_state}."
+        )

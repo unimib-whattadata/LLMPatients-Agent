@@ -24,7 +24,7 @@ env_path = Path(__file__).resolve().parent.parent / "config" / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # === Load Persona Path ===
-PATIENT_PATH = Path("../data/patients/juanita_delgado.json")
+PATIENT_PATH = Path("../data/patients/john_wayne.json")
 with open(PATIENT_PATH, "r") as f:
     PATIENT = json.load(f)
 
@@ -78,6 +78,8 @@ class State(BaseModel):
 def load_profile(state):
     logger.info("🔄 Loading patient profile...")
     profile = PatientProfile.from_file(str(PATIENT_PATH))
+    if not hasattr(profile, "current_emotional_state"):
+        profile.current_emotional_state = "neutral, guarded tone"
     logger.info("✅ Patient profile loaded.")
     return {"patient_profile": profile}
 
@@ -139,41 +141,74 @@ def generate_response(state):
 
 def update_memory(state):
     """
-    Append latest turn to history.
-    If >5 turns, fold oldest 5 into summary and keep last 5 verbatim.
+    Append the latest therapist–patient exchange to memory.
+    If >5 turns, fold older ones into the long-term summary.
+    Also updates the patient's emotional tone.
     """
-    state.history.append({
+    logger.info("🧠 Entering update_memory()")
+
+    # === 1. Append new turn ===
+    new_turn = {
         "therapist": state.user_input,
         "patient": state.response,
         "topic": state.intent_topic
-    })
+    }
+    state.history.append(new_turn)
 
-    logger.info(f"🧾 Memory before folding: {len(state.history)} turns, summary length={len(state.summary)} chars")
+    logger.info(f"🧾 Added new turn. Total turns: {len(state.history)}")
+    logger.debug(f"🧩 New turn content: {json.dumps(new_turn, indent=2)}")
 
+    # === 2. Summarize older turns ===
     if len(state.history) > 5:
         old_turns = state.history[:-5]
         old_text = "\n".join(
-            [f"T: {h['therapist']} | P: {h['patient']}" for h in old_turns]
+            [f"Therapist: {h['therapist']}\nPatient: {h['patient']}" for h in old_turns]
         )
-        logger.info("📝 Summarizing older conversation turns into memory...")
+        logger.info("📝 Summarizing older conversation turns into long-term memory...")
         summary_update = llm_runner.generate(
-            prompt=f"Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and key topics:\n\n{old_text}"
+            prompt=f"Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and themes:\n\n{old_text}"
         )
-        state.summary += "\n" + summary_update.strip()
+        summary_update = summary_update.strip()
+        logger.info(f"🧾 Summary update (chars={len(summary_update)}): {summary_update[:120]}...")
+
+        state.summary += "\n" + summary_update
         state.history = state.history[-5:]
+        logger.info(f"✅ Folded old turns. New history len={len(state.history)} | Summary len={len(state.summary)}")
 
-        logger.info("✅ Memory updated (older turns folded into summary).")
+    # === 3. Extract emotional tone ===
+    try:
+        tone_prompt = (
+            f"Based on the patient's latest reply below, describe their current emotional tone "
+            f"in one short, clinician-style phrase (e.g., 'anxious and defensive', 'sad but receptive', 'flat affect and withdrawn').\n\n"
+            f"Patient reply:\n{state.response}"
+        )
+        tone_summary = llm_runner.generate(prompt=tone_prompt).strip()
+        prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
+        state.patient_profile.current_emotional_state = tone_summary
+        logger.info(f"🫀 Emotional tone updated: '{prev_tone}' → '{tone_summary}'")
 
-    logger.info(f"📌 State update → history_len={len(state.history)}, summary_len={len(state.summary)}")
-    if state.history:
-        last = state.history[-1]
-        logger.info(f"   → Last turn: T='{last['therapist']}' | P='{last['patient']}' | Topic={last['topic']}")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not extract emotional tone: {e}")
+        state.patient_profile.current_emotional_state = "unspecified"
 
-    return state
+    # === 4. Inspect and return ===
+    logger.info(f"📊 Summary length: {len(state.summary)} chars")
+    logger.info(f"📈 History length: {len(state.history)} turns")
+    for i, h in enumerate(state.history, 1):
+        logger.debug(f"   🗣️ Turn {i}: Therapist='{h['therapist'][:40]}...' | Patient='{h['patient'][:40]}...'")
+
+    return {
+        "history": state.history,
+        "summary": state.summary,
+        "patient_profile": state.patient_profile
+    }
 
 def display_response(state):
     logger.info("Displaying response:")
-    print(f"\n Juanita: {state.response}\n")
+    logger.info(f"\n Patient: {state.response}\n")
+    logger.info(f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}")
+    logger.info(f"🕓 Turns so far: {len(state.history)} | Summary length: {len(state.summary)} chars\n")
+
     return state
 
 # === Build LangGraph ===
