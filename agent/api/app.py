@@ -49,7 +49,7 @@ async def send_message(req: MessageRequest):
     reasoning_time = round(time.time() - start_time, 3)
 
     # === Extract relevant info ===
-    message = result.get("patient_response", "...")
+    message = result.get("response", "...")  # ← corrected
     emotion = getattr(result.get("patient_profile", None), "current_emotional_state", "base")
     topic_info = result.get("last_topic", {})
     topic = topic_info["sub"] if isinstance(topic_info, dict) and "sub" in topic_info else "general"

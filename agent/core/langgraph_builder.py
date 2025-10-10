@@ -34,12 +34,8 @@ with open(PATIENT_PATH, "r") as f:
 # === Initialize LLM Runner ===
 llm_runner = create_llm_runner()
 
-# === Device for embeddings (MPS if available, else CPU) ===
-device = "mps" if torch.backends.mps.is_available() else "cpu"
-logger.info(f"⚙️ Using device for embeddings: {device}")
-
 # === Load SentenceTransformer ===
-st_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
 
 # === Load Topic Tree JSON ===
 TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
