@@ -5,3 +5,5 @@ code/
 __pycache__/
 tests/
 OLD/
+.env
+vertex-ai-api-key.json
