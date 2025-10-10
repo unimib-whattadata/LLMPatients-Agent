@@ -4,7 +4,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-TOPICS_PATH = Path("../data/topics_tree.json")
+ROOT_DIR = Path(__file__).resolve().parents[2]  # project root (psyllm/)
+TOPICS_PATH = ROOT_DIR / "data" / "topics_tree.json"
 with open(TOPICS_PATH, "r", encoding="utf-8") as f:
     TOPICS_JSON = json.load(f)
 
@@ -24,6 +25,10 @@ def build_prompt(state):
         ("🧠 Psychological Profile", psych.dict() if hasattr(psych, "dict") else psych),
         ("🧍 Demographic Information", demographic.dict() if hasattr(demographic, "dict") else demographic),
     ]
+
+    # Include current emotional tone to maintain continuity
+    current_tone = getattr(profile, "current_emotional_state", "unspecified")
+    always_sections.append(("🫀 Current Emotional State", {"Tone": current_tone}))
 
     always_text = "\n".join(
         f"---\n{title}\n{json.dumps(data, indent=2)}"
@@ -89,11 +94,11 @@ You are impersonating a therapy patient described below. You must respond natura
 
 ---
 ✳️ Instruction
-Generate a **emotionally authentic reply** (1–3 sentences) as this patient would respond *in the middle of a real session*. 
-Your reply must:
-- Be consistent with their personality and emotional patterns.
-- Reflect continuity with the ongoing dialogue and prior mood.
-- Avoid narration or analysis—speak as the patient, not about them.
+You are performing a live therapy session. Respond **in English** as this patient would, staying consistent with their current emotional tone and personality traits.  
+- Base your emotional expression on the field "Current Emotional State" above.  
+- Reflect natural changes (e.g., if calmer, sound more grounded; if anxious, sound tense).  
+- Keep responses brief (1–3 sentences), conversational, and emotionally authentic—not analytical or narrative.
+- Speak as the patient, not about them.
 """.strip()
 
     return {"prompt": summary}

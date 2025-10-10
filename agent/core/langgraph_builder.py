@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel
 from dotenv import load_dotenv
+
 from langgraph.graph import StateGraph
-from core.prompt_builder import build_prompt
-from core.llm_runner import create_llm_runner
-from core.patient_profile import PatientProfile
+from agent.core.prompt_builder import build_prompt
+from agent.core.llm_runner import create_llm_runner
+from agent.core.patient_profile import PatientProfile
 from langchain_core.runnables import RunnableLambda
 from sentence_transformers import SentenceTransformer, util
 
@@ -19,12 +20,14 @@ from sentence_transformers import SentenceTransformer, util
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+
 # === Load Environment ===
-env_path = Path(__file__).resolve().parent.parent / "config" / ".env"
+env_path = ROOT_DIR / "config" / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # === Load Persona Path ===
-PATIENT_PATH = Path("../data/patients/john_wayne.json")
+PATIENT_PATH = ROOT_DIR / "data" / "patients" / "john_wayne.json"
 with open(PATIENT_PATH, "r") as f:
     PATIENT = json.load(f)
 
@@ -39,7 +42,7 @@ logger.info(f"⚙️ Using device for embeddings: {device}")
 st_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
 
 # === Load Topic Tree JSON ===
-TOPIC_PATH = Path("../data/topics_tree.json")
+TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
 with open(TOPIC_PATH, "r") as f:
     TOPIC_TREE = json.load(f)
 
