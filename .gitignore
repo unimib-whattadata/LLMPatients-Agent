@@ -7,3 +7,4 @@ tests/
 OLD/
 .env
 vertex-ai-api-key.json
+.DS_Store

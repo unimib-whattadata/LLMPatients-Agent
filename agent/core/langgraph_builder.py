@@ -24,7 +24,8 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 # === Load Environment ===
 env_path = ROOT_DIR / "config" / ".env"
-load_dotenv(dotenv_path=env_path)
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
 
 # === Load Persona Path ===
 PATIENT_PATH = ROOT_DIR / "data" / "patients" / "john_wayne.json"
@@ -42,6 +43,7 @@ TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
 with open(TOPIC_PATH, "r") as f:
     TOPIC_TREE = json.load(f)
 
+
 # === Flatten enriched topics JSON into a list of dicts ===
 def flatten_topics(topics_json):
     flat = []
@@ -49,18 +51,16 @@ def flatten_topics(topics_json):
         for sub_topic, desc in content.items():
             if sub_topic == "metadata":  # skip metadata
                 continue
-            flat.append({
-                "top": top_topic,
-                "sub": sub_topic,
-                "desc": desc
-            })
+            flat.append({"top": top_topic, "sub": sub_topic, "desc": desc})
     return flat
+
 
 # === Build embeddings ===
 TOPIC_EMBEDDINGS = {
     f"{t['top']} → {t['sub']}": st_model.encode([t["desc"]], convert_to_tensor=True)[0]
     for t in flatten_topics(TOPIC_TREE)
 }
+
 
 # === LangGraph State ===
 class State(BaseModel):
@@ -70,8 +70,9 @@ class State(BaseModel):
     prompt: Optional[str] = None
     response: Optional[str] = None
     last_topic: Optional[dict] = None
-    history: list = []              # list of full turns
-    summary: str = ""               # rolling summary of older turns
+    history: list = []  # list of full turns
+    summary: str = ""  # rolling summary of older turns
+
 
 # === Build Nodes ===
 def load_profile(state):
@@ -82,6 +83,7 @@ def load_profile(state):
     logger.info("✅ Patient profile loaded.")
     return {"patient_profile": profile}
 
+
 def detect_intent_topic(state, threshold: float = 0.3):
     logger.info("🔍 Detecting topic with SentenceTransformer...")
 
@@ -91,9 +93,9 @@ def detect_intent_topic(state, threshold: float = 0.3):
                 "intent": "unknown",
                 "top": "unknown",
                 "sub": "unknown",
-                "score": 0.0
+                "score": 0.0,
             },
-            "last_topic": state.last_topic
+            "last_topic": state.last_topic,
         }
 
     # Encode therapist input
@@ -101,8 +103,7 @@ def detect_intent_topic(state, threshold: float = 0.3):
 
     # Compute similarity to each subtopic
     scores = {
-        key: util.cos_sim(text_emb, emb).item()
-        for key, emb in TOPIC_EMBEDDINGS.items()
+        key: util.cos_sim(text_emb, emb).item() for key, emb in TOPIC_EMBEDDINGS.items()
     }
 
     # Pick best match
@@ -125,18 +126,22 @@ def detect_intent_topic(state, threshold: float = 0.3):
             "intent": "topic_detection",
             "top": top,
             "sub": sub if best_score >= threshold else "general",
-            "score": best_score
+            "score": best_score,
         }
-        logger.info(f"🧠 Detected topic: {topic['top']} → {topic['sub']} (score={topic['score']:.3f})")
+        logger.info(
+            f"🧠 Detected topic: {topic['top']} → {topic['sub']} (score={topic['score']:.3f})"
+        )
 
     logger.info(f"📌 State update → intent_topic={topic}, last_topic={topic}")
     return {"intent_topic": topic, "last_topic": topic}
+
 
 def generate_response(state):
     logger.info("💬 Generating response to therapist input...")
     result = llm_runner.generate(prompt=state.prompt)
     logger.info(f"✅ Response generated: {result}")
     return {"response": result}
+
 
 def update_memory(state):
     """
@@ -150,7 +155,7 @@ def update_memory(state):
     new_turn = {
         "therapist": state.user_input,
         "patient": state.response,
-        "topic": state.intent_topic
+        "topic": state.intent_topic,
     }
     state.history.append(new_turn)
 
@@ -168,11 +173,15 @@ def update_memory(state):
             prompt=f"Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and themes:\n\n{old_text}"
         )
         summary_update = summary_update.strip()
-        logger.info(f"🧾 Summary update (chars={len(summary_update)}): {summary_update[:120]}...")
+        logger.info(
+            f"🧾 Summary update (chars={len(summary_update)}): {summary_update[:120]}..."
+        )
 
         state.summary += "\n" + summary_update
         state.history = state.history[-5:]
-        logger.info(f"✅ Folded old turns. New history len={len(state.history)} | Summary len={len(state.summary)}")
+        logger.info(
+            f"✅ Folded old turns. New history len={len(state.history)} | Summary len={len(state.summary)}"
+        )
 
     # === 3. Extract emotional tone ===
     try:
@@ -194,21 +203,29 @@ def update_memory(state):
     logger.info(f"📊 Summary length: {len(state.summary)} chars")
     logger.info(f"📈 History length: {len(state.history)} turns")
     for i, h in enumerate(state.history, 1):
-        logger.debug(f"   🗣️ Turn {i}: Therapist='{h['therapist'][:40]}...' | Patient='{h['patient'][:40]}...'")
+        logger.debug(
+            f"   🗣️ Turn {i}: Therapist='{h['therapist'][:40]}...' | Patient='{h['patient'][:40]}...'"
+        )
 
     return {
         "history": state.history,
         "summary": state.summary,
-        "patient_profile": state.patient_profile
+        "patient_profile": state.patient_profile,
     }
+
 
 def display_response(state):
     logger.info("Displaying response:")
     logger.info(f"\n Patient: {state.response}\n")
-    logger.info(f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}")
-    logger.info(f"🕓 Turns so far: {len(state.history)} | Summary length: {len(state.summary)} chars\n")
+    logger.info(
+        f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}"
+    )
+    logger.info(
+        f"🕓 Turns so far: {len(state.history)} | Summary length: {len(state.summary)} chars\n"
+    )
 
     return state
+
 
 # === Build LangGraph ===
 def build_graph(initial=True):
