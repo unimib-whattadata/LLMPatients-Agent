@@ -1,5 +1,7 @@
 .venv/
-config/
+my-config/
 notebooks/
+code/
 __pycache__/
+tests/
 OLD/
