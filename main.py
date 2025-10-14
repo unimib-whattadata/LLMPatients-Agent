@@ -1,4 +1,4 @@
-from core.langgraph_builder import build_graph
+from agent.core.langgraph_builder import build_graph
 import logging
 from pprint import pprint
 

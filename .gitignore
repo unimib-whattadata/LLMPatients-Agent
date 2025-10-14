@@ -1,5 +1,5 @@
 .venv/
-my-config/
+config/
 notebooks/
 code/
 __pycache__/
@@ -7,3 +7,6 @@ tests/
 OLD/
 .env
 vertex-ai-api-key.json
+.android/
+.idea/
+.cache/
