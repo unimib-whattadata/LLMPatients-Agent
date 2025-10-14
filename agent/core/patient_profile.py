@@ -1,8 +1,9 @@
-from typing import List, Dict, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel
 import json
 
-# === Subcomponents (unchanged) ===
+
+# === Subcomponents ===
 class DemographicInfo(BaseModel):
     Name: str
     Surname: str
@@ -18,9 +19,11 @@ class FamilySocialHistory(BaseModel):
     ChildhoodFamilyDynamics: str
     CurrentParentRelations: str
     ChildhoodExperiences: str
-    AbuseHistory: str
-    SocialSupport: str
-    SupportNetwork: str
+    SignificantDevelopmentalExperiences: Optional[str] = None
+    FamilyPsychiatricHistory: Optional[str] = None
+    AbuseHistory: Optional[str] = None
+    SocialSupport: Optional[str] = None
+    SupportNetwork: Optional[str] = None
 
 class EducationOccupation(BaseModel):
     EducationLevel: str
@@ -32,26 +35,29 @@ class EducationOccupation(BaseModel):
 class PsychologicalProfile(BaseModel):
     PsychiatricDiagnoses: List[str]
     MainSymptoms: List[str]
-    EmotionalReactions: str
-    Aggressiveness: str
-    SelfPerceptionIdentity: str
-    SelfEsteem: str
-    SenseOfSelfOthers: str
-    CognitiveStyle: List[str]
-    AttachmentStyle: str
-    ExecutiveFunctioning: str
-    Memory: str
-    AttentionConcentration: str
-    SensoryPerception: str
-    HigherCognitiveFunctions: str
+    AffectiveEmotionalFunctioning: Optional[str] = None
+    PsychiatricComorbidities: Optional[str] = None
+    SenseOfSelfOthers: Optional[str] = None
+    ThoughtCognitiveStyle: Optional[str] = None
+    EmotionalReactions: Optional[str] = None
+    Aggressiveness: Optional[str] = None
+    SelfPerceptionIdentity: Optional[str] = None
+    SelfEsteem: Optional[str] = None
+    CognitiveStyle: Optional[List[str]] = None
+    AttachmentStyle: Optional[str] = None
+    ExecutiveFunctioning: Optional[str] = None
+    Memory: Optional[str] = None
+    AttentionConcentration: Optional[str] = None
+    SensoryPerception: Optional[str] = None
+    HigherCognitiveFunctions: Optional[str] = None
 
 class CopingDefenses(BaseModel):
     CopingStrategies: str
     DefenseMechanisms: List[str]
     SelfHarmSuicidality: str
     SubstanceAbuse: str
-    Avoidance: str
-    ImpulsiveRiskBehaviors: str
+    Avoidance: Optional[str] = None
+    ImpulsiveRiskBehaviors: Optional[str] = None
     Morality: str
 
 class SocialRelations(BaseModel):
@@ -65,12 +71,13 @@ class SocialRelations(BaseModel):
 class TreatmentsInterventions(BaseModel):
     PastTherapies: List[str]
     ProgressResistance: str
-    TherapeuticGoals: str
+    TherapeuticGoals: Union[str, List[str]]
     MedicationHistory: List[str]
     MedicationResponse: str
     Hospitalizations: int
     EmergencyRoomVisits: str
     PastPsychiatricDiagnoses: List[str]
+    PreviousDropouts: Optional[str] = None
 
 class ClinicalJudgment(BaseModel):
     JudgmentCapacity: str
@@ -90,7 +97,8 @@ class ResilienceWellbeing(BaseModel):
 class MedicalHistory(BaseModel):
     PreexistingConditions: str
     CurrentMedications: List[str]
-    Allergies: str
+    PharmacologicalTreatments: Optional[List[str]] = None
+    Allergies: Optional[str] = None
     Lifestyle: str
     GeneralHealth: str
     SleepPatterns: str
@@ -110,9 +118,22 @@ class TestBehavior(BaseModel):
     EyeContactPostureGestures: str
     AvoidantAttitudesMoodChange: str
 
+# === Metadata for UI/Simulation Layer ===
+class PatientMetadata(BaseModel):
+    background: str
+    therapy_goals: List[str]
+    difficulty: int
+    estimatedDuration: int
+    avatarUrl: str
+    voiceId: str
+    welcomeMessage: str
+
 # === Main Patient Profile ===
 class PatientProfile(BaseModel):
     patient_id: str
+    disorder_id: Optional[str] = None
+    Metadata: Optional[PatientMetadata] = None
+
     DemographicInfo: DemographicInfo
     FamilySocialHistory: FamilySocialHistory
     EducationOccupation: EducationOccupation
@@ -126,29 +147,37 @@ class PatientProfile(BaseModel):
     SocialEnvironment: SocialEnvironment
     TestBehavior: TestBehavior
 
-    # === New dynamic state fields ===
-    current_emotional_state: Optional[str] = "neutral, guarded tone"
-    session_notes: Optional[str] = None  # can hold summary or updates
+    # === Clinical and dynamic fields ===
+    ClinicalSummary: Optional[str] = None
+    current_emotional_state: Optional[str] = "base"
+    session_notes: Optional[str] = None
+    
 
     @property
     def name(self) -> str:
-        return getattr(self.DemographicInfo, "Name", self.patient_id.replace("_", " ").title())
+        """Return formatted patient name."""
+        demo = getattr(self, "DemographicInfo", None)
+        if demo:
+            return f"{demo.Name} {demo.Surname}"
+        return self.patient_id.replace("_", " ").title()
 
     @classmethod
     def from_file(cls, path: str) -> "PatientProfile":
         """Safely load JSON and ignore missing dynamic fields."""
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-
-        # Ensure backward compatibility: ignore unknown fields
         return cls(**data)
 
     def to_text_summary(self) -> str:
-        """Compact summary for prompt context."""
+        """Compact summary for LLM or prompt context."""
         demo = self.DemographicInfo
+        profile = self.PsychologicalProfile
+        symptoms = ", ".join(profile.MainSymptoms[:3]) if profile.MainSymptoms else "no major symptoms"
         return (
-            f"{self.name}, {demo.Age}-year-old {demo.Gender.lower()} "
+            f"{demo.Name} {demo.Surname}, {demo.Age}-year-old {demo.Gender.lower()} "
             f"with background: {demo.CulturalBackground.lower()}. "
-            f"Known for {', '.join(self.PsychologicalProfile.MainSymptoms[:3])}. "
-            f"Typical tone: {self.current_emotional_state}."
+            f"Known for {symptoms}. Typical tone: {self.current_emotional_state}."
         )
+    
+    class Config:
+        extra = "ignore"  # Ignore unexpected fields when loading from JSON

@@ -24,13 +24,8 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 # === Load Environment ===
 env_path = ROOT_DIR / "config" / ".env"
-if env_path.exists():
-    load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path)
 
-# === Load Persona Path ===
-PATIENT_PATH = ROOT_DIR / "data" / "patients" / "john_wayne.json"
-with open(PATIENT_PATH, "r") as f:
-    PATIENT = json.load(f)
 
 # === Initialize LLM Runner ===
 llm_runner = create_llm_runner()
@@ -38,11 +33,49 @@ llm_runner = create_llm_runner()
 # === Load SentenceTransformer ===
 st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
 
+EMOTION_PROTOTYPES = {
+    "anger": "experiencing irritation, frustration, or hostility toward someone or something",
+    "anticipation": "feeling hopeful, curious, or mentally preparing for what might happen next",
+    "disgust": "feeling strong aversion, rejection, or discomfort toward a person, idea, or situation",
+    "joy": "feeling content, pleased, or uplifted, with a generally positive emotional tone",
+    "sadness": "feeling downcast, dejected, or emotionally heavy, with low energy or motivation",
+    "surprise": "feeling startled, taken aback, or caught off guard by an unexpected event or realization",
+    "trust": "feeling open, safe, and receptive, showing confidence in others or the situation",
+    "base": "displaying a neutral, calm, or emotionally even state, without marked positive or negative affect"
+}
+
+EMOTION_EMBEDDINGS = {
+    e: st_model.encode([desc], convert_to_tensor=True)[0]
+    for e, desc in EMOTION_PROTOTYPES.items()
+}
+
+def classify_emotion_by_similarity(text: str, threshold: float = 0.3) -> str:
+    """
+    Map a tone description (e.g. 'sad but receptive') into one of the canonical
+    emotion categories using cosine similarity with precomputed emotion embeddings.
+    Returns 'base' if similarity is below the threshold.
+    """
+    if not text or not text.strip():
+        return "base"
+
+    text_emb = st_model.encode([text.strip()], convert_to_tensor=True)
+    sims = {
+        emotion: util.cos_sim(text_emb, emb).item()
+        for emotion, emb in EMOTION_EMBEDDINGS.items()
+    }
+
+    best_emotion, best_score = max(sims.items(), key=lambda x: x[1])
+    logger.debug(f"🔎 Emotion similarity scores: {sims}")
+    logger.info(f"🎭 Best emotion={best_emotion} (score={best_score:.3f}) for tone='{text}'")
+
+    if best_score < threshold:
+        return "base"
+    return best_emotion
+
 # === Load Topic Tree JSON ===
 TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
 with open(TOPIC_PATH, "r") as f:
     TOPIC_TREE = json.load(f)
-
 
 # === Flatten enriched topics JSON into a list of dicts ===
 def flatten_topics(topics_json):
@@ -51,9 +84,12 @@ def flatten_topics(topics_json):
         for sub_topic, desc in content.items():
             if sub_topic == "metadata":  # skip metadata
                 continue
-            flat.append({"top": top_topic, "sub": sub_topic, "desc": desc})
+            flat.append({
+                "top": top_topic,
+                "sub": sub_topic,
+                "desc": desc
+            })
     return flat
-
 
 # === Build embeddings ===
 TOPIC_EMBEDDINGS = {
@@ -61,28 +97,36 @@ TOPIC_EMBEDDINGS = {
     for t in flatten_topics(TOPIC_TREE)
 }
 
-
 # === LangGraph State ===
 class State(BaseModel):
+    patient_id: Optional[str] = None  # NEW
     user_input: Optional[str] = None
     patient_profile: Optional[PatientProfile] = None
     intent_topic: Optional[dict] = None
     prompt: Optional[str] = None
     response: Optional[str] = None
     last_topic: Optional[dict] = None
-    history: list = []  # list of full turns
-    summary: str = ""  # rolling summary of older turns
-
+    history: list = []
+    summary: str = ""
 
 # === Build Nodes ===
 def load_profile(state):
     logger.info("🔄 Loading patient profile...")
-    profile = PatientProfile.from_file(str(PATIENT_PATH))
-    if not hasattr(profile, "current_emotional_state"):
-        profile.current_emotional_state = "neutral, guarded tone"
-    logger.info("✅ Patient profile loaded.")
-    return {"patient_profile": profile}
 
+    patient_id = getattr(state, "patient_id", None)
+    if not patient_id:
+        raise ValueError("❌ Missing patient_id in state — cannot load profile.")
+
+    patient_path = ROOT_DIR / "data" / "patients" / f"{patient_id}.json"
+    if not patient_path.exists():
+        raise FileNotFoundError(f"❌ Patient file not found: {patient_path}")
+
+    profile = PatientProfile.from_file(str(patient_path))
+    if not hasattr(profile, "current_emotional_state"):
+        profile.current_emotional_state = "base"
+
+    logger.info(f"✅ Patient profile loaded: {patient_id}")
+    return {"patient_profile": profile}
 
 def detect_intent_topic(state, threshold: float = 0.3):
     logger.info("🔍 Detecting topic with SentenceTransformer...")
@@ -93,9 +137,9 @@ def detect_intent_topic(state, threshold: float = 0.3):
                 "intent": "unknown",
                 "top": "unknown",
                 "sub": "unknown",
-                "score": 0.0,
+                "score": 0.0
             },
-            "last_topic": state.last_topic,
+            "last_topic": state.last_topic
         }
 
     # Encode therapist input
@@ -103,7 +147,8 @@ def detect_intent_topic(state, threshold: float = 0.3):
 
     # Compute similarity to each subtopic
     scores = {
-        key: util.cos_sim(text_emb, emb).item() for key, emb in TOPIC_EMBEDDINGS.items()
+        key: util.cos_sim(text_emb, emb).item()
+        for key, emb in TOPIC_EMBEDDINGS.items()
     }
 
     # Pick best match
@@ -126,22 +171,18 @@ def detect_intent_topic(state, threshold: float = 0.3):
             "intent": "topic_detection",
             "top": top,
             "sub": sub if best_score >= threshold else "general",
-            "score": best_score,
+            "score": best_score
         }
-        logger.info(
-            f"🧠 Detected topic: {topic['top']} → {topic['sub']} (score={topic['score']:.3f})"
-        )
+        logger.info(f"🧠 Detected topic: {topic['top']} → {topic['sub']} (score={topic['score']:.3f})")
 
     logger.info(f"📌 State update → intent_topic={topic}, last_topic={topic}")
     return {"intent_topic": topic, "last_topic": topic}
-
 
 def generate_response(state):
     logger.info("💬 Generating response to therapist input...")
     result = llm_runner.generate(prompt=state.prompt)
     logger.info(f"✅ Response generated: {result}")
     return {"response": result}
-
 
 def update_memory(state):
     """
@@ -155,7 +196,7 @@ def update_memory(state):
     new_turn = {
         "therapist": state.user_input,
         "patient": state.response,
-        "topic": state.intent_topic,
+        "topic": state.intent_topic
     }
     state.history.append(new_turn)
 
@@ -173,17 +214,13 @@ def update_memory(state):
             prompt=f"Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and themes:\n\n{old_text}"
         )
         summary_update = summary_update.strip()
-        logger.info(
-            f"🧾 Summary update (chars={len(summary_update)}): {summary_update[:120]}..."
-        )
+        logger.info(f"🧾 Summary update (chars={len(summary_update)}): {summary_update[:120]}...")
 
         state.summary += "\n" + summary_update
         state.history = state.history[-5:]
-        logger.info(
-            f"✅ Folded old turns. New history len={len(state.history)} | Summary len={len(state.summary)}"
-        )
+        logger.info(f"✅ Folded old turns. New history len={len(state.history)} | Summary len={len(state.summary)}")
 
-    # === 3. Extract emotional tone ===
+    # === 3. Extract emotional tone using LLM, then map via similarity ===
     try:
         tone_prompt = (
             f"Based on the patient's latest reply below, describe their current emotional tone "
@@ -191,44 +228,39 @@ def update_memory(state):
             f"Patient reply:\n{state.response}"
         )
         tone_summary = llm_runner.generate(prompt=tone_prompt).strip()
+        emotion_category = classify_emotion_by_similarity(tone_summary)
+
         prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
-        state.patient_profile.current_emotional_state = tone_summary
-        logger.info(f"🫀 Emotional tone updated: '{prev_tone}' → '{tone_summary}'")
+        state.patient_profile.current_emotional_state = emotion_category
+
+        logger.info(f"🫀 Emotional tone updated: '{prev_tone}' → '{emotion_category}' ({tone_summary})")
 
     except Exception as e:
         logger.warning(f"⚠️ Could not extract emotional tone: {e}")
-        state.patient_profile.current_emotional_state = "unspecified"
+        state.patient_profile.current_emotional_state = "base"
 
     # === 4. Inspect and return ===
     logger.info(f"📊 Summary length: {len(state.summary)} chars")
     logger.info(f"📈 History length: {len(state.history)} turns")
     for i, h in enumerate(state.history, 1):
-        logger.debug(
-            f"   🗣️ Turn {i}: Therapist='{h['therapist'][:40]}...' | Patient='{h['patient'][:40]}...'"
-        )
+        logger.debug(f"   🗣️ Turn {i}: Therapist='{h['therapist'][:40]}...' | Patient='{h['patient'][:40]}...'")
 
     return {
         "history": state.history,
         "summary": state.summary,
-        "patient_profile": state.patient_profile,
+        "patient_profile": state.patient_profile
     }
-
 
 def display_response(state):
     logger.info("Displaying response:")
     logger.info(f"\n Patient: {state.response}\n")
-    logger.info(
-        f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}"
-    )
-    logger.info(
-        f"🕓 Turns so far: {len(state.history)} | Summary length: {len(state.summary)} chars\n"
-    )
+    logger.info(f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}")
+    logger.info(f"🕓 Turns so far: {len(state.history)} | Summary length: {len(state.summary)} chars\n")
 
     return state
 
-
 # === Build LangGraph ===
-def build_graph(initial=True):
+def build_graph(initial=True, patient_id: Optional[str] = None):
     builder = StateGraph(State)
 
     # Nodes
@@ -239,7 +271,6 @@ def build_graph(initial=True):
     builder.add_node("update_memory", RunnableLambda(update_memory))
     builder.add_node("display", RunnableLambda(display_response))
 
-    # First run: load profile from disk
     if initial:
         builder.set_entry_point("load_profile")
         builder.add_edge("load_profile", "detect_intent_topic")
@@ -253,4 +284,10 @@ def build_graph(initial=True):
     builder.add_edge("update_memory", "display")
 
     logger.info("✅ LangGraph pipeline built and compiled.")
-    return builder.compile()
+    compiled = builder.compile()
+
+    # If initial load, inject patient_id into initial state
+    if initial and patient_id:
+        compiled = compiled.with_config({"patient_id": patient_id})
+
+    return compiled
