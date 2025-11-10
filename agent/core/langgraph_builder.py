@@ -1,9 +1,11 @@
 import json
 import logging
+from collections import defaultdict
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -40,6 +42,9 @@ MAX_LLM_RETRIES = 2
 LLM_FALLBACK_RESPONSE = (
     "I'm trying to stay with what I'm feeling right now. Could we keep talking about that?"
 )
+SUMMARY_BATCH_SIZE = 3
+SUMMARY_EXECUTOR = ThreadPoolExecutor(max_workers=2)
+SUMMARY_TASKS: Dict[str, List[Future]] = defaultdict(list)
 
 
 def _get_cached_profile(patient_id: str, path: Path) -> PatientProfile:
@@ -48,6 +53,67 @@ def _get_cached_profile(patient_id: str, path: Path) -> PatientProfile:
         PROFILE_CACHE[patient_id] = loaded.dict()
         return loaded
     return PatientProfile(**PROFILE_CACHE[patient_id])
+
+
+def _collect_completed_summaries(patient_id: str, state):
+    futures = SUMMARY_TASKS.get(patient_id, [])
+    if not futures:
+        return
+
+    remaining = []
+    new_chunks = []
+    for fut in futures:
+        if fut.done():
+            try:
+                summary_text = fut.result()
+                if summary_text:
+                    new_chunks.append(summary_text)
+            except Exception as exc:
+                logger.warning(f"⚠️ Summary future failed for {patient_id}: {exc}")
+        else:
+            remaining.append(fut)
+
+    SUMMARY_TASKS[patient_id] = remaining
+    if new_chunks:
+        addition = "\n".join(new_chunks)
+        state.summary = (state.summary + "\n" + addition).strip() if state.summary else addition
+
+
+def _schedule_summary_job(patient_id: str, chunk: list, topic: Optional[dict]):
+    chunk_text = _format_chunk_text(chunk)
+    turn_count = len(chunk)
+    future = SUMMARY_EXECUTOR.submit(
+        _summarize_chunk,
+        patient_id,
+        chunk_text,
+        topic,
+        turn_count,
+    )
+    SUMMARY_TASKS[patient_id].append(future)
+    logger.info(f"📨 Scheduled async summary for {patient_id} (turns={turn_count}).")
+
+
+def _format_chunk_text(chunk: list) -> str:
+    return "\n".join(
+        f"Therapist: {h['therapist']}\nPatient: {h['patient']}"
+        for h in chunk
+    )
+
+
+def _summarize_chunk(patient_id: str, chunk_text: str, topic: Optional[dict], turn_count: int) -> str:
+    prompt = (
+        "Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and themes:\n\n"
+        f"{chunk_text}"
+    )
+    try:
+        summary_update = llm_runner.generate(prompt=prompt).strip()
+    except Exception as exc:
+        logger.warning(f"⚠️ Async summary generation failed: {exc}")
+        return ""
+
+    if summary_update:
+        persist_long_term_memory(patient_id, summary_update, topic, turn_count)
+    return summary_update
 
 
 EMOTION_PROTOTYPES = {
@@ -400,10 +466,13 @@ def sanitize_user_input(state):
 def update_memory(state):
     """
     Append the latest therapist–patient exchange to memory.
-    If >5 turns, fold older ones into the long-term summary.
+    If the backlog exceeds thresholds, asynchronously fold older batches into long-term memory.
     Also updates the patient's emotional tone.
     """
     logger.info("🧠 Entering update_memory()")
+
+    if state.patient_id:
+        _collect_completed_summaries(state.patient_id, state)
 
     # === 1. Append new turn ===
     new_turn = {
@@ -417,29 +486,18 @@ def update_memory(state):
     logger.debug(f"🧩 New turn content: {json.dumps(new_turn, indent=2)}")
 
     # === 2. Summarize older turns ===
-    if len(state.history) > MAX_SHORT_TERM_TURNS:
-        old_turns = state.history[:-MAX_SHORT_TERM_TURNS]
-        old_text = "\n".join(
-            [f"Therapist: {h['therapist']}\nPatient: {h['patient']}" for h in old_turns]
-        )
-        logger.info("📝 Summarizing older conversation turns into long-term memory...")
-        summary_update = llm_runner.generate(
-            prompt=f"Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and themes:\n\n{old_text}"
-        )
-        summary_update = summary_update.strip()
-        logger.info(f"🧾 Summary update (chars={len(summary_update)}): {summary_update[:120]}...")
+    overflow = len(state.history) - MAX_SHORT_TERM_TURNS
+    while overflow >= SUMMARY_BATCH_SIZE:
+        chunk = state.history[:SUMMARY_BATCH_SIZE]
+        state.history = state.history[SUMMARY_BATCH_SIZE:]
+        if state.patient_id:
+            _schedule_summary_job(state.patient_id, chunk, state.intent_topic)
+        overflow = len(state.history) - MAX_SHORT_TERM_TURNS
 
-        combined_summary = persist_long_term_memory(
-            state.patient_id,
-            summary_update,
-            state.intent_topic,
-            len(old_turns),
-        )
-        state.summary = combined_summary or state.summary
-        state.history = state.history[-MAX_SHORT_TERM_TURNS:]
+    if len(state.history) > MAX_SHORT_TERM_TURNS:
         logger.info(
-            "✅ Folded old turns. "
-            f"New history len={len(state.history)} | Summary len={len(state.summary)}"
+            "⏳ Older turns waiting for batch size; retaining %d overflow turns.",
+            len(state.history) - MAX_SHORT_TERM_TURNS,
         )
 
     # === 3. Extract emotional tone using LLM, then map via similarity ===

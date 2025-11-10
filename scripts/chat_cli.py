@@ -3,10 +3,14 @@ import logging
 import os
 import sys
 import uuid
+from pathlib import Path
 
 from agent.core.langgraph_builder import build_graph
+from agent.core.patient_profile import PatientProfile
 
 logger = logging.getLogger(__name__)
+ROOT_DIR = Path(__file__).resolve().parents[1]
+PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,6 +35,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _load_welcome_message(patient_id: str) -> str:
+    patient_path = PATIENTS_DIR / f"{patient_id}.json"
+    if not patient_path.exists():
+        return ""
+    try:
+        profile = PatientProfile.from_file(str(patient_path))
+        metadata = getattr(profile, "Metadata", None)
+        if metadata and getattr(metadata, "welcomeMessage", None):
+            return metadata.welcomeMessage
+    except Exception:
+        logger.debug("Unable to load welcome message for %s", patient_id, exc_info=True)
+    return ""
+
+
 def main() -> int:
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
@@ -38,6 +56,10 @@ def main() -> int:
     graph = build_graph()
     thread_id = args.session or f"cli-{uuid.uuid4()}"
     config = {"configurable": {"thread_id": thread_id}}
+
+    welcome = _load_welcome_message(args.patient)
+    if welcome:
+        print(f"🧍 Patient: {welcome}\n")
 
     print(
         f"🧠 Chatting with patient '{args.patient}'. "
