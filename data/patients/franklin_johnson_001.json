@@ -1,133 +1,119 @@
 {
-  "patient_id": "franklin_johnson_001",
-  "disorder_id": "adjustment_disorder_with_depressed_mood",
-  "DemographicInfo": {
-    "Name": "Franklin",
-    "Surname": "Johnson",
-    "Age": 21,
-    "Gender": "male",
-    "MaritalStatus": "single",
-    "CulturalBackground": "African American student studying out of state.",
-    "ReligiousBeliefs": "Not reported.",
-    "SpokenLanguage": "English.",
-    "MigrationStatus": "Out-of-state university student."
+  "patientId": "franklin_johnson_001",
+  "name": "Franklin Johnson",
+  "briefDescription": "21-year-old African American student working night shifts to support himself while staying in school despite a breakup, financial pressure, and discrimination on campus.",
+  "avatarUrl": "/images/patients/franklin/base.png",
+  "voiceId": "pNInz6obpgDQGcFmaJgB",
+  "welcomeMessage": "Hi... I'm Franklin. Thanks for spending time with me today. I've been feeling really stressed lately, and there are a few things I'd like to talk about, if that's alright.",
+  "objectives": [
+    "Reduce pervasive anxiety",
+    "Restore daily functioning and self-care",
+    "Improve sleep quality",
+    "Expand social engagement",
+    "Balance school, work, and financial planning"
+  ],
+  "difficulty": 2,
+  "estimatedDuration": 45,
+  "details": {
+    "demographicAndSocioculturalInformation": {
+      "age": "21",
+      "gender": "male",
+      "maritalStatus": "single",
+      "culturalBackground": "African American student studying out of state",
+      "religiousBeliefs": "Not reported",
+      "spokenLanguage": "English",
+      "migrationStatus": "Out-of-state university student"
+    },
+    "disorder": {
+      "disorderName": "Adjustment disorder with depressed mood"
+    },
+    "familyHistory": {
+      "familyDynamicsDuringDevelopment": "Raised by working-class parents who experienced intermittent unemployment, financial stress, and marital conflict; only child.",
+      "familyPsychiatricIllnesses": "Not reported",
+      "currentRelationshipWithParents": "Limited emotional support regarding academic stress; parents struggle to understand why he studies out of state.",
+      "childhoodExperiences": "Grew up amid economic instability and family tension; described himself as a good student and socially popular.",
+      "significantDevelopmentalExperiences": "Began occasional alcohol and marijuana use in ninth grade (freshman year of high school)."
+    },
+    "educationAndEmployment": {
+      "educationLevel": "Full-time undergraduate student",
+      "workHistory": "Full-time night-shift warehouse worker while attending college",
+      "housingStability": "Not reported",
+      "financialSituation": "Has supported himself since high school; significant concern about financial stability",
+      "hobbiesAndInterests": "Enjoys spending time with friends on days off; generally energetic when rested"
+    },
+    "psychologicalProfileAndCognitiveFunctioning": {
+      "affectiveEmotionalFunctioningAndMoodRegulation": "Depressed mood for roughly three months, anger related to the breakup, social withdrawal, episodic hopelessness; appetite and energy remain normal on rest days.",
+      "psychiatricComorbidities": "No major comorbidities reported; anxiety and rumination linked to stress.",
+      "senseOfSelfAndOthers": "Focused on academic performance and his future; does not feel guilty or worthless.",
+      "thoughtFunctioningAndCognitiveStyle": "Ruminates about money, grades, and future prospects; coherent thinking without psychosis.",
+      "memory": "Cognitively intact with no reported memory deficits.",
+      "attentionAndConcentration": "Difficulty concentrating, especially after night shifts.",
+      "sensoryPerception": "Denies hallucinations; no perceptual disturbances.",
+      "higherCognitiveFunctions": "Insight and judgment considered good."
+    },
+    "copingMechanismsAndDefenses": {
+      "copingStrategies": "Reaches out to his cousin for support, maintains work and academic routines, and sought therapy when encouraged.",
+      "defenseMechanisms": "Rumination and occasional avoidance of painful emotions; no entrenched maladaptive defenses identified."
+    },
+    "dysfunctionalBehaviorsAndRiskyConduct": {
+      "selfHarmAndSuicidality": "Denies current suicidality; occasionally feels like giving up without plan or intent.",
+      "substanceAbuse": "Occasional alcohol and marijuana use in social settings without problematic patterns.",
+      "otherDirectedAggression": "Not reported",
+      "impulsiveAndRiskyBehaviors": "Not reported"
+    },
+    "morality": {
+      "moralValues": "Strong work ethic and commitment to academic success and financial independence.",
+      "senseOfGuilt": "Denies guilt or worthlessness; feels disappointed about declining grades.",
+      "deceitAndManipulation": "Not reported",
+      "illicitActivities": "Not reported"
+    },
+    "socialRelationshipsAndInteractions": {
+      "friendships": "Maintains friendships and spends time with friends on days off.",
+      "romanticRelationships": "Ended a three-year relationship after conversations about marriage; breakup triggered current distress.",
+      "sexualRelationships": "Not reported",
+      "familyInteractions": "Parents offer limited understanding of his university demands; first-generation college student.",
+      "relationshipsWithPeersAndColleagues": "Recent experiences of racial discrimination on a predominantly white campus; adapts adequately to night-shift coworkers.",
+      "socialMediaUseAndImpact": "Not reported"
+    },
+    "treatmentsAndInterventions": {
+      "previousTherapeuticExperiences": "No prior mental health treatment; encouraged to seek therapy by a cousin.",
+      "treatmentResistance": "Not applicable; no previous treatment course.",
+      "therapeuticGoals": [
+        "Process the breakup",
+        "Improve stress management, rumination, and concentration",
+        "Optimize sleep hygiene and balance work–school demands",
+        "Develop basic financial planning skills"
+      ],
+      "medicationHistory": [],
+      "responseToMedications": "Not applicable",
+      "previousHospitalizations": "None",
+      "emergencyDepartmentVisits": "Not reported",
+      "previousDropouts": "Not reported",
+      "previousPsychiatricDiagnoses": ["None prior to current adjustment disorder"]
+    },
+    "psychologicalResources": {
+      "insightAndMentalizationCapacity": "Demonstrates good insight into stressors and their functional impact.",
+      "motivationForChange": "Motivated to pursue treatment despite cultural and gender expectations.",
+      "psychologicalResilience": "Has managed full-time work, a serious relationship, and full-time studies; rebounds on rest days.",
+      "lifeSatisfaction": "Recently reduced, especially due to declining grades and the breakup.",
+      "hopeForTheFuture": "Present but fluctuating; can be strengthened with support.",
+      "longTermLifeGoals": "Graduate, maintain financial independence, and build stable relationships."
+    },
+    "medicalAndPhysicalHistory": {
+      "preExistingMedicalConditions": "No significant medical conditions reported.",
+      "pharmacologicalTreatments": "None",
+      "lifestyle": "Works consecutive night shifts, contributing to possible sleep deprivation.",
+      "generalPhysicalHealth": "Good",
+      "sleepPatterns": "Struggles with rest and focus after night shifts; normal sleep and energy on days off.",
+      "eatingHabits": "Appetite unchanged"
+    },
+    "behaviorDuringTestAdministration": {
+      "recurringDynamicsTransferenceCountertransference": "No specific dynamics noted; strong potential alliance with a therapist attuned to gender, racial, and cultural themes.",
+      "expressedEmotionsAndCongruence": "Appears worried with constrained affect, yet smiles appropriately; congruent with content.",
+      "speechCharacteristics": "Coherent speech",
+      "nonVerbalBehavior": "Punctual, cooperative, attentive; appropriate posture.",
+      "appearanceSelfCareOrientation": "Well groomed with appropriate attire."
+    }
   },
-  "FamilySocialHistory": {
-    "ChildhoodFamilyDynamics": "Raised by working-class parents who experienced intermittent unemployment, financial stress, and marital conflict; only child.",
-    "CurrentParentRelations": "Limited emotional support regarding academic stress; parents disapprove of studying out of state.",
-    "ChildhoodExperiences": "Grew up amid economic instability and family tension; described himself as a good student and socially popular.",
-    "SignificantDevelopmentalExperiences": "Began occasional alcohol and marijuana use in ninth grade (high school freshman year).",
-    "FamilyPsychiatricHistory": "Not reported."
-  },
-  "EducationOccupation": {
-    "EducationLevel": "Full-time undergraduate student.",
-    "WorkHistory": "Full-time night-shift warehouse worker while attending college.",
-    "HousingStability": "Not reported.",
-    "FinancialSituation": "Supports himself financially since high school; significant stress regarding financial stability.",
-    "HobbiesInterests": "Enjoys spending time with friends on days off; generally energetic during free time."
-  },
-  "PsychologicalProfile": {
-    "PsychiatricDiagnoses": ["Adjustment disorder with depressed mood"],
-    "MainSymptoms": [
-      "Depressed mood for approximately 3 months",
-      "Anger related to romantic breakup",
-      "Social withdrawal",
-      "Episodic hopelessness",
-      "Difficulty concentrating",
-      "Stress and rumination over finances and academic performance"
-    ],
-    "AffectiveEmotionalFunctioning": "Depressed and stressed mood; anger about breakup; generally normal appetite and energy on rest days.",
-    "PsychiatricComorbidities": "No major comorbidities reported; anxiety and rumination linked to stress.",
-    "SenseOfSelfOthers": "Concerned about performance and future; does not feel worthless or guilty.",
-    "ThoughtCognitiveStyle": "Coherent thinking; ruminates about money, grades, and prospects; no psychosis reported.",
-    "Memory": "Cognitively intact; no memory impairment reported.",
-    "AttentionConcentration": "Difficulty concentrating, especially after night shifts.",
-    "SensoryPerception": "Denies hallucinations or perceptual disturbances.",
-    "HigherCognitiveFunctions": "Good insight and judgment."
-  },
-  "CopingDefenses": {
-    "CopingStrategies": "Seeks social support from cousin; maintains work and academic routines; reached out for psychological help.",
-    "DefenseMechanisms": "Rumination and mild avoidance of painful emotions; no pathological defenses observed.",
-    "SelfHarmSuicidality": "Denies current suicidality; occasionally reports feeling like giving up but without intent or plan.",
-    "SubstanceAbuse": "Occasional alcohol and marijuana use in social contexts; no evidence of abuse or dependence.",
-    "OtherDirectedAggression": "Not reported.",
-    "ImpulsiveRiskBehaviors": "Not reported.",
-    "Morality": "Strong work ethic and value of economic independence; feels regret for academic decline; no deceitful or antisocial behavior."
-  },
-  "SocialRelations": {
-    "Friendships": "Maintains friendships; socializes with friends on free days.",
-    "RomanticRelationships": "Ended a 3-year relationship after disagreements about marriage; main trigger for current distress.",
-    "SexualRelationships": "Not reported.",
-    "FamilyInteractions": "Parents provide limited understanding of university-related stress; first-generation college student.",
-    "PeerColleagueRelations": "Recent experiences of racial discrimination on predominantly white campus; adequate adjustment at work.",
-    "SocialMediaBehavior": "Not reported."
-  },
-  "TreatmentsInterventions": {
-    "PastTherapies": ["None; first contact with mental health services encouraged by a cousin."],
-    "ProgressResistance": "No treatment resistance; initial motivation to seek help.",
-    "TherapeuticGoals": [
-      "Process the loss of the romantic relationship",
-      "Improve stress management and concentration",
-      "Enhance sleep quality",
-      "Balance academic and work demands",
-      "Develop basic financial planning skills"
-    ],
-    "MedicationHistory": ["None reported."],
-    "MedicationResponse": "Not applicable.",
-    "Hospitalizations": 0,
-    "EmergencyRoomVisits": "Not reported.",
-    "PastPsychiatricDiagnoses": ["None; current presentation compatible with adjustment disorder with depressed mood."]
-  },
-  "ClinicalJudgment": {
-    "JudgmentCapacity": "Intact; recognizes distress and seeks help.",
-    "Insight": "Good insight into stress factors and their impact on functioning.",
-    "ImpulseControl": "Adequate; no impulsive or unsafe behavior noted."
-  },
-  "ResilienceWellbeing": {
-    "PsychologicalResilience": "Generally good baseline resilience; demonstrates recovery capacity during rest days.",
-    "SelfCompassion": "Moderate; tends to be self-critical about performance but remains hopeful.",
-    "LifeSatisfaction": "Decreased due to academic decline and breakup.",
-    "PersonalGrowth": "Ongoing; motivated to engage in therapy despite cultural and gender-related barriers.",
-    "SenseOfCoherence": "Understands the link between stressors and mood; struggles to maintain balance under pressure.",
-    "Empowerment": "Shows agency in seeking help and managing dual responsibilities.",
-    "HopeForFuture": "Fluctuating but present; expected to improve with support.",
-    "LongTermLifeGoals": "Graduate from university, maintain financial independence, and build stable relationships."
-  },
-  "MedicalHistory": {
-    "PreexistingConditions": "No relevant medical conditions reported.",
-    "CurrentMedications": ["None."],
-    "Lifestyle": "Sustained night shifts; probable sleep deprivation related to work schedule.",
-    "GeneralHealth": "Good overall physical health.",
-    "SleepPatterns": "Difficulty resting and concentrating after night shifts; normal sleep and energy on days off.",
-    "EatingHabits": "Appetite unchanged."
-  },
-  "SocialEnvironment": {
-    "SocialSupport": "Supported mainly by a cousin; limited family understanding of stressors.",
-    "HousingConditions": "Not reported.",
-    "SocialSecurity": "Self-supporting; no mention of external aid.",
-    "SocialCohesion": "Faces stress due to racial discrimination in predominantly white environment; socially active with peers on days off.",
-    "SocialDeterminantsMentalHealth": "Financial stress, racial discrimination, and limited familial understanding contribute to adjustment difficulties."
-  },
-  "TestBehavior": {
-    "RecurringDynamics": "No specific transference or countertransference dynamics noted; good therapeutic alliance expected with culturally sensitive therapist.",
-    "PredominantEmotions": ["Worried", "Constricted affect", "Appropriate smiling"],
-    "Speech": "Coherent and relevant.",
-    "EyeContactPostureGestures": "Punctual, cooperative, attentive; appropriate posture and self-care.",
-    "AvoidantAttitudesMoodChange": "Not prominent; maintains engagement in dialogue."
-  },
-  "ClinicalSummary": "Franklin Johnson is a 21-year-old single African American student experiencing a 3-month period of depressed mood following the breakup of a 3-year relationship. He supports himself financially through night-shift work while attending college full-time. He reports stress about finances, academic decline, and experiences of racial discrimination. His appetite, sleep, and energy are generally normal on days off, though concentration suffers after work shifts. He denies suicidality and substance misuse. Insight and judgment are good. The case presentation is consistent with adjustment disorder with depressed mood. Strengths include motivation for treatment, social support from a cousin, and preserved hope for improvement.",
-  "Metadata": {
-    "background": "21-year-old African American student working night shifts to support himself, facing emotional distress after a breakup, financial pressure, and racial discrimination at university.",
-    "therapy_goals": [
-      "Reduce pervasive anxiety and sadness",
-      "Restore daily functioning and self-care",
-      "Improve sleep quality",
-      "Increase social engagement"
-    ],
-    "difficulty": 2,
-    "estimatedDuration": 45,
-    "avatarUrl": "/images/patients/franklin/base.png",
-    "voiceId": "pNInz6obpgDQGcFmaJgB",
-    "welcomeMessage": "Hello... I'm Franklin. I appreciate you taking the time to talk today. Lately, I’ve been feeling quite stressed, and… well, there are several things I’d like to discuss, if that’s okay."
-  }
+  "clinicalCase": "Franklin Johnson is a 21-year-old single African American man who sought treatment at a university-affiliated community mental health clinic because he felt stressed, withdrawn from friends, and worried about money. He attributed three months of low mood to the end of a three-year romantic relationship shortly after discussing marriage. The son of working-class parents, he has supported himself since high school and has long felt anxious about finances. He was angered by his girlfriend's decision to end the relationship and her lack of appreciation for his financial concerns. Rumination about money, grades, and the future has intensified. As a full-time undergraduate who also works a midnight warehouse shift, he is accustomed to a demanding schedule but now struggles to concentrate in class after working nights. On days off, he enjoys friends, and his appetite and health remain stable, but his grades have dropped. As the first in his family to attend college, he feels pressure from parents who question his decision to study out of state, and he reports recent experiences of racial discrimination on a predominantly white campus. He had never pursued mental health care before, but a supportive cousin encouraged him to seek therapy after he admitted he sometimes felt like giving up. He describes himself as a former good student and popular kid despite financial instability and parental conflict at home. He experimented occasionally with alcohol and marijuana beginning in ninth grade but has never had issues with substances. During evaluation he was punctual, cooperative, and appropriately groomed, with coherent speech and generally worried but congruent affect. He denies guilt, worthlessness, suicidality, violence, or psychosis, and his insight and judgment are good. His symptoms of depression, anger, withdrawal, and episodic hopelessness appear to have been triggered by the breakup. His appetite, sleep, and energy are typically normal when he can rest, and his cognitive difficulties are largely attributable to fatigue. The presentation is most consistent with adjustment disorder with depressed mood. Further exploration should address his adjustment to a predominantly white university, the chronic impact of racial discrimination, academic and financial stressors, and the emotional meaning of the breakup. His resilience—balancing full-time work, school, and relationships—should be highlighted to reinforce strengths. Although cultural expectations of masculinity can make seeking help difficult, Franklin is motivated for treatment, and a therapist who understands his cultural context can help him process loss, discrimination, and future goals. Supporting his long-term aspirations may buffer against ongoing stress and psychological distress."
 }
