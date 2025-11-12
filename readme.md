@@ -13,6 +13,7 @@
 8. [Logging & Memory](#logging--memory)
 9. [Development Notes](#development-notes)
 10. [Troubleshooting & Next Steps](#troubleshooting--next-steps)
+11. [Further Reading](#further-reading)
 
 ## Project Overview
 - **Goal**: provide psychologists with a safe training ground where a local or cloud LLM impersonates a richly described patient.
@@ -57,7 +58,7 @@ agent/
   api/              FastAPI surface (`agent/api/app.py`).
   core/             Business logic (LangGraph, prompts, patient schema, safety, LLM runners).
   prompts/          Static prompt resources (if any future templates).
-  utils/            Shared helpers (e.g., `RunLogger`).
+  utils/            Shared helpers (e.g., `RunLogger`, session opening helpers).
 config/             `.env` and model credentials.
 data/
   patients/         JSON records describing each simulated patient.
@@ -67,6 +68,7 @@ scripts/            Utility CLIs (e.g., `scripts/chat_cli.py`).
 tests/              Run-logging destination and future automated tests.
 main.py             Full-featured CLI for scripted/interactive runs.
 Dockerfile          Container recipe for deployment.
+docs/               Additional markdown docs (see `docs/architecture.md`).
 ```
 
 ## Core Components
@@ -105,9 +107,9 @@ Dockerfile          Container recipe for deployment.
 - Exposes `POST /api/message` that accepts `MessageRequest` (patient id, therapist turn, session info) and returns `MessageResponse` (agent reply, reasoning time, inferred emotion/topic, timestamp).
 - Each session gets a `RunLogger` so turns are persisted for audit.
 
-### Utilities & Scripts
-- `agent/utils/run_logger.py`: writes structured JSON logs under `tests/runs/`, capturing safe/unsafe therapist input, detected topics, emotion, and summary progression for each turn.
-- `scripts/chat_cli.py`: lightweight REPL for quick experiments (`PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001`).
+- `agent/utils/run_logger.py`: writes structured JSON logs under `tests/runs/`, capturing safe/unsafe therapist input, detected topics, emotion, and summary progression for each turn. Sessions are grouped per therapist so conversations can be resumed later.
+- `agent/utils/session_opening.py`: loads patient metadata and crafts contextual “welcome back” messages when a therapist resumes a session with saved state.
+- `scripts/chat_cli.py`: lightweight REPL for quick experiments (`PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001`). Automatically restores the last session for the therapist/patient pair when available.
 - `main.py`: richer CLI supporting scripted conversations (from args or files) plus interactive mode; both integrate with `RunLogger`.
 
 ## Patient Data & Knowledge Sources
@@ -143,6 +145,7 @@ PYTHONPATH=. python main.py --patient franklin_johnson_001
 PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001 --log-level DEBUG
 ```
 - Prints topic, tone, and run-log path after each reply.
+- Automatically detects prior runs for the therapist/patient pair and resumes context (hydrating summary, last topic, last few turns, etc.).
 
 ### 3. FastAPI Service
 ```bash
@@ -180,3 +183,6 @@ uvicorn agent.api.app:app --reload --port 8000
 - **Extending topics/patients**: add new entries under `data/topics_tree.json` and `data/patients/*.json`, then restart the service so embeddings and caches refresh.
 
 Happy experimenting! Adapt the prompts, safety rules, or memory backends to match your training scenarios and research questions.
+
+## Further Reading
+- 📘 `docs/architecture.md`: deep dive into LangGraph state, async summaries, resume logic, and extension points for new channels or storage backends.

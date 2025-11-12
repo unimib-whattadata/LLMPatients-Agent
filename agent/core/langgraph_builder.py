@@ -130,7 +130,11 @@ def _format_chunk_text(chunk: list) -> str:
 def _summarize_chunk(patient_id: str, chunk_text: str, topic: Optional[dict], turn_count: int) -> str:
     """Call the LLM to summarize a chunk and persist the result as long-term memory."""
     prompt = (
-        "Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and themes:\n\n"
+        "You are maintaining a patient's long-term therapy memory. Summarize the dialogue below in 2-3 natural sentences that capture:\n"
+        "- Concrete events or stressors mentioned\n"
+        "- Emotional tone shifts and trust toward the therapist\n"
+        "- Any unresolved questions or worries to revisit\n"
+        "Keep the summary expressive yet concise.\n\n"
         f"{chunk_text}"
     )
     try:
@@ -241,6 +245,16 @@ EMOTION_EMBEDDINGS = {
     e: st_model.encode([desc], convert_to_tensor=True)[0]
     for e, desc in EMOTION_PROTOTYPES.items()
 }
+
+EMOTION_ORDER = ["anger", "disgust", "sadness", "base", "trust", "anticipation", "joy", "surprise"]
+EMOTION_TRANSITION_SIM = {}
+for a, emb_a in EMOTION_EMBEDDINGS.items():
+    EMOTION_TRANSITION_SIM[a] = {}
+    for b, emb_b in EMOTION_EMBEDDINGS.items():
+        sim = util.cos_sim(emb_a, emb_b).item()
+        if a == b:
+            sim = 1.0
+        EMOTION_TRANSITION_SIM[a][b] = sim
 
 
 def _embed_texts(texts):
@@ -364,7 +378,7 @@ def fetch_relevant_long_term_memories(
         if item and item.value.get("text")
     ]
 
-def classify_emotion_by_similarity(text: str, threshold: float = 0.3) -> str:
+def classify_emotion_by_similarity(text: str, threshold: float = 0.3):
     """
     Map a tone description (e.g. 'sad but receptive') into one of the canonical
     emotion categories using cosine similarity with precomputed emotion embeddings.
@@ -384,8 +398,45 @@ def classify_emotion_by_similarity(text: str, threshold: float = 0.3) -> str:
     logger.info(f"🎭 Best emotion={best_emotion} (score={best_score:.3f}) for tone='{text}'")
 
     if best_score < threshold:
-        return "base"
-    return best_emotion
+        best_emotion = "base"
+    return best_emotion, best_score, sims
+
+
+def smooth_emotion_transition(previous: Optional[str], proposed: str, scores: dict) -> str:
+    if not previous or previous in {"unknown", ""}:
+        return proposed
+    if previous == proposed:
+        return proposed
+    prev_score = scores.get(previous, -1.0)
+    proposed_score = scores.get(proposed, -1.0)
+    transition_sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(proposed, 0.0)
+
+    if proposed_score - prev_score >= 0.15 or transition_sim >= 0.55:
+        return proposed
+
+    # Try to find intermediate emotion with high similarity to both
+    candidates = sorted(
+        scores.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+    for candidate, score in candidates:
+        if candidate == previous:
+            continue
+        sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(candidate, 0.0)
+        if score >= proposed_score - 0.05 and sim >= 0.55:
+            return candidate
+
+    # Fall back to whichever emotion has highest blend of prev similarity and evidence
+    blend_best = previous
+    blend_score = prev_score
+    for candidate, score in scores.items():
+        sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(candidate, 0.0)
+        blended = 0.6 * sim + 0.4 * score
+        if blended > blend_score + 0.05:
+            blend_score = blended
+            blend_best = candidate
+    return blend_best
 
 # === Load Topic Tree JSON ===
 TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
@@ -674,12 +725,13 @@ def update_memory(state):
             f"Patient reply:\n{state.response}"
         )
         tone_summary = llm_runner.generate(prompt=tone_prompt).strip()
-        emotion_category = classify_emotion_by_similarity(tone_summary)
+        emotion_category, emotion_score, emotion_scores = classify_emotion_by_similarity(tone_summary)
 
         prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
-        state.patient_profile.current_emotional_state = emotion_category
+        smoothed = smooth_emotion_transition(prev_tone, emotion_category, emotion_scores)
+        state.patient_profile.current_emotional_state = smoothed
 
-        logger.info(f"🫀 Emotional tone updated: '{prev_tone}' → '{emotion_category}' ({tone_summary})")
+        logger.info(f"🫀 Emotional tone updated: '{prev_tone}' → '{smoothed}' (raw='{emotion_category}', desc='{tone_summary}')")
 
     except Exception as e:
         logger.warning(f"⚠️ Could not extract emotional tone: {e}")

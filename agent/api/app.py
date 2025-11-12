@@ -10,7 +10,7 @@ import time
 app = FastAPI(title="PsyLLM Patient Agent API")
 
 graph = build_graph()
-session_loggers = {}
+session_loggers: dict[tuple[str, str], dict] = {}
 
 # === Request Schema ===
 class MessageRequest(BaseModel):
@@ -19,6 +19,7 @@ class MessageRequest(BaseModel):
     user_message: str
     session_id: str
     step_id: int
+    therapist_id: str | None = "therapist0"
 
 # === Response Schema ===
 class MessageResponse(BaseModel):
@@ -35,16 +36,19 @@ async def send_message(req: MessageRequest):
     """Main conversational endpoint."""
 
     patient_id = req.external_patient_id
+    therapist_id = req.therapist_id or "therapist0"
+    session_key = (therapist_id, req.session_id)
 
     config = {"configurable": {"thread_id": req.session_id}}
 
     # === Track reasoning time ===
     start_time = time.time()
 
-    # === Ensure run logger for this session ===
-    run_logger = session_loggers.get(req.session_id)
-    if not run_logger:
-        run_logger = RunLogger()
+    # === Ensure run logger for this therapist/session ===
+    entry = session_loggers.get(session_key)
+    if not entry:
+        run_logger = RunLogger(therapist_id)
+        base_state = run_logger.restore_state(patient_id)
         run_logger.start_run(
             patient_id=patient_id,
             session_id=req.session_id,
@@ -52,16 +56,18 @@ async def send_message(req: MessageRequest):
             mode="live",
             metadata={"initial_step_id": req.step_id},
         )
-        session_loggers[req.session_id] = run_logger
+        entry = {"logger": run_logger, "base_state": base_state}
+        session_loggers[session_key] = entry
+    run_logger = entry["logger"]
+    base_state = entry.get("base_state")
+    if base_state:
+        entry["base_state"] = None
 
     # === Run the agent ===
-    result = graph.invoke(
-        {
-            "user_input": req.user_message,
-            "patient_id": patient_id,
-        },
-        config=config,
-    )
+    payload = {"user_input": req.user_message, "patient_id": patient_id}
+    if base_state:
+        payload.update(base_state)
+    result = graph.invoke(payload, config=config)
 
     reasoning_time = round(time.time() - start_time, 3)
 
@@ -73,6 +79,7 @@ async def send_message(req: MessageRequest):
 
     # === Persist run info ===
     run_logger.log_turn(result, req.user_message)
+    entry["latest_state"] = result
 
     # === Return unified JSON ===
     return MessageResponse(

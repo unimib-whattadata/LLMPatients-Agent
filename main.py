@@ -7,13 +7,15 @@ import os
 import sys
 import uuid
 from pathlib import Path
+from typing import Optional
 
-from agent.core.langgraph_builder import build_graph
+from agent.core.langgraph_builder import build_graph, llm_runner
 from agent.core.patient_profile import PatientProfile
+from agent.utils.run_logger import RunLogger
+from agent.utils.session_opening import build_session_opening
 
 logger = logging.getLogger(__name__)
 ROOT_DIR = Path(__file__).resolve().parent
-PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,6 +43,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Path to a file containing therapist turns (JSON list or newline-separated).",
+    )
+    parser.add_argument(
+        "--therapist",
+        default=os.getenv("DEFAULT_THERAPIST_ID", "therapist0"),
+        help="Therapist identifier (used to resume previous sessions).",
     )
     return parser.parse_args()
 
@@ -77,12 +84,19 @@ def log_state(state: dict) -> None:
     logger.info("------------------------------------------\n")
 
 
-def run_turn(graph, patient_id: str, message: str, config: dict, run_logger: RunLogger | None = None) -> dict:
+def run_turn(
+    graph,
+    patient_id: str,
+    message: str,
+    config: dict,
+    run_logger: RunLogger | None = None,
+    base_state: Optional[dict] = None,
+) -> dict:
     """Drive a single therapist→patient exchange through LangGraph."""
-    result = graph.invoke(
-        {"user_input": message, "patient_id": patient_id},
-        config=config,
-    )
+    payload = {"user_input": message, "patient_id": patient_id}
+    if base_state:
+        payload = {**base_state, **payload}
+    result = graph.invoke(payload, config=config)
     print(f"👩‍⚕️ Therapist: {message}")
     print(f"🧍 Patient: {result.get('response', '...')}")
     print("-")
@@ -92,20 +106,31 @@ def run_turn(graph, patient_id: str, message: str, config: dict, run_logger: Run
     return result
 
 
-def run_interactive(graph, patient_id: str, config: dict, run_logger: RunLogger | None = None) -> None:
+def run_interactive(
+    graph,
+    patient_id: str,
+    profile: PatientProfile,
+    config: dict,
+    run_logger: RunLogger | None = None,
+    base_state: Optional[dict] = None,
+) -> None:
     """Prompt the user for inputs until they exit, logging each turn."""
-    welcome = _load_welcome_message(patient_id)
+    welcome = build_session_opening(profile, base_state, llm_runner) if base_state else None
+    if not welcome:
+        welcome = default_welcome(profile)
     if welcome:
         print(f"🧍 Patient: {welcome}\n")
     print(f"🧠 Simulated patient agent is ready for patient '{patient_id}'. Type 'exit' to quit.\n")
     state = {}
+    pending_state = dict(base_state or {})
     while True:
         try:
             user_input = input("👩‍⚕️ Therapist: ")
             if user_input.strip().lower() in {"exit", "quit"}:
                 print("Session ended.")
                 break
-            state = run_turn(graph, patient_id, user_input, config, run_logger)
+            state = run_turn(graph, patient_id, user_input, config, run_logger, pending_state or None)
+            pending_state = None
         except KeyboardInterrupt:
             print("\nSession interrupted.")
             break
@@ -114,41 +139,38 @@ def run_interactive(graph, patient_id: str, config: dict, run_logger: RunLogger 
             print(f"❌ Error during interaction: {exc}")
             break
     if run_logger:
-        run_logger.finalize({"final_summary": (state or {}).get("summary", "")})
+        run_logger.finalize(state or {})
 
 
-def run_scripted(graph, patient_id: str, config: dict, messages: list[str], run_logger: RunLogger | None = None) -> None:
+def run_scripted(
+    graph,
+    patient_id: str,
+    profile: PatientProfile,
+    config: dict,
+    messages: list[str],
+    run_logger: RunLogger | None = None,
+    base_state: Optional[dict] = None,
+) -> None:
     """Replay a predefined list of therapist messages against the agent."""
-    welcome = _load_welcome_message(patient_id)
+    welcome = build_session_opening(profile, base_state, llm_runner) if base_state else None
+    if not welcome:
+        welcome = default_welcome(profile)
     if welcome:
         print(f"🧍 Patient: {welcome}\n")
     print(f"🧠 Running scripted session for patient '{patient_id}' with {len(messages)} turns.\n")
     state = {}
+    pending_state = dict(base_state or {})
     for idx, msg in enumerate(messages, 1):
         try:
-            state = run_turn(graph, patient_id, msg, config, run_logger)
+            state = run_turn(graph, patient_id, msg, config, run_logger, pending_state or None)
+            pending_state = None
         except Exception as exc:
             logger.exception("❌ Error during scripted interaction:")
             print(f"❌ Halting at turn {idx} due to error: {exc}")
             break
     print("✅ Scripted session completed.")
     if run_logger:
-        run_logger.finalize({"final_summary": (state or {}).get("summary", "")})
-
-
-def _load_welcome_message(patient_id: str) -> str:
-    """Return the welcome blurb if the patient JSON defines one."""
-    patient_path = PATIENTS_DIR / f"{patient_id}.json"
-    if not patient_path.exists():
-        return ""
-    try:
-        profile = PatientProfile.from_file(str(patient_path))
-        metadata = getattr(profile, "Metadata", None)
-        if metadata and getattr(metadata, "welcomeMessage", None):
-            return metadata.welcomeMessage
-    except Exception:
-        logger.debug("Unable to load welcome message for %s", patient_id, exc_info=True)
-    return ""
+        run_logger.finalize(state or {})
 
 
 def main() -> int:
@@ -156,9 +178,11 @@ def main() -> int:
     args = parse_args()
     graph = build_graph()
     patient_id = args.patient
+    profile = load_patient_profile(patient_id)
     thread_id = args.session or f"cli-{uuid.uuid4()}"
     config = {"configurable": {"thread_id": thread_id}}
-    run_logger = RunLogger()
+    therapist_id = args.therapist
+    run_logger = RunLogger(therapist_id)
     mode = "scripted" if (args.messages or args.messages_file) else "interactive"
     run_logger.start_run(
         patient_id=patient_id,
@@ -168,6 +192,9 @@ def main() -> int:
         metadata={"args": vars(args)},
     )
     print(f"🗂️ Logging run to {run_logger.file_path}")
+    restored_state = run_logger.restore_state(patient_id)
+    if restored_state:
+        print("♻️ Previous session detected; resuming context.\n")
 
     scripted = []
     try:
@@ -179,9 +206,9 @@ def main() -> int:
         scripted.extend([msg for msg in args.messages if msg.strip()])
 
     if scripted:
-        run_scripted(graph, patient_id, config, scripted, run_logger)
+        run_scripted(graph, patient_id, profile, config, scripted, run_logger, restored_state)
     else:
-        run_interactive(graph, patient_id, config, run_logger)
+        run_interactive(graph, patient_id, profile, config, run_logger, restored_state)
 
     return 0
 
