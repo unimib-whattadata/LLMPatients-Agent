@@ -1,3 +1,5 @@
+"""Structured patient profile models plus helpers for loading legacy JSON schemas."""
+
 import json
 import re
 from pathlib import Path
@@ -8,6 +10,7 @@ from pydantic import BaseModel
 
 # === Subcomponents ===
 class DemographicInfo(BaseModel):
+    """Basic demographic snapshot used for prompts and UI."""
     Name: str
     Surname: str
     Age: int
@@ -19,6 +22,7 @@ class DemographicInfo(BaseModel):
     MigrationStatus: str
 
 class FamilySocialHistory(BaseModel):
+    """Developmental and relational history of the patient."""
     ChildhoodFamilyDynamics: str
     CurrentParentRelations: str
     ChildhoodExperiences: str
@@ -29,6 +33,7 @@ class FamilySocialHistory(BaseModel):
     SupportNetwork: Optional[str] = None
 
 class EducationOccupation(BaseModel):
+    """Educational background plus work/life stability indicators."""
     EducationLevel: str
     WorkHistory: str
     HousingStability: str
@@ -36,6 +41,7 @@ class EducationOccupation(BaseModel):
     HobbiesInterests: str
 
 class PsychologicalProfile(BaseModel):
+    """Clinical symptoms, diagnoses, and cognitive functioning markers."""
     PsychiatricDiagnoses: List[str]
     MainSymptoms: List[str]
     AffectiveEmotionalFunctioning: Optional[str] = None
@@ -55,6 +61,7 @@ class PsychologicalProfile(BaseModel):
     HigherCognitiveFunctions: Optional[str] = None
 
 class CopingDefenses(BaseModel):
+    """Summaries of coping strategies, defenses, and risk behaviors."""
     CopingStrategies: str
     DefenseMechanisms: List[str]
     SelfHarmSuicidality: str
@@ -64,6 +71,7 @@ class CopingDefenses(BaseModel):
     Morality: str
 
 class SocialRelations(BaseModel):
+    """Descriptions of interpersonal dynamics across key relationship categories."""
     Friendships: str
     RomanticRelationships: str
     SexualRelationships: str
@@ -72,6 +80,7 @@ class SocialRelations(BaseModel):
     SocialMediaBehavior: str
 
 class TreatmentsInterventions(BaseModel):
+    """Medication/therapy history plus adherence and treatment goals."""
     PastTherapies: List[str]
     ProgressResistance: str
     TherapeuticGoals: Union[str, List[str]]
@@ -83,11 +92,13 @@ class TreatmentsInterventions(BaseModel):
     PreviousDropouts: Optional[str] = None
 
 class ClinicalJudgment(BaseModel):
+    """Clinician-rated insight, judgment, and impulse control."""
     JudgmentCapacity: str
     Insight: str
     ImpulseControl: str
 
 class ResilienceWellbeing(BaseModel):
+    """Protective factors and measures of psychological wellbeing."""
     PsychologicalResilience: str
     SelfCompassion: str
     LifeSatisfaction: str
@@ -98,6 +109,7 @@ class ResilienceWellbeing(BaseModel):
     LongTermLifeGoals: str
 
 class MedicalHistory(BaseModel):
+    """Physical health context relevant to mental health treatment."""
     PreexistingConditions: str
     CurrentMedications: List[str]
     PharmacologicalTreatments: Optional[List[str]] = None
@@ -108,6 +120,7 @@ class MedicalHistory(BaseModel):
     EatingHabits: str
 
 class SocialEnvironment(BaseModel):
+    """Environmental determinants such as housing and support networks."""
     SocialSupport: str
     HousingConditions: str
     SocialSecurity: str
@@ -115,6 +128,7 @@ class SocialEnvironment(BaseModel):
     SocialDeterminantsMentalHealth: str
 
 class TestBehavior(BaseModel):
+    """Observations captured during assessments (speech, affect, posture)."""
     RecurringDynamics: str
     PredominantEmotions: List[str]
     Speech: str
@@ -123,6 +137,7 @@ class TestBehavior(BaseModel):
 
 # === Metadata for UI/Simulation Layer ===
 class PatientMetadata(BaseModel):
+    """Fields primarily consumed by the UI/simulation layers (voice, avatar, etc.)."""
     background: str
     therapy_goals: List[str]
     difficulty: int
@@ -133,6 +148,7 @@ class PatientMetadata(BaseModel):
 
 # === Main Patient Profile ===
 class PatientProfile(BaseModel):
+    """Aggregated patient record used to condition the simulated agent."""
     patient_id: str
     disorder_id: Optional[str] = None
     Metadata: Optional[PatientMetadata] = None
@@ -373,6 +389,7 @@ class PatientProfile(BaseModel):
 
 
 def _split_name(full_name: str) -> tuple[str, str]:
+    """Best-effort split of arbitrary name strings into first/last components."""
     if not full_name:
         return "Unknown", "Unknown"
     parts = full_name.strip().split()
@@ -384,6 +401,7 @@ def _split_name(full_name: str) -> tuple[str, str]:
 
 
 def _clean_text(value, default: str = "Not reported."):
+    """Normalize various json fields into trimmed strings with sensible fallbacks."""
     if value is None:
         return default if default != "" else ""
     if isinstance(value, str):
@@ -395,6 +413,7 @@ def _clean_text(value, default: str = "Not reported."):
 
 
 def _ensure_list(value) -> List[str]:
+    """Coerce string/list inputs into a cleaned list that omits empty markers."""
     if isinstance(value, list):
         cleaned = [str(item).strip() for item in value if str(item).strip()]
         return [item for item in cleaned if item.lower() not in {"none", "not reported", "n/a"}]
@@ -411,6 +430,7 @@ def _ensure_list(value) -> List[str]:
 
 
 def _safe_int(value, default: int = 0) -> int:
+    """Extract an integer from loosely formatted sources (words, strings, etc.)."""
     if isinstance(value, (int, float)):
         return int(value)
     if isinstance(value, str):
@@ -437,6 +457,7 @@ def _safe_int(value, default: int = 0) -> int:
 
 
 def _slugify(text: str) -> str:
+    """Machine-friendly slug for disorders/patient IDs."""
     if not text:
         return "unspecified"
     cleaned = re.sub(r"[^a-zA-Z0-9]+", "_", text.strip().lower())
@@ -444,6 +465,7 @@ def _slugify(text: str) -> str:
 
 
 def _infer_social_support(family: dict, social: dict) -> str:
+    """Synthesize a concise statement about the patient's practical support system."""
     parts = []
     fam = family.get("currentRelationshipWithParents")
     if fam:

@@ -1,3 +1,5 @@
+"""Translate agent state into the full prompt consumed by the LLM runner."""
+
 import json
 import logging
 from pathlib import Path
@@ -13,6 +15,7 @@ with open(TOPICS_PATH, "r", encoding="utf-8") as f:
 
 
 def build_prompt(state):
+    """Compose a structured prompt that blends profile, history, and guardrails."""
     profile = state.patient_profile
     intent_topic = state.intent_topic or {}
     intent = intent_topic.get("intent", "unknown")

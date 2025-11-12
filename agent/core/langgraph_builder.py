@@ -1,22 +1,24 @@
 import json
 import logging
 from collections import defaultdict
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, wait, ALL_COMPLETED
 from datetime import datetime, timezone
 
 from pathlib import Path
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+import atexit
 
 from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
 from agent.core.llm_runner import create_llm_runner
 from agent.core.patient_profile import PatientProfile
 from agent.core.safety import SAFETY_PATTERNS
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
 from sentence_transformers import SentenceTransformer, util
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
 # === Configure Logging ===
@@ -36,7 +38,7 @@ llm_runner = create_llm_runner()
 # === Load SentenceTransformer ===
 st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
 
-CHECKPOINTER = InMemorySaver()
+CHECKPOINTER = MemorySaver()
 PROFILE_CACHE: Dict[str, dict] = {}
 MAX_LLM_RETRIES = 2
 LLM_FALLBACK_RESPONSE = (
@@ -45,9 +47,31 @@ LLM_FALLBACK_RESPONSE = (
 SUMMARY_BATCH_SIZE = 3
 SUMMARY_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 SUMMARY_TASKS: Dict[str, List[Future]] = defaultdict(list)
+SUMMARY_TIMEOUT_SECONDS = 10
+MAX_SHORT_TERM_TURNS = 5
+MAX_MESSAGE_WINDOW = 10
+
+
+def _shutdown_summary_executor():
+    """Drain pending summary futures and close the executor on interpreter shutdown."""
+    for patient_id, futures in SUMMARY_TASKS.items():
+        done, not_done = wait(futures, timeout=SUMMARY_TIMEOUT_SECONDS, return_when=ALL_COMPLETED)
+        for fut in done:
+            try:
+                fut.result()
+            except Exception as exc:
+                logger.warning(f"⚠️ Summary future error during shutdown ({patient_id}): {exc}")
+        for fut in not_done:
+            logger.warning(f"⚠️ Summary future still running for {patient_id}; cancelling.")
+            fut.cancel()
+    SUMMARY_EXECUTOR.shutdown(wait=False)
+
+
+atexit.register(_shutdown_summary_executor)
 
 
 def _get_cached_profile(patient_id: str, path: Path) -> PatientProfile:
+    """Load a patient profile from disk and memoize it for subsequent requests."""
     if patient_id not in PROFILE_CACHE:
         loaded = PatientProfile.from_file(str(path))
         PROFILE_CACHE[patient_id] = loaded.dict()
@@ -56,6 +80,7 @@ def _get_cached_profile(patient_id: str, path: Path) -> PatientProfile:
 
 
 def _collect_completed_summaries(patient_id: str, state):
+    """Merge finished summary futures into the running state summary buffer."""
     futures = SUMMARY_TASKS.get(patient_id, [])
     if not futures:
         return
@@ -80,6 +105,7 @@ def _collect_completed_summaries(patient_id: str, state):
 
 
 def _schedule_summary_job(patient_id: str, chunk: list, topic: Optional[dict]):
+    """Fire-and-forget a background task that summarizes a chunk of conversation turns."""
     chunk_text = _format_chunk_text(chunk)
     turn_count = len(chunk)
     future = SUMMARY_EXECUTOR.submit(
@@ -94,6 +120,7 @@ def _schedule_summary_job(patient_id: str, chunk: list, topic: Optional[dict]):
 
 
 def _format_chunk_text(chunk: list) -> str:
+    """Format a batch of turns into the alternating Therapist/Patient text block expected by the LLM."""
     return "\n".join(
         f"Therapist: {h['therapist']}\nPatient: {h['patient']}"
         for h in chunk
@@ -101,6 +128,7 @@ def _format_chunk_text(chunk: list) -> str:
 
 
 def _summarize_chunk(patient_id: str, chunk_text: str, topic: Optional[dict], turn_count: int) -> str:
+    """Call the LLM to summarize a chunk and persist the result as long-term memory."""
     prompt = (
         "Summarize the following therapy dialogue into a concise memory that preserves meaning, tone, and themes:\n\n"
         f"{chunk_text}"
@@ -114,6 +142,88 @@ def _summarize_chunk(patient_id: str, chunk_text: str, topic: Optional[dict], tu
     if summary_update:
         persist_long_term_memory(patient_id, summary_update, topic, turn_count)
     return summary_update
+
+
+def _messages_to_turns(messages: List[BaseMessage]) -> list:
+    """Convert alternating Human/AI messages to turn dicts."""
+    turns = []
+    last_human = None
+    for msg in messages:
+        if isinstance(msg, HumanMessage):
+            last_human = msg.content
+        elif isinstance(msg, AIMessage) and last_human is not None:
+            turns.append({
+                "therapist": last_human,
+                "patient": msg.content,
+                "topic": None,
+            })
+            last_human = None
+    return turns
+
+
+def _turns_to_messages(turns: list) -> List[BaseMessage]:
+    """Flatten structured turns back into a LangChain message list."""
+    msgs: List[BaseMessage] = []
+    for turn in turns:
+        msgs.append(HumanMessage(content=turn.get("therapist", "")))
+        msgs.append(AIMessage(content=turn.get("patient", "")))
+    return msgs
+
+
+def _chunk_turns(turns: list, size: int) -> List[list]:
+    """Split turn history into equal-sized chunks for asynchronous summarization."""
+    return [turns[i:i + size] for i in range(0, len(turns), size)]
+
+
+FOLLOW_UP_CUES = {
+    "what do you mean",
+    "can you say more",
+    "tell me more",
+    "go on",
+    "and then",
+    "how so",
+    "why",
+    "uh huh",
+    "i see",
+    "okay",
+    "ok",
+    "mmh",
+    "hmm",
+    "right",
+    "continue",
+    "please continue",
+}
+
+
+def _is_follow_up(user_input: Optional[str]) -> bool:
+    """Heuristically decide if the therapist merely nudged the patient to continue."""
+    if not user_input:
+        return False
+    text = user_input.strip().lower()
+    if len(text) <= 20:
+        return True
+    return any(cue in text for cue in FOLLOW_UP_CUES)
+
+
+def _is_small_topic_shift(previous_score: float, new_score: float, epsilon: float = 0.05) -> bool:
+    """Return True when cosine scores suggest the conversation is still on the same topic."""
+    return previous_score and abs(previous_score - new_score) <= epsilon
+
+
+def _build_topic_text(state) -> str:
+    """Assemble the text snippet used for topic detection, preferring sanitized input and prior state."""
+    pieces = []
+    if state.safe_user_input:
+        pieces.append(state.safe_user_input)
+    elif state.user_input:
+        pieces.append(state.user_input)
+    if state.last_topic:
+        pieces.append(f"(previous topic: {state.last_topic.get('top')} → {state.last_topic.get('sub')})")
+    if state.history:
+        last_patient = state.history[-1].get("patient")
+        if last_patient:
+            pieces.append(f"(patient previously said: {last_patient})")
+    return " ".join(pieces).strip()
 
 
 EMOTION_PROTOTYPES = {
@@ -134,7 +244,7 @@ EMOTION_EMBEDDINGS = {
 
 
 def _embed_texts(texts):
-    """Helper for semantic long-term memory search."""
+    """Vectorize arbitrary strings for use inside the in-memory similarity index."""
     vectors = st_model.encode(texts, convert_to_tensor=False)
     if hasattr(vectors, "tolist"):
         return vectors.tolist()
@@ -153,10 +263,12 @@ MAX_SHORT_TERM_TURNS = 5
 
 
 def _long_term_namespace(patient_id: str) -> tuple[str, ...]:
+    """Return the namespace tuple under which a patient's memories are stored."""
     return ("patients", patient_id, "memories")
 
 
 def _topic_key(topic: Optional[dict]) -> str:
+    """Represent a topic dictionary as a consistent lookup key."""
     if not topic:
         return "unknown::unknown"
     return f"{topic.get('top', 'unknown')}::{topic.get('sub', 'unknown')}"
@@ -282,6 +394,7 @@ with open(TOPIC_PATH, "r") as f:
 
 # === Flatten enriched topics JSON into a list of dicts ===
 def flatten_topics(topics_json):
+    """Flatten the nested topics JSON into {top, sub, desc} records for embedding."""
     flat = []
     for top_topic, content in topics_json.items():
         for sub_topic, desc in content.items():
@@ -302,6 +415,7 @@ TOPIC_EMBEDDINGS = {
 
 # === LangGraph State ===
 class State(BaseModel):
+    """Central LangGraph state container passed between nodes."""
     patient_id: Optional[str] = None  # NEW
     user_input: Optional[str] = None
     safe_user_input: Optional[str] = None
@@ -311,12 +425,19 @@ class State(BaseModel):
     prompt: Optional[str] = None
     response: Optional[str] = None
     last_topic: Optional[dict] = None
+    topic_similarity: float = 0.0
     history: list = Field(default_factory=list)
     summary: str = ""
     long_term_context: list[str] = Field(default_factory=list)
+    messages: List[BaseMessage] = Field(default_factory=list)
+    total_turns: int = 0
+
+    class Config:
+        arbitrary_types_allowed = True
 
 # === Build Nodes ===
 def load_profile(state):
+    """Ensure the patient profile and long-term summary are attached to the state."""
     logger.info("🔄 Loading patient profile...")
 
     patient_id = getattr(state, "patient_id", None)
@@ -352,9 +473,10 @@ def load_profile(state):
     return updates
 
 def detect_intent_topic(state, threshold: float = 0.3):
+    """Infer the most likely topic for the current turn via semantic similarity."""
     logger.info("🔍 Detecting topic with SentenceTransformer...")
 
-    text_input = state.safe_user_input or state.user_input
+    text_input = _build_topic_text(state)
 
     if not text_input:
         return {
@@ -364,7 +486,8 @@ def detect_intent_topic(state, threshold: float = 0.3):
                 "sub": "unknown",
                 "score": 0.0
             },
-            "last_topic": state.last_topic
+            "last_topic": state.last_topic,
+            "topic_similarity": 0.0,
         }
 
     # Encode therapist input
@@ -384,26 +507,35 @@ def detect_intent_topic(state, threshold: float = 0.3):
     # e.g., if state.user_input.lower() in {"how?", "and then?", "what do you mean?"}
     # then force continuation with state.last_topic
 
-    # Decide whether to reuse previous topic
-    if best_score < threshold and state.last_topic:
+    topic = {
+        "intent": "topic_detection",
+        "top": top,
+        "sub": sub if best_score >= threshold else "general",
+        "score": best_score
+    }
+
+    reuse_previous = (
+        state.last_topic
+        and (
+            best_score < threshold
+            or _is_follow_up(state.safe_user_input or state.user_input)
+            or _is_small_topic_shift(state.topic_similarity, best_score)
+        )
+    )
+
+    if reuse_previous:
         logger.info(
-            f"↪️ Low similarity ({best_score:.3f} < {threshold}). "
-            f"Continuing previous topic: {state.last_topic['top']} → {state.last_topic['sub']}"
+            f"↪️ Continuing previous topic: {state.last_topic['top']} → {state.last_topic['sub']}"
         )
         topic = state.last_topic
     else:
-        topic = {
-            "intent": "topic_detection",
-            "top": top,
-            "sub": sub if best_score >= threshold else "general",
-            "score": best_score
-        }
         logger.info(f"🧠 Detected topic: {topic['top']} → {topic['sub']} (score={topic['score']:.3f})")
 
     logger.info(f"📌 State update → intent_topic={topic}, last_topic={topic}")
-    return {"intent_topic": topic, "last_topic": topic}
+    return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic["score"]}
 
 def generate_response(state):
+    """Call the configured LLM runner with retry/fallback logic."""
     logger.info("💬 Generating response to therapist input...")
     prompt = state.prompt or "Respond as the patient based on prior instructions."
     last_error = None
@@ -422,7 +554,50 @@ def generate_response(state):
     logger.error(f"❌ LLM failed after {MAX_LLM_RETRIES} attempts: {last_error}")
     return {"response": LLM_FALLBACK_RESPONSE}
 
+
+def append_messages(state):
+    """Record the most recent therapist/patient exchange in structured message form."""
+    human_text = (state.safe_user_input or state.user_input or "").strip()
+    patient_text = (state.response or "").strip() or "[no reply]"
+
+    messages = list(state.messages)
+    if human_text:
+        messages.append(HumanMessage(content=human_text))
+    else:
+        messages.append(HumanMessage(content="[Therapist silently observes]"))
+    messages.append(AIMessage(content=patient_text))
+    return {"messages": messages}
+
+
+def trim_messages(state):
+    """Keep a bounded recency window and summarize overflow batches."""
+    messages = state.messages
+    if len(messages) <= MAX_MESSAGE_WINDOW:
+        return {}
+
+    overflow_msgs = messages[:-MAX_MESSAGE_WINDOW]
+    trimmed = messages[-MAX_MESSAGE_WINDOW:]
+    turns = _messages_to_turns(overflow_msgs)
+    leftover_turns = []
+
+    if state.patient_id and turns:
+        for chunk in _chunk_turns(turns, SUMMARY_BATCH_SIZE):
+            if len(chunk) == SUMMARY_BATCH_SIZE:
+                _schedule_summary_job(state.patient_id, chunk, state.intent_topic)
+            else:
+                leftover_turns.extend(chunk)
+    else:
+        leftover_turns = turns
+
+    if leftover_turns:
+        trimmed = _turns_to_messages(leftover_turns) + trimmed
+        trimmed = trimmed[-MAX_MESSAGE_WINDOW:]
+
+    return {"messages": trimmed}
+
+
 def hydrate_long_term_context(state):
+    """Retrieve long-term memories relevant to the therapist input/topic for grounding."""
     notes = fetch_relevant_long_term_memories(
         patient_id=state.patient_id,
         topic=state.intent_topic,
@@ -457,10 +632,11 @@ def sanitize_user_input(state):
     else:
         sanitized = original_text or "The therapist is quietly observing; share how you feel in this moment."
 
+    state.safe_user_input = sanitized
+    state.safety_flags = flags
     return {
         "safe_user_input": sanitized,
         "safety_flags": flags,
-        "user_input": original_text,
     }
 
 def update_memory(state):
@@ -481,24 +657,14 @@ def update_memory(state):
         "topic": state.intent_topic
     }
     state.history.append(new_turn)
+    state.total_turns = (state.total_turns or 0) + 1
 
-    logger.info(f"🧾 Added new turn. Total turns: {len(state.history)}")
+    logger.info(f"🧾 Added new turn. Total turns overall: {state.total_turns}")
     logger.debug(f"🧩 New turn content: {json.dumps(new_turn, indent=2)}")
 
-    # === 2. Summarize older turns ===
-    overflow = len(state.history) - MAX_SHORT_TERM_TURNS
-    while overflow >= SUMMARY_BATCH_SIZE:
-        chunk = state.history[:SUMMARY_BATCH_SIZE]
-        state.history = state.history[SUMMARY_BATCH_SIZE:]
-        if state.patient_id:
-            _schedule_summary_job(state.patient_id, chunk, state.intent_topic)
-        overflow = len(state.history) - MAX_SHORT_TERM_TURNS
-
+    # === 2. Keep bounded short-term window ===
     if len(state.history) > MAX_SHORT_TERM_TURNS:
-        logger.info(
-            "⏳ Older turns waiting for batch size; retaining %d overflow turns.",
-            len(state.history) - MAX_SHORT_TERM_TURNS,
-        )
+        state.history = state.history[-MAX_SHORT_TERM_TURNS:]
 
     # === 3. Extract emotional tone using LLM, then map via similarity ===
     try:
@@ -528,10 +694,12 @@ def update_memory(state):
     return {
         "history": state.history,
         "summary": state.summary,
-        "patient_profile": state.patient_profile
+        "patient_profile": state.patient_profile,
+        "total_turns": state.total_turns,
     }
 
 def display_response(state):
+    """Log the agent's response and lightweight telemetry for observability."""
     logger.info("Displaying response:")
     logger.info(f"\n Patient: {state.response}\n")
     logger.info(f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}")
@@ -540,7 +708,8 @@ def display_response(state):
     return state
 
 # === Build LangGraph ===
-def build_graph(checkpointer: Optional[InMemorySaver] = CHECKPOINTER):
+def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
+    """Assemble and compile the LangGraph pipeline that powers the agent."""
     builder = StateGraph(State)
 
     # Nodes
@@ -550,6 +719,8 @@ def build_graph(checkpointer: Optional[InMemorySaver] = CHECKPOINTER):
     builder.add_node("hydrate_memory", RunnableLambda(hydrate_long_term_context))
     builder.add_node("build_prompt", RunnableLambda(build_prompt))
     builder.add_node("generate", RunnableLambda(generate_response))
+    builder.add_node("append_messages", RunnableLambda(append_messages))
+    builder.add_node("trim_messages", RunnableLambda(trim_messages))
     builder.add_node("update_memory", RunnableLambda(update_memory))
     builder.add_node("display", RunnableLambda(display_response))
 
@@ -559,7 +730,9 @@ def build_graph(checkpointer: Optional[InMemorySaver] = CHECKPOINTER):
     builder.add_edge("detect_intent_topic", "hydrate_memory")
     builder.add_edge("hydrate_memory", "build_prompt")
     builder.add_edge("build_prompt", "generate")
-    builder.add_edge("generate", "update_memory")
+    builder.add_edge("generate", "append_messages")
+    builder.add_edge("append_messages", "trim_messages")
+    builder.add_edge("trim_messages", "update_memory")
     builder.add_edge("update_memory", "display")
 
     logger.info("✅ LangGraph pipeline built and compiled.")

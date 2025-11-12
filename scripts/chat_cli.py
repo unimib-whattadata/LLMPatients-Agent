@@ -1,3 +1,5 @@
+# PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001
+
 import argparse
 import logging
 import os
@@ -7,6 +9,7 @@ from pathlib import Path
 
 from agent.core.langgraph_builder import build_graph
 from agent.core.patient_profile import PatientProfile
+from agent.utils.run_logger import RunLogger
 
 logger = logging.getLogger(__name__)
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -56,6 +59,14 @@ def main() -> int:
     graph = build_graph()
     thread_id = args.session or f"cli-{uuid.uuid4()}"
     config = {"configurable": {"thread_id": thread_id}}
+    run_logger = RunLogger()
+    run_logger.start_run(
+        patient_id=args.patient,
+        session_id=thread_id,
+        source="cli-chat",
+        mode="interactive",
+        metadata={"args": vars(args)},
+    )
 
     welcome = _load_welcome_message(args.patient)
     if welcome:
@@ -65,8 +76,10 @@ def main() -> int:
         f"🧠 Chatting with patient '{args.patient}'. "
         "Type 'exit' to end the session.\n"
         f"Thread id: {thread_id}\n"
+        f"Run log: {run_logger.file_path}\n"
     )
 
+    last_state = {}
     while True:
         try:
             therapist_msg = input("👩‍⚕️ Therapist: ").strip()
@@ -80,6 +93,8 @@ def main() -> int:
             )
 
             print(f"🧍 Patient: {state.get('response', '...')}\n")
+            run_logger.log_turn(state, therapist_msg)
+            last_state = state
 
             profile = state.get("patient_profile")
             tone = getattr(profile, "current_emotional_state", "unknown")
@@ -89,9 +104,9 @@ def main() -> int:
                 if isinstance(topic, dict)
                 else "unknown"
             )
+            total_turns = state.get("total_turns", len(state.get("history", [])))
             print(
-                f"📊 tone={tone} | turns={len(state.get('history', []))} "
-                f"| topic={topic_label}\n---"
+                f"📊 tone={tone} | turns={total_turns} | topic={topic_label}\n---"
             )
         except KeyboardInterrupt:
             print("\nSession interrupted.")
@@ -101,8 +116,10 @@ def main() -> int:
             print(f"❌ Error: {exc}")
             break
 
+    run_logger.finalize({"final_summary": (last_state or {}).get("summary", "")})
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    result = main()
+    sys.exit(result)

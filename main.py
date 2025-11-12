@@ -1,3 +1,5 @@
+"""CLI utility to run the PsyLLM patient agent in interactive or scripted modes."""
+
 import argparse
 import json
 import logging
@@ -15,6 +17,7 @@ PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 
 
 def parse_args() -> argparse.Namespace:
+    """Configure and parse CLI arguments."""
     parser = argparse.ArgumentParser(
         description="Run a PsyLLM patient conversation using LangGraph memory."
     )
@@ -43,6 +46,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_messages_from_file(path_str: str | None) -> list[str]:
+    """Read therapist turns from disk, supporting JSON arrays or plaintext."""
     if not path_str:
         return []
     path = Path(path_str)
@@ -62,17 +66,19 @@ def load_messages_from_file(path_str: str | None) -> list[str]:
 
 
 def log_state(state: dict) -> None:
+    """Pretty-print the most important fields after each turn."""
     logger.info("📊 --- STATE UPDATE AFTER TURN ---")
     patient_profile = state.get("patient_profile")
     emotion = getattr(patient_profile, "current_emotional_state", "unknown")
     logger.info(f"🧠 Emotional tone: {emotion}")
-    logger.info(f"🕓 Turns in memory: {len(state.get('history', []))}")
+    logger.info(f"🕓 Total turns: {state.get('total_turns', len(state.get('history', [])))}")
     logger.info(f"🧾 Summary length: {len(state.get('summary', ''))} chars")
     logger.info(f"📌 Last topic: {state.get('last_topic')}")
     logger.info("------------------------------------------\n")
 
 
-def run_turn(graph, patient_id: str, message: str, config: dict) -> dict:
+def run_turn(graph, patient_id: str, message: str, config: dict, run_logger: RunLogger | None = None) -> dict:
+    """Drive a single therapist→patient exchange through LangGraph."""
     result = graph.invoke(
         {"user_input": message, "patient_id": patient_id},
         config=config,
@@ -81,10 +87,13 @@ def run_turn(graph, patient_id: str, message: str, config: dict) -> dict:
     print(f"🧍 Patient: {result.get('response', '...')}")
     print("-")
     log_state(result)
+    if run_logger:
+        run_logger.log_turn(result, message)
     return result
 
 
-def run_interactive(graph, patient_id: str, config: dict) -> None:
+def run_interactive(graph, patient_id: str, config: dict, run_logger: RunLogger | None = None) -> None:
+    """Prompt the user for inputs until they exit, logging each turn."""
     welcome = _load_welcome_message(patient_id)
     if welcome:
         print(f"🧍 Patient: {welcome}\n")
@@ -96,7 +105,7 @@ def run_interactive(graph, patient_id: str, config: dict) -> None:
             if user_input.strip().lower() in {"exit", "quit"}:
                 print("Session ended.")
                 break
-            state = run_turn(graph, patient_id, user_input, config)
+            state = run_turn(graph, patient_id, user_input, config, run_logger)
         except KeyboardInterrupt:
             print("\nSession interrupted.")
             break
@@ -104,9 +113,12 @@ def run_interactive(graph, patient_id: str, config: dict) -> None:
             logger.exception("❌ Error during interaction:")
             print(f"❌ Error during interaction: {exc}")
             break
+    if run_logger:
+        run_logger.finalize({"final_summary": (state or {}).get("summary", "")})
 
 
-def run_scripted(graph, patient_id: str, config: dict, messages: list[str]) -> None:
+def run_scripted(graph, patient_id: str, config: dict, messages: list[str], run_logger: RunLogger | None = None) -> None:
+    """Replay a predefined list of therapist messages against the agent."""
     welcome = _load_welcome_message(patient_id)
     if welcome:
         print(f"🧍 Patient: {welcome}\n")
@@ -114,15 +126,18 @@ def run_scripted(graph, patient_id: str, config: dict, messages: list[str]) -> N
     state = {}
     for idx, msg in enumerate(messages, 1):
         try:
-            state = run_turn(graph, patient_id, msg, config)
+            state = run_turn(graph, patient_id, msg, config, run_logger)
         except Exception as exc:
             logger.exception("❌ Error during scripted interaction:")
             print(f"❌ Halting at turn {idx} due to error: {exc}")
             break
     print("✅ Scripted session completed.")
+    if run_logger:
+        run_logger.finalize({"final_summary": (state or {}).get("summary", "")})
 
 
 def _load_welcome_message(patient_id: str) -> str:
+    """Return the welcome blurb if the patient JSON defines one."""
     patient_path = PATIENTS_DIR / f"{patient_id}.json"
     if not patient_path.exists():
         return ""
@@ -137,11 +152,22 @@ def _load_welcome_message(patient_id: str) -> str:
 
 
 def main() -> int:
+    """Entrypoint for the CLI; wires args, LangGraph, and run logging."""
     args = parse_args()
     graph = build_graph()
     patient_id = args.patient
     thread_id = args.session or f"cli-{uuid.uuid4()}"
     config = {"configurable": {"thread_id": thread_id}}
+    run_logger = RunLogger()
+    mode = "scripted" if (args.messages or args.messages_file) else "interactive"
+    run_logger.start_run(
+        patient_id=patient_id,
+        session_id=thread_id,
+        source="cli",
+        mode=mode,
+        metadata={"args": vars(args)},
+    )
+    print(f"🗂️ Logging run to {run_logger.file_path}")
 
     scripted = []
     try:
@@ -153,9 +179,9 @@ def main() -> int:
         scripted.extend([msg for msg in args.messages if msg.strip()])
 
     if scripted:
-        run_scripted(graph, patient_id, config, scripted)
+        run_scripted(graph, patient_id, config, scripted, run_logger)
     else:
-        run_interactive(graph, patient_id, config)
+        run_interactive(graph, patient_id, config, run_logger)
 
     return 0
 
