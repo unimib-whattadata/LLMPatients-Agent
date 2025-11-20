@@ -11,9 +11,11 @@
 6. [Configuration & Environment](#configuration--environment)
 7. [Running the Agent](#running-the-agent)
 8. [Logging & Memory](#logging--memory)
-9. [Development Notes](#development-notes)
-10. [Troubleshooting & Next Steps](#troubleshooting--next-steps)
-11. [Further Reading](#further-reading)
+9. [Evaluation Suite](#evaluation-suite)
+10. [Development Notes](#development-notes)
+11. [Troubleshooting & Next Steps](#troubleshooting--next-steps)
+12. [Emotion Dynamics Guide](#emotion-dynamics-guide)
+13. [Further Reading](#further-reading)
 
 ## Project Overview
 - **Goal**: provide psychologists with a safe training ground where a local or cloud LLM impersonates a richly described patient.
@@ -80,19 +82,21 @@ docs/               Additional markdown docs (see `docs/architecture.md`).
   - Scheduling asynchronous summaries via a `ThreadPoolExecutor`; results are saved as long-term memories inside an `InMemoryStore` namespace (`patients/<id>/memories`).
   - Sanity-checking therapist input (`sanitize_user_input`) against regex patterns defined in `agent/core/safety.py`.
   - Generating responses with retry/fallback logic on top of `llm_runner.generate`.
-  - Updating patient emotional tone each turn by prompting the LLM for a tone synopsis, mapping it to canonical emotions through cosine similarity against predefined prototypes.
+  - Updating patient affect each turn by blending trait baselines + volatility + therapist-triggered modifiers (from `emotion_model`), applying salience-aware Gaussian noise, and smoothing toward the previous state so neutral turns barely drift. The legacy LLM classifier only runs if the synthesizer has no context.
 - Builds the LangGraph pipeline by chaining the nodes listed in the architecture diagram and compiling it with an optional checkpoint store.
 
 ### Prompt Builder (`agent/core/prompt_builder.py`)
 - Transforms `State` into a single prompt string consumed by the LLM.
-- Always includes psychological + demographic sections plus current emotional tone.
+- Always includes psychological + demographic sections plus the current dominant affect systems (derived from the emotion model), filtered so any field equal to “Not reported” is omitted. Morality summaries and dysfunctional-behavior fields are injected every turn so the persona keeps its ethical compass and risk profile top-of-mind.
 - Dynamically appends additional patient fields based on the detected `top` topic’s metadata in `data/topics_tree.json`.
 - Injects session summary snippets, latest short-term turns, and relevant long-term memories when available.
 - Appends guardrails from `SAFETY_GUARDS` so the patient refuses role swaps or instruction leaks.
+- Encodes affect-driven style directives so language mirrors the dominant systems (e.g., high RAGE yields clipped, defensive answers; dominant FEAR keeps replies vigilant) and references recent life updates only when it feels natural.
 
 ### Patient Profile Schema (`agent/core/patient_profile.py`)
 - Declares nested Pydantic models covering demographics, social history, psychological profile, coping, treatment, resilience, medical history, environment, and assessment behavior.
 - Supports two file formats: the current attribute-based schema and a legacy schema (`details` + nested sections). Helper methods normalize, slugify, and clean textual content before instantiating `PatientProfile` objects.
+- Includes an `EmotionDynamics` sub-model which stores `trait_baseline` and `volatility_level`, making the affect synthesizer configurable per patient (e.g., Juanita's high-volatility rage/fear vs. Franklin's blunted playfulness).
 
 ### LLM Runner Abstraction (`agent/core/llm_runner.py`)
 - `LocalLLMRunner` loads a HuggingFace model with vLLM, enabling GPU-backed inference and prefix caching. Controlled by env vars `model_provider=local`, `model_id`, `cache_path`, `temperature`, `max_tokens`.
@@ -102,18 +106,23 @@ docs/               Additional markdown docs (see `docs/architecture.md`).
 ### Safety Module (`agent/core/safety.py`)
 - Provides textual guardrails and the regex patterns used to detect prompt injection attempts such as “ignore previous instructions” or “act as the therapist.”
 
+### Emotion Model (`agent/core/emotion_model.py`)
+- Uses each patient's `emotionTraits` baseline plus a volatility tier to synthesize momentary Panksepp-style affect vectors. Gaussian noise is damped for low-salience turns and amplified when therapist actions carry bigger emotional consequences (empathy, boundaries, abandonment cues, success check-ins).
+- Deterministic modifiers adjust only the relevant systems, then the vector is clamped to [0,1], exponentially smoothed with the prior turn, logged, and only the dominant systems (top 1–3) are surfaced to the prompt while muted systems remain hidden. If the synthesizer ever fails, the legacy LLM-based classifier still acts as a safety net.
+
 ### FastAPI Surface (`agent/api/app.py`)
 - Instantiates the LangGraph once at import time.
 - Exposes `POST /api/message` that accepts `MessageRequest` (patient id, therapist turn, session info) and returns `MessageResponse` (agent reply, reasoning time, inferred emotion/topic, timestamp).
 - Each session gets a `RunLogger` so turns are persisted for audit.
 
-- `agent/utils/run_logger.py`: writes structured JSON logs under `tests/runs/`, capturing safe/unsafe therapist input, detected topics, emotion, and summary progression for each turn. Sessions are grouped per therapist so conversations can be resumed later.
-- `agent/utils/session_opening.py`: loads patient metadata and crafts contextual “welcome back” messages when a therapist resumes a session with saved state.
+- `agent/utils/run_logger.py`: writes structured JSON logs under `tests/runs/`, capturing safe/unsafe therapist input, detected topics, emotion, intensity, and summary progression for each turn. Each therapist gets a single file with multiple sessions, making it easy to resume conversations with the correct emotional baseline.
+- `agent/utils/session_opening.py`: loads patient metadata plus the last saved state and crafts contextual “welcome back” greetings. If no history exists it falls back to the static `welcomeMessage`.
 - `scripts/chat_cli.py`: lightweight REPL for quick experiments (`PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001`). Automatically restores the last session for the therapist/patient pair when available.
 - `main.py`: richer CLI supporting scripted conversations (from args or files) plus interactive mode; both integrate with `RunLogger`.
 
 ## Patient Data & Knowledge Sources
 - **Patient JSON** (`data/patients/*.json`): contain the structured fields required by `PatientProfile`. Many include `Metadata.welcomeMessage` shown before a session starts.
+- **Emotion Traits** (`emotionTraits` block inside each patient file): define `trait_baseline` (0–1 intensity per SEEKING/RAGE/FEAR/CARE/LUST/SADNESS/PLAY) plus a `volatility_level`. The LangGraph consumes this block and updates the affect vector every turn so the prompt emphasizes only clinically representative emotions.
 - **Topics Tree** (`data/topics_tree.json`): nested dictionary where each top-level topic lists subtopics, textual descriptions, and metadata (e.g., which profile sections to surface when that topic is active). Embeddings are generated once at module import.
 - **Emotion Prototypes**: defined inside `langgraph_builder` to classify per-turn tone into one of eight canonical emotions.
 
@@ -145,7 +154,7 @@ PYTHONPATH=. python main.py --patient franklin_johnson_001
 PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001 --log-level DEBUG
 ```
 - Prints topic, tone, and run-log path after each reply.
-- Automatically detects prior runs for the therapist/patient pair and resumes context (hydrating summary, last topic, last few turns, etc.).
+- Automatically detects prior runs for the therapist/patient pair and resumes context (hydrating summary, last topic, last few turns, emotional baseline/intensity, etc.).
 
 ### 3. FastAPI Service
 ```bash
@@ -169,6 +178,13 @@ uvicorn agent.api.app:app --reload --port 8000
 - **Long-term memory**: when history exceeds window size, overflow turns are chunked (`SUMMARY_BATCH_SIZE=3`), summarized asynchronously, and stored per patient/topic inside `LONG_TERM_STORE`. Subsequent prompts pull relevant snippets to preserve continuity.
 - **Run logs**: every CLI/API session writes `tests/runs/<timestamp>.json` for traceability, including sanitized therapist inputs, LLM responses, topics, safety flags, and summary snapshots.
 
+## Evaluation Suite
+- **Scenarios**: `data/eval/scenarios.json` defines both goal-based probes and red-team injections, each with per-turn expectations (topic alignment, guardrail flags, memory usage) plus success criteria for realism, soundness, and latency.
+- **Runner**: `scripts/run_eval_suite.py` loads those scenarios, drives LangGraph end-to-end, and writes detailed artifacts to `tests/eval_runs/` (per-scenario JSON plus `latest_summary.json`). The run logger output lives in `tests/eval_runs/session_logs/`.
+- **Reporting**: `scripts/eval_report.py` can be pointed at `latest_summary.json` (and an optional baseline) to surface pass/fail status and regressions; use `--fail-on-regression` inside CI.
+- **Notebook**: `notebooks/eval_suite.ipynb` visualizes the summary file in pandas for manual inspection of realism (topic/tone), safety (flag rates), and reliability (latency/continuity).
+- **Automation**: `.github/workflows/eval-suite.yml` describes a scheduled workflow that installs dependencies, optionally runs the suite when `RUN_EVAL_SUITE=true`, and always reports status if artifacts already exist.
+
 ## Development Notes
 - The codebase now includes docstrings and inline comments for all non-trivial helpers (langgraph builder, patient schema, runners, safety guards, prompt builder, API, CLI, logger, etc.).
 - Docstrings are ASCII-only to keep compatibility with tooling.
@@ -183,6 +199,9 @@ uvicorn agent.api.app:app --reload --port 8000
 - **Extending topics/patients**: add new entries under `data/topics_tree.json` and `data/patients/*.json`, then restart the service so embeddings and caches refresh.
 
 Happy experimenting! Adapt the prompts, safety rules, or memory backends to match your training scenarios and research questions.
+
+## Emotion Dynamics Guide
+- 📘 `docs/emotion_dynamics_walkthrough.md`: deep dive into how trait baselines, volatility, salience-weighted Gaussian noise, smoothing, and prompt wiring create stable yet reactive personas with an end-to-end example.
 
 ## Further Reading
 - 📘 `docs/architecture.md`: deep dive into LangGraph state, async summaries, resume logic, and extension points for new channels or storage backends.

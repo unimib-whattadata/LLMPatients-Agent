@@ -15,6 +15,18 @@
   ],
   "difficulty": 3,
   "estimatedDuration": 45,
+  "emotionTraits": {
+    "volatility_level": "high",
+    "trait_baseline": {
+      "SEEKING": 0.7,
+      "RAGE": 0.85,
+      "FEAR": 0.8,
+      "CARE": 0.65,
+      "LUST": 0.65,
+      "SADNESS": 0.85,
+      "PLAY": 0.3
+    }
+  },
   "details": {
     "demographicAndSocioculturalInformation": {
       "age": "33",

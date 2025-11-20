@@ -28,6 +28,10 @@ Field | Purpose | Producer | Consumer(s)
 `user_input` / `safe_user_input` | Raw vs. sanitized therapist text (unsafe instructions replaced) | Entry payload / `sanitize_user_input` | Prompt builder, topic detection
 `safety_flags` | Regex labels for potential prompt injections | `sanitize_user_input` | Prompt builder (for guardrails messaging)
 `patient_profile` | Rich persona definition loaded from JSON | `load_profile` | Prompt builder, tone updates
+`core_emotion` | Patient’s baseline affect (e.g., sadness for depressive cases) | `load_profile`, restored state | Emotion smoothing, prompt builder
+`emotion_intensity` | 0–1 scalar describing how strongly the current affect spike is felt | `update_emotional_state`, `update_memory`, restored state | Prompt builder, telemetry
+`emotion_state` | Full per-system affect vector (SEEKING/RAGE/…) | `update_emotional_state` | Prompt builder, logging
+`emotion_event` | Therapist-triggered modifier label (“empathy”, “boundary”, …) | `update_emotional_state` | Prompt builder
 `history` | Recent therapist/patient turns (max 5) | `update_memory` | Prompt builder, summary chunking
 `messages` | LangChain message list used for streaming memory windows | `append_messages`/`trim_messages` | Async summarizer, future LangGraph nodes
 `summary` | Accumulated multi-turn narrative produced by async jobs | `_collect_completed_summaries` | Prompt builder, long-term context
@@ -49,10 +53,10 @@ You can replace `InMemoryStore` with a LangGraph-compatible backend (Redis, Post
 ## 4. Session Resume Logic
 
 - **RunLogger (`agent/utils/run_logger.py`)** stores every therapist session inside `tests/runs/<therapist>.json`. Each session keeps:
-  - turns with raw/sanitized inputs, responses, topics, flags, and summary snapshots;
-  - a lightweight `final_state` produced by `_state_snapshot` (summary, topic, last messages, etc.).
+  - turns with raw/sanitized inputs, responses, topics, safety flags, emotional tone/intensity, and summary snapshots;
+  - a lightweight `final_state` produced by `_state_snapshot` (summary, topic, last messages, core emotion, intensity, etc.).
 - **Restoring**: both the CLI (`scripts/chat_cli.py`) and the FastAPI endpoint look up the latest session for the therapist/patient pair via `RunLogger.restore_state`. The snapshot feeds into the next `graph.invoke` call so the agent immediately remembers the prior conversation.
-- **Session Opening**: `agent/utils/session_opening.py` uses the restored state to ask the LLM for a warm “welcome back” line that references the previous summary/topic. If no saved state exists, it falls back to the patient’s `Metadata.welcomeMessage`.
+- **Session Opening**: `agent/utils/session_opening.py` uses the restored state to ask the LLM for a warm “welcome back” line that references the previous summary/topic without sounding mid-conversation. If no saved state exists, it falls back to the patient’s `Metadata.welcomeMessage`.
 
 ## 5. LLM Providers
 
@@ -69,18 +73,26 @@ The system abstracts inference behind `agent/core/llm_runner.py`:
 2. Appends recent history, long-term memories, and the running summary.
 3. Includes guardrails listed in `agent/core/safety.py` so the patient refuses role swaps or hidden-instruction disclosures.
 4. States the current and previous topic plus the therapist’s sanitized message.
+5. Pulls the dominant affect systems plus intensity (from `emotion_state`/`emotion_intensity`), instructs the LLM to lean into those systems, and explicitly hides muted systems so the persona never drifts into emotions that aren't clinically representative.
 
 Update `SAFETY_GUARDS` / `SAFETY_PATTERNS` whenever you encounter new attack vectors.
 
-## 7. Entry Points
+## 7. Emotion Synthesizer
+
+1. **Trait baselines**: each patient JSON declares `emotionTraits` with per-system intensities and a `volatility_level`. `PatientProfile` normalizes those into the `EmotionDynamics` model.
+2. **Noise sampling**: `update_emotional_state` draws Gaussian noise per system (sigma derived from volatility) and scales it by event salience so neutral turns barely move while boundaries or abandonment cues create larger swings. Therapist-triggered modifiers detected in `_detect_context_event` (`empathy`, `boundary`, `abandonment_cue`, `success_discussion`, or `neutral`) add deterministic nudges.
+3. **Clamping & smoothing**: the summed vector is clamped to `[0, 1]` and smoothed toward the previous turn (`state.emotion_state`) with a salience-dependent factor—low-salience events decay slowly toward baseline, high-salience events update quickly. The final vector/intensity/event are written into both the `State` and the `PatientProfile` for logging/resume.
+4. **Prompt shaping**: only the top 1–3 systems plus intensity survive into the prompt; suppressed systems are omitted entirely so the LLM never leans on non-representative emotions. If the synthesizer fails (e.g., no patient traits), the legacy LLM-based classifier in `update_memory` still produces a tone.
+
+## 8. Entry Points
 
 Mode | File | Notes
 ---- | ---- | -----
 CLI | `main.py` | Supports scripted runs (`--messages`, `--messages-file`) and interactive sessions. Always writes run logs.
-Chat Shell | `scripts/chat_cli.py` | Minimal REPL that restores state per therapist/patient and prints telemetry (tone, topic, total turns) after each reply.
+Chat Shell | `scripts/chat_cli.py` | Minimal REPL that restores state per therapist/patient (including emotional baseline) and prints telemetry (tone, topic, total turns) after each reply.
 API | `agent/api/app.py` | `POST /api/message` expects `external_patient_id`, `user_message`, `session_id`, and optional `therapist_id`. Maintains per-therapist session caches and returns reasoning time, emotion, and topic labels.
 
-## 8. Adding a New Feature
+## 9. Adding a New Feature
 
 1. **Extend the State**: update the `State` model in `langgraph_builder.py` and decide which node owns the new field.
 2. **Update Prompting**: surface new context in `prompt_builder.py` if the LLM should be aware of it.
@@ -88,7 +100,7 @@ API | `agent/api/app.py` | `POST /api/message` expects `external_patient_id`, `u
 4. **Expose via CLI/API**: surface new outputs or inputs in `main.py`, `scripts/chat_cli.py`, and/or `agent/api/app.py`.
 5. **Document It**: summarize the behavior in `readme.md` plus any relevant markdown files inside `docs/`.
 
-## 9. Testing & Troubleshooting Tips
+## 10. Testing & Troubleshooting Tips
 
 - Use `tests/runs/` artifacts to replay issues. Each file captures the entire conversation and state snapshot.
 - If `python -m py_compile ...` fails with missing `encodings`, the local Python install is corrupted—reinstall or rely on the project’s Docker image.

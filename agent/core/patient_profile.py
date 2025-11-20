@@ -3,9 +3,9 @@
 import json
 import re
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # === Subcomponents ===
@@ -135,6 +135,12 @@ class TestBehavior(BaseModel):
     EyeContactPostureGestures: str
     AvoidantAttitudesMoodChange: str
 
+
+class EmotionDynamics(BaseModel):
+    """Traits controlling affective baseline and volatility."""
+    trait_baseline: Dict[str, float] = Field(default_factory=dict)
+    volatility_level: str = "medium"
+
 # === Metadata for UI/Simulation Layer ===
 class PatientMetadata(BaseModel):
     """Fields primarily consumed by the UI/simulation layers (voice, avatar, etc.)."""
@@ -165,11 +171,13 @@ class PatientProfile(BaseModel):
     MedicalHistory: MedicalHistory
     SocialEnvironment: SocialEnvironment
     TestBehavior: TestBehavior
+    EmotionDynamics: EmotionDynamics
 
     # === Clinical and dynamic fields ===
     ClinicalSummary: Optional[str] = None
     current_emotional_state: Optional[str] = "base"
     session_notes: Optional[str] = None
+    emotion_state: Dict[str, float] = Field(default_factory=dict)
     
 
     @property
@@ -190,6 +198,8 @@ class PatientProfile(BaseModel):
             converted = cls._convert_from_attribute_schema(data, path)
             return cls(**converted)
 
+        if "EmotionDynamics" not in data:
+            data["EmotionDynamics"] = _build_emotion_traits(data)
         return cls(**data)
 
     @staticmethod
@@ -253,6 +263,7 @@ class PatientProfile(BaseModel):
             "patient_id": patient_id,
             "disorder_id": _slugify(disorder_name),
             "Metadata": metadata,
+             "EmotionDynamics": _build_emotion_traits(raw),
             "DemographicInfo": {
                 "Name": first_name,
                 "Surname": last_name,
@@ -386,6 +397,35 @@ class PatientProfile(BaseModel):
     
     class Config:
         extra = "ignore"  # Ignore unexpected fields when loading from JSON
+
+
+EMOTION_KEYS = ["SEEKING", "RAGE", "FEAR", "CARE", "LUST", "SADNESS", "PLAY"]
+
+
+def _build_emotion_traits(raw: dict) -> dict:
+    """Normalize any provided emotion trait metadata into the expected structure."""
+    container = raw.get("emotionTraits") or raw.get("emotion_traits") or {}
+    baseline = container.get("trait_baseline") or raw.get("trait_baseline") or {}
+    volatility = container.get("volatility_level") or raw.get("volatility_level") or "medium"
+
+    normalized = {}
+    for key in EMOTION_KEYS:
+        raw_value = (
+            baseline.get(key)
+            or baseline.get(key.lower())
+            or baseline.get(key.capitalize())
+            or 0.5
+        )
+        normalized[key] = _clamp_emotion_value(raw_value)
+    return {"trait_baseline": normalized, "volatility_level": volatility}
+
+
+def _clamp_emotion_value(value) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return 0.5
+    return max(0.0, min(1.0, numeric))
 
 
 def _split_name(full_name: str) -> tuple[str, str]:

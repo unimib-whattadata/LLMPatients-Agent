@@ -53,6 +53,8 @@ def _state_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
         "topic_similarity": state.get("topic_similarity"),
         "total_turns": state.get("total_turns"),
         "messages": _serialize_messages(state.get("messages", [])),
+        "core_emotion": state.get("core_emotion"),
+        "emotion_intensity": state.get("emotion_intensity"),
     }
     return snapshot
 
@@ -170,6 +172,7 @@ class RunLogger:
             "current_emotion": getattr(
                 state.get("patient_profile"), "current_emotional_state", "unknown"
             ),
+            "emotion_intensity": state.get("emotion_intensity"),
             "safety_flags": state.get("safety_flags", []),
             "long_term_context": state.get("long_term_context", []),
             "summary_so_far": state.get("summary", ""),

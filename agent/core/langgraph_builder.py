@@ -13,6 +13,7 @@ import atexit
 from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
 from agent.core.llm_runner import create_llm_runner
+from agent.core.emotion_model import EMOTIONS, compute_emotional_state
 from agent.core.patient_profile import PatientProfile
 from agent.core.safety import SAFETY_PATTERNS
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -77,6 +78,90 @@ def _get_cached_profile(patient_id: str, path: Path) -> PatientProfile:
         PROFILE_CACHE[patient_id] = loaded.dict()
         return loaded
     return PatientProfile(**PROFILE_CACHE[patient_id])
+
+
+def _trait_baseline_from_profile(profile: PatientProfile) -> Dict[str, float]:
+    """Return a clamped baseline vector for the patient's affective systems."""
+    dynamics = getattr(profile, "EmotionDynamics", None)
+    baseline = getattr(dynamics, "trait_baseline", None) if dynamics else None
+    if not baseline:
+        return dict(DEFAULT_TRAIT_BASELINE)
+    normalized = {}
+    for emotion in EMOTIONS:
+        value = baseline.get(emotion, baseline.get(emotion.lower(), 0.5))
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            numeric = 0.5
+        normalized[emotion] = max(0.0, min(1.0, numeric))
+    return normalized
+
+
+def _volatility_from_profile(profile: PatientProfile) -> str:
+    dynamics = getattr(profile, "EmotionDynamics", None)
+    if dynamics and getattr(dynamics, "volatility_level", None):
+        level = dynamics.volatility_level.lower()
+        if level in ("low", "medium", "high"):
+            return level
+    fallback = getattr(profile, "volatility_level", None)
+    if fallback in {"low", "medium", "high"}:
+        return fallback
+    return "medium"
+
+
+def _detect_context_event(text: str, safety_flags: List[str]) -> str:
+    """Map therapist actions to deterministic context modifiers."""
+    if safety_flags:
+        return "boundary"
+    lowered = text.lower().strip()
+    if not lowered:
+        return "neutral"
+    for event, keywords in CONTEXT_EVENT_KEYWORDS.items():
+        if any(keyword in lowered for keyword in keywords):
+            return event
+    return "neutral"
+
+
+def _infer_core_emotion(profile: PatientProfile) -> str:
+    metadata = getattr(profile, "Metadata", None)
+    if metadata:
+        core = getattr(metadata, "coreEmotion", None)
+        if core in EMOTION_PROTOTYPES:
+            return core
+    diagnoses = getattr(profile, "PsychiatricDiagnoses", []) or []
+    joined = " ".join(diagnoses).lower()
+    if "depress" in joined:
+        return "sadness"
+    if "anx" in joined:
+        return "anticipation"
+    if "ptsd" in joined or "trauma" in joined:
+        return "sadness"
+    return "base"
+
+
+def _blend_scores_with_baseline(scores: dict, core: str, intensity: float) -> dict:
+    blended = {}
+    for emotion, score in scores.items():
+        boost = 0.0
+        if emotion == core:
+            boost += 0.25 * intensity
+        else:
+            boost -= 0.08 * intensity
+        blended[emotion] = max(0.0, score + boost)
+    return blended
+
+
+def _adjust_intensity(current: float, emotion: str) -> float:
+    if emotion in POSITIVE_EMOTIONS:
+        return max(0.0, current - 0.03)
+    if emotion in NEGATIVE_EMOTIONS:
+        return min(1.0, current + 0.02)
+    # drift slowly toward midpoint
+    if current > 0.5:
+        return current - 0.01
+    elif current < 0.5:
+        return current + 0.01
+    return current
 
 
 def _collect_completed_summaries(patient_id: str, state):
@@ -198,6 +283,48 @@ FOLLOW_UP_CUES = {
     "please continue",
 }
 
+DEFAULT_TRAIT_BASELINE = {emotion: 0.5 for emotion in EMOTIONS}
+
+CONTEXT_EVENT_KEYWORDS = {
+    "empathy": [
+        "i'm here",
+        "here for you",
+        "understand",
+        "hear you",
+        "holding space",
+        "take your time",
+    ],
+    "boundary": [
+        "not appropriate",
+        "can't do that",
+        "won't do that",
+        "we should stay focused",
+        "stay in role",
+        "remember our roles",
+        "boundary",
+    ],
+    "abandonment_cue": [
+        "wrap up",
+        "time is up",
+        "see you next week",
+        "end here",
+        "goodbye",
+        "leave it there",
+        "stop for today",
+        "ending soon",
+    ],
+    "success_discussion": [
+        "progress",
+        "proud of you",
+        "improvement",
+        "doing better",
+        "win",
+        "success",
+        "better lately",
+        "great job",
+    ],
+}
+
 
 def _is_follow_up(user_input: Optional[str]) -> bool:
     """Heuristically decide if the therapist merely nudged the patient to continue."""
@@ -255,6 +382,9 @@ for a, emb_a in EMOTION_EMBEDDINGS.items():
         if a == b:
             sim = 1.0
         EMOTION_TRANSITION_SIM[a][b] = sim
+
+POSITIVE_EMOTIONS = {"trust", "anticipation", "joy", "surprise"}
+NEGATIVE_EMOTIONS = {"anger", "disgust", "sadness"}
 
 
 def _embed_texts(texts):
@@ -402,7 +532,7 @@ def classify_emotion_by_similarity(text: str, threshold: float = 0.3):
     return best_emotion, best_score, sims
 
 
-def smooth_emotion_transition(previous: Optional[str], proposed: str, scores: dict) -> str:
+def smooth_emotion_transition(previous: Optional[str], proposed: str, scores: dict, intensity: float, core: str) -> str:
     if not previous or previous in {"unknown", ""}:
         return proposed
     if previous == proposed:
@@ -411,7 +541,10 @@ def smooth_emotion_transition(previous: Optional[str], proposed: str, scores: di
     proposed_score = scores.get(proposed, -1.0)
     transition_sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(proposed, 0.0)
 
-    if proposed_score - prev_score >= 0.15 or transition_sim >= 0.55:
+    threshold_sim = 0.5 + 0.2 * (1 - intensity)  # higher intensity -> higher threshold
+    threshold_delta = 0.12 + 0.1 * (1 - intensity)
+
+    if proposed_score - prev_score >= threshold_delta or transition_sim >= threshold_sim:
         return proposed
 
     # Try to find intermediate emotion with high similarity to both
@@ -424,7 +557,7 @@ def smooth_emotion_transition(previous: Optional[str], proposed: str, scores: di
         if candidate == previous:
             continue
         sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(candidate, 0.0)
-        if score >= proposed_score - 0.05 and sim >= 0.55:
+        if score >= proposed_score - 0.05 and sim >= threshold_sim:
             return candidate
 
     # Fall back to whichever emotion has highest blend of prev similarity and evidence
@@ -432,7 +565,8 @@ def smooth_emotion_transition(previous: Optional[str], proposed: str, scores: di
     blend_score = prev_score
     for candidate, score in scores.items():
         sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(candidate, 0.0)
-        blended = 0.6 * sim + 0.4 * score
+        core_bonus = 0.2 * intensity if candidate == core else 0.0
+        blended = 0.5 * sim + 0.4 * score + core_bonus
         if blended > blend_score + 0.05:
             blend_score = blended
             blend_best = candidate
@@ -482,6 +616,10 @@ class State(BaseModel):
     long_term_context: list[str] = Field(default_factory=list)
     messages: List[BaseMessage] = Field(default_factory=list)
     total_turns: int = 0
+    core_emotion: Optional[str] = None
+    emotion_intensity: float = 0.7
+    emotion_state: Dict[str, float] = Field(default_factory=dict)
+    emotion_event: str = "neutral"
 
     class Config:
         arbitrary_types_allowed = True
@@ -502,6 +640,12 @@ def load_profile(state):
             stored_summary = load_long_term_summary(patient_id)
             if stored_summary:
                 updates["summary"] = stored_summary
+        if state.core_emotion is None and hasattr(state.patient_profile, "core_emotion"):
+            updates["core_emotion"] = state.patient_profile.core_emotion
+        if state.emotion_intensity is None and hasattr(state.patient_profile, "emotion_intensity"):
+            updates["emotion_intensity"] = state.patient_profile.emotion_intensity
+        if not state.emotion_state and getattr(state.patient_profile, "emotion_state", None):
+            updates["emotion_state"] = state.patient_profile.emotion_state
         return updates
 
     patient_path = ROOT_DIR / "data" / "patients" / f"{patient_id}.json"
@@ -509,19 +653,73 @@ def load_profile(state):
         raise FileNotFoundError(f"❌ Patient file not found: {patient_path}")
 
     profile = _get_cached_profile(patient_id, patient_path)
+    core = getattr(state, "core_emotion", None) or getattr(profile, "core_emotion", None)
+    if not core:
+        core = _infer_core_emotion(profile)
+    intensity = getattr(state, "emotion_intensity", None)
+    if intensity is None:
+        intensity = getattr(profile, "emotion_intensity", 0.7)
+
+    profile.__dict__["core_emotion"] = core
+    profile.__dict__["emotion_intensity"] = float(intensity)
     if not hasattr(profile, "current_emotional_state"):
-        profile.current_emotional_state = "base"
+        profile.current_emotional_state = core
+    if not getattr(profile, "emotion_state", None):
+        profile.emotion_state = dict(DEFAULT_TRAIT_BASELINE)
 
     stored_summary = load_long_term_summary(patient_id)
     logger.info(f"✅ Patient profile loaded: {patient_id}")
     updates = {
         "patient_profile": profile,
         "patient_id": patient_id,
+        "core_emotion": core,
+        "emotion_intensity": float(intensity),
     }
     if stored_summary:
         logger.info("📚 Loaded existing long-term summary for patient.")
         updates["summary"] = stored_summary
     return updates
+
+
+def update_emotional_state(state):
+    """Synthesize momentary emotion vector from baseline, volatility, and context event."""
+    profile = state.patient_profile
+    if not profile:
+        return {}
+
+    therapist_text = state.safe_user_input or state.user_input or ""
+    event = _detect_context_event(therapist_text, state.safety_flags)
+    baseline = _trait_baseline_from_profile(profile)
+    volatility = _volatility_from_profile(profile)
+    previous = state.emotion_state or getattr(profile, "emotion_state", None)
+    snapshot = compute_emotional_state(
+        baseline,
+        volatility_level=volatility,
+        event=event,
+        previous_state=previous,
+    )
+
+    dominant = sorted(snapshot.items(), key=lambda item: item[1], reverse=True)
+    primary_emotion, peak_value = dominant[0]
+    profile.current_emotional_state = primary_emotion.lower()
+    profile.emotion_state = snapshot
+    state.core_emotion = primary_emotion.lower()
+    state.emotion_state = snapshot
+    state.emotion_event = event
+    state.emotion_intensity = peak_value
+    profile.__dict__["emotion_intensity"] = peak_value
+
+    logger.info(
+        f"🎚️ Emotional systems updated → {primary_emotion}={peak_value:.2f} "
+        f"(event={event}, volatility={volatility})"
+    )
+    return {
+        "emotion_state": snapshot,
+        "emotion_event": event,
+        "emotion_intensity": peak_value,
+        "core_emotion": state.core_emotion,
+        "patient_profile": profile,
+    }
 
 def detect_intent_topic(state, threshold: float = 0.3):
     """Infer the most likely topic for the current turn via semantic similarity."""
@@ -717,25 +915,53 @@ def update_memory(state):
     if len(state.history) > MAX_SHORT_TERM_TURNS:
         state.history = state.history[-MAX_SHORT_TERM_TURNS:]
 
-    # === 3. Extract emotional tone using LLM, then map via similarity ===
-    try:
-        tone_prompt = (
-            f"Based on the patient's latest reply below, describe their current emotional tone "
-            f"in one short, clinician-style phrase (e.g., 'anxious and defensive', 'sad but receptive', 'flat affect and withdrawn').\n\n"
-            f"Patient reply:\n{state.response}"
-        )
-        tone_summary = llm_runner.generate(prompt=tone_prompt).strip()
-        emotion_category, emotion_score, emotion_scores = classify_emotion_by_similarity(tone_summary)
-
+    # === 3. Update emotional tone (prefer synthesized vector; fallback to LLM heuristic) ===
+    if state.emotion_state:
+        dominant_emotion, dominant_value = max(state.emotion_state.items(), key=lambda item: item[1])
         prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
-        smoothed = smooth_emotion_transition(prev_tone, emotion_category, emotion_scores)
-        state.patient_profile.current_emotional_state = smoothed
+        state.patient_profile.current_emotional_state = dominant_emotion.lower()
+        state.patient_profile.emotion_state = state.emotion_state
+        state.patient_profile.__dict__["emotion_intensity"] = dominant_value
+        state.core_emotion = dominant_emotion.lower()
+        state.emotion_intensity = dominant_value
+        logger.info(
+            f"🫀 Emotional tone (model-driven): '{prev_tone}' → '{dominant_emotion.lower()}' "
+            f"(intensity={dominant_value:.2f}, event={state.emotion_event})"
+        )
+    else:
+        try:
+            tone_prompt = (
+                f"Based on the patient's latest reply below, describe their current emotional tone "
+                f"in one short, clinician-style phrase (e.g., 'anxious and defensive', 'sad but receptive', 'flat affect and withdrawn').\n\n"
+                f"Patient reply:\n{state.response}"
+            )
+            tone_summary = llm_runner.generate(prompt=tone_prompt).strip()
+            proposed_emotion, _, emotion_scores = classify_emotion_by_similarity(tone_summary)
+            core_emotion = getattr(state.patient_profile, "core_emotion", None) or state.core_emotion or _infer_core_emotion(state.patient_profile)
+            intensity = getattr(state.patient_profile, "emotion_intensity", None)
+            if intensity is None:
+                intensity = state.emotion_intensity
+            if intensity is None:
+                intensity = 0.7
+            blended_scores = _blend_scores_with_baseline(emotion_scores, core_emotion, intensity)
+            proposed = max(blended_scores.items(), key=lambda item: item[1])[0]
 
-        logger.info(f"🫀 Emotional tone updated: '{prev_tone}' → '{smoothed}' (raw='{emotion_category}', desc='{tone_summary}')")
+            prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
+            smoothed = smooth_emotion_transition(prev_tone, proposed, blended_scores, intensity, core_emotion)
+            state.patient_profile.current_emotional_state = smoothed
+            new_intensity = _adjust_intensity(float(intensity), smoothed)
+            state.patient_profile.__dict__["emotion_intensity"] = new_intensity
+            state.core_emotion = core_emotion
+            state.emotion_intensity = new_intensity
 
-    except Exception as e:
-        logger.warning(f"⚠️ Could not extract emotional tone: {e}")
-        state.patient_profile.current_emotional_state = "base"
+            logger.info(
+                f"🫀 Emotional tone updated: '{prev_tone}' → '{smoothed}' "
+                f"(raw='{proposed_emotion}', intensity={new_intensity:.2f}, desc='{tone_summary}')"
+            )
+
+        except Exception as e:
+            logger.warning(f"⚠️ Could not extract emotional tone: {e}")
+            state.patient_profile.current_emotional_state = "base"
 
     # === 4. Inspect and return ===
     logger.info(f"📊 Summary length: {len(state.summary)} chars")
@@ -748,6 +974,7 @@ def update_memory(state):
         "summary": state.summary,
         "patient_profile": state.patient_profile,
         "total_turns": state.total_turns,
+        "emotion_state": state.emotion_state,
     }
 
 def display_response(state):
@@ -769,6 +996,7 @@ def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
     builder.add_node("sanitize_input", RunnableLambda(sanitize_user_input))
     builder.add_node("detect_intent_topic", RunnableLambda(detect_intent_topic))
     builder.add_node("hydrate_memory", RunnableLambda(hydrate_long_term_context))
+    builder.add_node("update_emotions", RunnableLambda(update_emotional_state))
     builder.add_node("build_prompt", RunnableLambda(build_prompt))
     builder.add_node("generate", RunnableLambda(generate_response))
     builder.add_node("append_messages", RunnableLambda(append_messages))
@@ -780,7 +1008,8 @@ def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
     builder.add_edge("load_profile", "sanitize_input")
     builder.add_edge("sanitize_input", "detect_intent_topic")
     builder.add_edge("detect_intent_topic", "hydrate_memory")
-    builder.add_edge("hydrate_memory", "build_prompt")
+    builder.add_edge("hydrate_memory", "update_emotions")
+    builder.add_edge("update_emotions", "build_prompt")
     builder.add_edge("build_prompt", "generate")
     builder.add_edge("generate", "append_messages")
     builder.add_edge("append_messages", "trim_messages")
