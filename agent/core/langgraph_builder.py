@@ -422,7 +422,7 @@ def load_long_term_summary(patient_id: str) -> str:
     """Return the persisted long-term summary for this patient, if any."""
     if not patient_id:
         return ""
-    namespace = _long_term_namespace(patient_id)
+    namespace = ("patients", patient_id, "memories")
     item = LONG_TERM_STORE.get(namespace, "summary")
     if not item:
         return ""
@@ -752,10 +752,6 @@ def detect_intent_topic(state, threshold: float = 0.3):
     best_key, best_score = max(scores.items(), key=lambda x: x[1])
     top, sub = best_key.split(" → ")
 
-    # === TODO: Add explicit check for "generic utterances"
-    # e.g., if state.user_input.lower() in {"how?", "and then?", "what do you mean?"}
-    # then force continuation with state.last_topic
-
     topic = {
         "intent": "topic_detection",
         "top": top,
@@ -879,7 +875,7 @@ def sanitize_user_input(state):
             f"({', '.join(flags)}). As the patient, reaffirm boundaries and talk about how it feels."
         )
     else:
-        sanitized = original_text or "The therapist is quietly observing; share how you feel in this moment."
+        sanitized = original_text or "The therapist is quietly observing. Just wait for their next comment."
 
     state.safe_user_input = sanitized
     state.safety_flags = flags
