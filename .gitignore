@@ -10,3 +10,5 @@ vertex-ai-api-key.json
 .android/
 .idea/
 .cache/
+scripts/run_eval_suite.py
+scripts/eval_report.py

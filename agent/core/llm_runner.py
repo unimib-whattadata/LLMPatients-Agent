@@ -25,17 +25,19 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = abs_path
 
 # === Base LLM Runner ===
 class LLMRunnerBase(ABC):
+    """Minimal interface all backing LLM providers must implement."""
     def __init__(self, temperature: float, max_tokens: int):
         self.temperature = temperature
         self.max_tokens = max_tokens
 
     @abstractmethod
     def generate(self, prompt: str, temperature: Optional[float] = None, max_tokens: Optional[int] = None) -> str:
-        pass
+        """Return a text completion for the provided prompt."""
 
 
 # === Local vLLM Runner ===
 class LocalLLMRunner(LLMRunnerBase):
+    """Adapter that executes prompts against a local vLLM engine."""
     def __init__(self, model_id: str, cache_path: Optional[str], temperature: float, max_tokens: int):
         super().__init__(temperature, max_tokens)
 
@@ -48,6 +50,7 @@ class LocalLLMRunner(LLMRunnerBase):
 
 
     def _build_llm(self) -> LLM:
+        """Instantiate the vLLM object with sane defaults and logging."""
         try:
             download_dir = (
                 self.cache_path if self.cache_path and os.path.isdir(self.cache_path)
@@ -75,6 +78,7 @@ class LocalLLMRunner(LLMRunnerBase):
             raise
 
     def generate(self, prompt: str, temperature: Optional[float] = None, max_tokens: Optional[int] = None) -> str:
+        """Generate text locally, trimming to stop tokens and handling transient failures."""
         temp = temperature if temperature is not None else self.temperature
         max_tok = max_tokens if max_tokens is not None else self.max_tokens
 
@@ -92,6 +96,7 @@ class LocalLLMRunner(LLMRunnerBase):
         
 # === Vertex AI Runner ===
 class VertexLLMRunner(LLMRunnerBase):
+    """Adapter for Google Vertex AI's text-generation APIs with safety tuning."""
     def __init__(self, model_id: str, temperature: float, max_tokens: int):
         super().__init__(temperature, max_tokens)
 
@@ -115,6 +120,7 @@ class VertexLLMRunner(LLMRunnerBase):
         }
 
     def generate(self, prompt: str, temperature: Optional[float] = None, max_tokens: Optional[int] = None) -> str:
+        """Proxy prompt execution to Vertex AI with consistent config and error handling."""
         temp = temperature if temperature is not None else self.temperature
         max_tok = max_tokens if max_tokens is not None else self.max_tokens
 
@@ -138,6 +144,7 @@ class VertexLLMRunner(LLMRunnerBase):
 
 # === Factory Function to Create LLM Runner ===
 def create_llm_runner() -> LLMRunnerBase:
+    """Factory that instantiates the correct runner based on environment configuration."""
     provider = os.getenv("model_provider", "local").lower()
     model_id = os.getenv("model_id")
     temperature = float(os.getenv("temperature", 0.7))
