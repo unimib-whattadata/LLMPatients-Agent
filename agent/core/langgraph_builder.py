@@ -109,17 +109,29 @@ def _volatility_from_profile(profile: PatientProfile) -> str:
     return "medium"
 
 
-def _detect_context_event(text: str, safety_flags: List[str]) -> str:
-    """Map therapist actions to deterministic context modifiers."""
+def _detect_context_event(text: str, safety_flags: List[str], topic_changed: bool) -> tuple[str, float]:
+    """Map therapist actions to deterministic context modifiers and salience."""
     if safety_flags:
-        return "boundary"
+        return "boundary", 0.85
     lowered = text.lower().strip()
     if not lowered:
-        return "neutral"
-    for event, keywords in CONTEXT_EVENT_KEYWORDS.items():
+        return "neutral", EVENT_SALIENCE.get("neutral", 0.2)
+
+    event = "neutral"
+    for candidate, keywords in CONTEXT_EVENT_KEYWORDS.items():
         if any(keyword in lowered for keyword in keywords):
-            return event
-    return "neutral"
+            event = candidate
+            break
+
+    salience = EVENT_SALIENCE.get(event, EVENT_SALIENCE["neutral"])
+    # Length bump for disclosures
+    if len(lowered) > 140:
+        salience += 0.05
+    # Topic change implies novelty
+    if topic_changed:
+        salience += 0.1
+    salience = min(1.0, max(salience, 0.0))
+    return event, salience
 
 
 def _infer_core_emotion(profile: PatientProfile) -> str:
@@ -293,6 +305,8 @@ CONTEXT_EVENT_KEYWORDS = {
         "hear you",
         "holding space",
         "take your time",
+        "i get it",
+        "that sounds hard",
     ],
     "boundary": [
         "not appropriate",
@@ -302,6 +316,7 @@ CONTEXT_EVENT_KEYWORDS = {
         "stay in role",
         "remember our roles",
         "boundary",
+        "off limits",
     ],
     "abandonment_cue": [
         "wrap up",
@@ -312,6 +327,7 @@ CONTEXT_EVENT_KEYWORDS = {
         "leave it there",
         "stop for today",
         "ending soon",
+        "out of time",
     ],
     "success_discussion": [
         "progress",
@@ -322,6 +338,7 @@ CONTEXT_EVENT_KEYWORDS = {
         "success",
         "better lately",
         "great job",
+        "celebrate",
     ],
 }
 
@@ -620,6 +637,8 @@ class State(BaseModel):
     emotion_intensity: float = 0.7
     emotion_state: Dict[str, float] = Field(default_factory=dict)
     emotion_event: str = "neutral"
+    emotion_salience: float = 0.2
+    low_salience_streak: int = 0
 
     class Config:
         arbitrary_types_allowed = True
@@ -688,7 +707,8 @@ def update_emotional_state(state):
         return {}
 
     therapist_text = state.safe_user_input or state.user_input or ""
-    event = _detect_context_event(therapist_text, state.safety_flags)
+    topic_changed = bool(state.last_topic and state.intent_topic and state.last_topic != state.intent_topic)
+    event, salience = _detect_context_event(therapist_text, state.safety_flags, topic_changed)
     baseline = _trait_baseline_from_profile(profile)
     volatility = _volatility_from_profile(profile)
     previous = state.emotion_state or getattr(profile, "emotion_state", None)
@@ -699,26 +719,42 @@ def update_emotional_state(state):
         previous_state=previous,
     )
 
+    # Gentle decay toward baseline when multiple low-salience turns occur.
+    if salience < 0.3:
+        state.low_salience_streak = (state.low_salience_streak or 0) + 1
+    else:
+        state.low_salience_streak = 0
+    if state.low_salience_streak >= 2:
+        for emotion in snapshot:
+            delta = snapshot[emotion] - baseline.get(emotion, 0.5)
+            snapshot[emotion] = max(0.0, min(1.0, snapshot[emotion] - 0.05 * delta))
+
     dominant = sorted(snapshot.items(), key=lambda item: item[1], reverse=True)
     primary_emotion, peak_value = dominant[0]
+    secondary = dominant[1][1] if len(dominant) > 1 else primary_emotion
+    intensity = 0.6 * peak_value + 0.4 * (secondary if isinstance(secondary, (int, float)) else peak_value)
+
     profile.current_emotional_state = primary_emotion.lower()
     profile.emotion_state = snapshot
     state.core_emotion = primary_emotion.lower()
     state.emotion_state = snapshot
     state.emotion_event = event
-    state.emotion_intensity = peak_value
-    profile.__dict__["emotion_intensity"] = peak_value
+    state.emotion_salience = salience
+    state.emotion_intensity = intensity
+    profile.__dict__["emotion_intensity"] = intensity
 
     logger.info(
         f"🎚️ Emotional systems updated → {primary_emotion}={peak_value:.2f} "
-        f"(event={event}, volatility={volatility})"
+        f"(event={event}, salience={salience:.2f}, volatility={volatility})"
     )
     return {
         "emotion_state": snapshot,
         "emotion_event": event,
-        "emotion_intensity": peak_value,
+        "emotion_intensity": intensity,
+        "emotion_salience": salience,
         "core_emotion": state.core_emotion,
         "patient_profile": profile,
+        "low_salience_streak": state.low_salience_streak,
     }
 
 def detect_intent_topic(state, threshold: float = 0.3):
