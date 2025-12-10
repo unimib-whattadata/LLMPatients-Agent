@@ -32,6 +32,9 @@ NOT_REPORTED_MARKERS = {
     "not specified",
 }
 
+EMOTION_TEMP = 0.7
+EMOTION_FLOOR = 0.08
+
 
 def _clean_value(value):
     if value is None:
@@ -68,16 +71,23 @@ def _clean_section_dict(payload: dict) -> dict:
 
 
 def _select_emotion_bands(emotion_state: dict):
-    """Return the dominant and suppressed emotion bands for prompt conditioning."""
+    """Return dominant emotions after temperatured softmax and floor."""
     if not emotion_state:
-        return [], []
-    ordered = sorted(emotion_state.items(), key=lambda item: item[1], reverse=True)
-    dominant = [(label, value) for label, value in ordered if value >= 0.55]
-    if not dominant:
-        dominant = ordered[:1]
-    dominant = dominant[:3]
-    suppressed = [label for label, value in ordered[::-1] if value <= 0.4][:3]
-    return dominant, suppressed
+        return []
+    import math
+
+    logits = {k: v / EMOTION_TEMP for k, v in emotion_state.items()}
+    max_logit = max(logits.values())
+    exp_vals = {k: math.exp(v - max_logit) for k, v in logits.items()}
+    denom = sum(exp_vals.values())
+    probs = {k: exp_vals[k] / denom for k in exp_vals}
+
+    filtered = [(label, value) for label, value in probs.items() if value >= EMOTION_FLOOR]
+    if not filtered:
+        filtered = sorted(probs.items(), key=lambda item: item[1], reverse=True)[:1]
+
+    ranked = sorted(filtered, key=lambda item: item[1], reverse=True)[:3]
+    return ranked
 
 
 def build_prompt(state):
@@ -93,7 +103,7 @@ def build_prompt(state):
     demographic = profile.DemographicInfo
 
     emotion_state = getattr(state, "emotion_state", None) or getattr(profile, "emotion_state", {}) or {}
-    dominant_emotions, suppressed_emotions = _select_emotion_bands(emotion_state)
+    dominant_emotions = _select_emotion_bands(emotion_state)
 
     always_sections = []
 
@@ -206,13 +216,10 @@ def build_prompt(state):
             for label, value in dominant_emotions
         ]
         emotion_directive = "; ".join(cue_parts)
-    #suppressed_names = [label.title() for label in suppressed_emotions]
-    #if suppressed_names:
-    #    emotion_directive += f". Avoid leaning on {', '.join(suppressed_names)} — they are muted right now."
-    #emotion_directive = (
-    #    emotion_directive.strip()
-    #    or "Stay grounded in the patient's subdued baseline mood; nothing specific is flaring."
-    #)
+    emotion_directive = (
+        emotion_directive.strip()
+        or "Stay grounded in the patient's subdued baseline mood; nothing specific is flaring."
+    )
 
     # === Build final prompt ===
     summary = f"""

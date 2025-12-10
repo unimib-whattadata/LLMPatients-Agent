@@ -32,7 +32,7 @@ When the therapist sends a message, LangGraph runs `update_emotional_state` with
    - "We need to end here for today" → `abandonment_cue`
    - No keywords + no safety flags → `neutral`
 
-2. **Salience Weight** – each event maps to a salience score (`neutral=0.2`, `empathy=0.4`, `success_discussion=0.5`, `boundary=0.75`, `abandonment_cue=0.9`). This score controls how much Gaussian noise we add.
+2. **Salience Weight** – each event maps to a salience score (`neutral=0.2`, `empathy=0.4`, `success_discussion=0.5`, `boundary=0.75`, `abandonment_cue=0.9`). Salience also bumps up slightly for long therapist turns or topic changes and is forced high when safety flags fire.
 
 3. **Gaussian Noise** – for every emotion we sample `Normal(0, sigma)` where `sigma = base_sigma(volatility) * (0.25 + 0.75 * salience)`. Low-salience turns barely move; high-salience turns swing harder. Example for Juanita (`volatility=high → base_sigma=0.12`):
 
@@ -51,13 +51,13 @@ boundary salience 0.75 → multiplier 0.25 + 0.75*0.75 = 0.8125 → sigma ≈ 0.
 | `success_discussion` | SEEKING +0.10, PLAY +0.10                           |
 | `neutral`          | (no change)                                           |
 
-5. **Clamp and Smooth** – `baseline + noise + modifier` is clamped to `[0,1]` and exponentially smoothed with the previous turn's vector. The smoothing factor is `0.2 + salience * 0.6`. Neutral turns (salience 0.2) blend 32% of the new value with 68% of the old value; abandonment cues (salience 0.9) blend ~74% new with 26% old.
+5. **Clamp, Counterweight, and Smooth** – `baseline + noise + modifier` is clamped to `[0,1]`, lightly counterweighted (e.g., CARE/PLAY can soften RAGE/SADNESS by a few points), then exponentially smoothed with the previous turn's vector. The smoothing factor is `0.2 + salience * 0.6`. Neutral turns (salience 0.2) blend 32% of the new value with 68% of the old value; abandonment cues (salience 0.9) blend ~74% new with 26% old. After two+ low-salience turns, the vector slowly decays toward baseline (5% of the delta per turn).
 
-The resulting map is saved into `state.emotion_state`, `profile.emotion_state`, and is used to compute `emotion_intensity` (the max value) and `emotion_event`.
+The resulting map is saved into `state.emotion_state`, `profile.emotion_state`, and is used to compute `emotion_intensity` (weighted top-two average) and `emotion_event`.
 
 ## 3. Prompt Builder Integration
 
-`prompt_builder` now includes:
+`prompt_builder` now includes (after a temperatured softmax with a floor, exposing only the dominant 1–3 systems):
 
 ```
 🎚️ Dominant Affective Systems
@@ -68,7 +68,7 @@ The resulting map is saved into `state.emotion_state`, `profile.emotion_state`, 
 }
 ...
 • Dominant affect systems: RAGE (0.87), SADNESS (0.81), FEAR (0.79)
-• Affect intensity: 0.87 (high tension and emotions close to the surface)
+• Affect intensity: 0.85 (weighted top-two; high tension and emotions close to the surface)
 • Therapist-triggered context event: boundary
 ...
 - Follow affect drivers: RAGE (0.87) → Irritable, confrontational edge...; SADNESS ...
@@ -108,8 +108,8 @@ Below is the exact order of nodes and what each one contributes for a single Lan
    - FEAR:    0.80 − 0.02        → **0.78**
    - SADNESS: 0.85 − 0.03        → **0.82**
    - PLAY:    0.30 + 0.02 + 0.10 → **0.42**
-5. **Smoothing**: salience=0.5 ⇒ smoothing factor `0.2 + 0.6*0.5 = 0.5`. If the previous FEAR value was 0.80, the new FEAR becomes `0.80 + 0.5*(0.78 - 0.80) = 0.79`. Repeat for each dimension. The dominant systems stay SADNESS/RAGE/FEAR; SEEKING/PLAY rises but not enough to overtake them.
-6. **State writes**: `state.emotion_state` holds the final smoothed map, `emotion_intensity` is the max value (0.82), `emotion_event` is `success_discussion`. These get persisted in the run log for future turns.
+5. **Smoothing**: salience=0.5 ⇒ smoothing factor `0.2 + 0.6*0.5 = 0.5`. If the previous FEAR value was 0.80, the new FEAR becomes `0.80 + 0.5*(0.78 - 0.80) = 0.79`. After two low-salience turns, the vector would also decay 5% toward baseline. The dominant systems stay SADNESS/RAGE/FEAR; SEEKING/PLAY rises but not enough to overtake them. `emotion_intensity` is a weighted top-two measure, so if FEAR was next-highest, intensity is `0.6 * SADNESS + 0.4 * FEAR ≈ 0.80`.
+6. **State writes**: `state.emotion_state` holds the final smoothed map, `emotion_intensity` is the weighted top-two value, `emotion_event` is `success_discussion`, and salience/decay counters are stored for the next turn.
 
 ### 4.2 Prompt Surface
 

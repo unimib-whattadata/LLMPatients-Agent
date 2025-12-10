@@ -80,6 +80,9 @@ def compute_emotional_state(
         raw = baseline[emotion] + noise[emotion] + modifiers.get(emotion, 0.0)
         target[emotion] = clamp(raw)
 
+    # Apply light counterweights so supportive systems can soften hot ones.
+    target = _apply_counterweights(target)
+
     if not previous_state:
         return target
 
@@ -96,3 +99,15 @@ def _smoothing_factor(salience: float) -> float:
     salience = max(0.0, min(1.0, salience))
     # Neutral turns → ~0.2 (slow drift), high-salience → up to 0.8 (faster response).
     return 0.2 + salience * 0.6
+
+
+def _apply_counterweights(vector: Dict[str, float]) -> Dict[str, float]:
+    """Dampen hot systems slightly if their counterweights are present."""
+    softened = dict(vector)
+    if softened.get("RAGE", 0.0) > 0.6 and softened.get("CARE", 0.0) > 0.4:
+        softened["RAGE"] = clamp(softened["RAGE"] - 0.03)
+    if softened.get("RAGE", 0.0) > 0.6 and softened.get("PLAY", 0.0) > 0.25:
+        softened["RAGE"] = clamp(softened["RAGE"] - 0.02)
+    if softened.get("SADNESS", 0.0) > 0.6 and softened.get("PLAY", 0.0) > 0.3:
+        softened["SADNESS"] = clamp(softened["SADNESS"] - 0.02)
+    return softened

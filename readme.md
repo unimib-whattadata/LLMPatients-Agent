@@ -82,7 +82,7 @@ docs/               Additional markdown docs (see `docs/architecture.md`).
   - Scheduling asynchronous summaries via a `ThreadPoolExecutor`; results are saved as long-term memories inside an `InMemoryStore` namespace (`patients/<id>/memories`).
   - Sanity-checking therapist input (`sanitize_user_input`) against regex patterns defined in `agent/core/safety.py`.
   - Generating responses with retry/fallback logic on top of `llm_runner.generate`.
-  - Updating patient affect each turn by blending trait baselines + volatility + therapist-triggered modifiers (from `emotion_model`), applying salience-aware Gaussian noise, and smoothing toward the previous state so neutral turns barely drift. The legacy LLM classifier only runs if the synthesizer has no context.
+  - Updating patient affect each turn by blending trait baselines + volatility + therapist-triggered modifiers (from `emotion_model`), applying salience-aware Gaussian noise, smoothing toward the previous state, and applying light counterweights (e.g., CARE/PLAY can soften RAGE). The legacy LLM classifier only runs if the synthesizer has no context.
 - Builds the LangGraph pipeline by chaining the nodes listed in the architecture diagram and compiling it with an optional checkpoint store.
 
 ### Prompt Builder (`agent/core/prompt_builder.py`)
@@ -107,8 +107,8 @@ docs/               Additional markdown docs (see `docs/architecture.md`).
 - Provides textual guardrails and the regex patterns used to detect prompt injection attempts such as “ignore previous instructions” or “act as the therapist.”
 
 ### Emotion Model (`agent/core/emotion_model.py`)
-- Uses each patient's `emotionTraits` baseline plus a volatility tier to synthesize momentary Panksepp-style affect vectors. Gaussian noise is damped for low-salience turns and amplified when therapist actions carry bigger emotional consequences (empathy, boundaries, abandonment cues, success check-ins).
-- Deterministic modifiers adjust only the relevant systems, then the vector is clamped to [0,1], exponentially smoothed with the prior turn, logged, and only the dominant systems (top 1–3) are surfaced to the prompt while muted systems remain hidden. If the synthesizer ever fails, the legacy LLM-based classifier still acts as a safety net.
+- Uses each patient's `emotionTraits` baseline plus a volatility tier to synthesize momentary Panksepp-style affect vectors. Gaussian noise is damped for low-salience turns and amplified when therapist actions carry bigger emotional consequences (empathy, boundaries, abandonment cues, success check-ins), with light counterweights so supportive systems can temper hot ones.
+- Deterministic modifiers adjust only the relevant systems, then the vector is clamped to [0,1], exponentially smoothed with the prior turn (plus decay after multiple low-salience turns), logged, and only the dominant systems (top 1–3, via softmax + floor) are surfaced to the prompt while muted systems remain hidden. If the synthesizer ever fails, the legacy LLM-based classifier still acts as a safety net.
 
 ### FastAPI Surface (`agent/api/app.py`)
 - Instantiates the LangGraph once at import time.

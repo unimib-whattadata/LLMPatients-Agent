@@ -55,6 +55,10 @@ def _state_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
         "messages": _serialize_messages(state.get("messages", [])),
         "core_emotion": state.get("core_emotion"),
         "emotion_intensity": state.get("emotion_intensity"),
+        "emotion_state": state.get("emotion_state", {}),
+        "emotion_event": state.get("emotion_event"),
+        "emotion_salience": state.get("emotion_salience"),
+        "low_salience_streak": state.get("low_salience_streak", 0),
     }
     return snapshot
 
