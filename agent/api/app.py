@@ -1,11 +1,20 @@
 """FastAPI entrypoint that exposes the simulated patient via /api/message."""
 
-from fastapi import FastAPI
-from pydantic import BaseModel
+from datetime import datetime
+import json
+from pathlib import Path
+import re
+import time
+from typing import Literal
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
 from agent.core.langgraph_builder import build_graph
 from agent.utils.run_logger import RunLogger
-from datetime import datetime
-import time
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 
 app = FastAPI(title="PsyLLM Patient Agent API")
 
@@ -31,7 +40,113 @@ class MessageResponse(BaseModel):
     timestamp: str
 
 
-@app.post("/api/message", response_model=MessageResponse)
+class PatientInitRequest(BaseModel):
+    """Request body for creating or initializing a patient record."""
+
+    id: str
+    name: str
+    age: int
+    gender: str
+    diagnosis: str
+    difficulty_level: int
+    psychological_profile: str
+    background: str
+    current_medications: list[str] = Field(default_factory=list)
+    therapy_goals: list[str] = Field(default_factory=list)
+    previous_sessions: int = 0
+    session_id: str
+
+
+class PatientInitResponse(BaseModel):
+    """Standardized acknowledgement for patient initialization."""
+
+    status: Literal["success", "exists"]
+    code: Literal["PATIENT_CREATED", "PATIENT_EXISTS"]
+    external_patient_id: str
+    message: str
+    timestamp: str
+
+
+def _sanitize_patient_id(raw_id: str) -> str:
+    """Normalize and validate patient IDs to safe filenames."""
+    cleaned = re.sub(r"[^a-zA-Z0-9_-]+", "_", raw_id.strip()).strip("_").lower()
+    if not cleaned:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Patient id must contain alphanumeric characters",
+        )
+    return cleaned
+
+
+def _patient_file_path(patient_id: str) -> Path:
+    """Return the target path for a patient's JSON profile."""
+    return PATIENTS_DIR / f"{patient_id}.json"
+
+
+def _difficulty_to_volatility(level: int) -> str:
+    """Map difficulty level into a coarse volatility bucket."""
+    if level >= 4:
+        return "high"
+    if level <= 1:
+        return "low"
+    return "medium"
+
+
+def _serialize_patient(req: PatientInitRequest, patient_id: str) -> dict:
+    """Convert the external payload into the internal attribute-style schema."""
+    volatility = _difficulty_to_volatility(req.difficulty_level)
+    welcome = f"Hi, I'm {req.name.split()[0] if req.name else 'the patient'}. Thanks for meeting with me."
+    previous_sessions = (
+        f"{req.previous_sessions} previous sessions; latest session id: {req.session_id}"
+        if req.previous_sessions
+        else "No previous sessions; intake session."
+    )
+
+    return {
+        "patientId": patient_id,
+        "name": req.name,
+        "briefDescription": req.background,
+        "welcomeMessage": welcome,
+        "difficulty": req.difficulty_level,
+        "objectives": req.therapy_goals or [],
+        "emotionTraits": {
+            "volatility_level": volatility,
+            "trait_baseline": {
+                "SEEKING": 0.45,
+                "RAGE": 0.3,
+                "FEAR": 0.35,
+                "CARE": 0.5,
+                "LUST": 0.25,
+                "SADNESS": 0.35,
+                "PLAY": 0.35,
+            },
+        },
+        "details": {
+            "demographicAndSocioculturalInformation": {
+                "age": req.age,
+                "gender": req.gender,
+            },
+            "disorder": {"disorderName": req.diagnosis},
+            "educationAndEmployment": {
+                "workHistory": req.background,
+            },
+            "psychologicalProfileAndCognitiveFunctioning": {
+                "affectiveEmotionalFunctioningAndMoodRegulation": req.psychological_profile,
+            },
+            "treatmentsAndInterventions": {
+                "therapeuticGoals": req.therapy_goals or [],
+                "medicationHistory": req.current_medications or [],
+                "previousTherapeuticExperiences": previous_sessions,
+            },
+            "medicalAndPhysicalHistory": {
+                "pharmacologicalTreatments": req.current_medications or [],
+            },
+        },
+        "clinicalCase": req.psychological_profile,
+    }
+
+
+@app.post("/chat-response", response_model=MessageResponse)
 async def send_message(req: MessageRequest):
     """Main conversational endpoint."""
 
@@ -88,4 +203,35 @@ async def send_message(req: MessageRequest):
         emotion=emotion,
         topic=topic,
         timestamp=datetime.utcnow().isoformat()
+    )
+
+
+@app.post("/patients", response_model=PatientInitResponse)
+async def create_patient(req: PatientInitRequest):
+    """Create a patient file if it does not already exist."""
+
+    patient_id = _sanitize_patient_id(req.id)
+    patient_path = _patient_file_path(patient_id)
+
+    if patient_path.exists():
+        return PatientInitResponse(
+            status="exists",
+            code="PATIENT_EXISTS",
+            external_patient_id=patient_id,
+            message="Paziente già presente nel sistema esterno",
+            timestamp=datetime.utcnow().isoformat(),
+        )
+
+    PATIENTS_DIR.mkdir(parents=True, exist_ok=True)
+    payload = _serialize_patient(req, patient_id)
+    with open(patient_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=True, indent=2)
+        f.write("\n")
+
+    return PatientInitResponse(
+        status="success",
+        code="PATIENT_CREATED",
+        external_patient_id=patient_id,
+        message="Paziente inizializzato correttamente nel sistema esterno",
+        timestamp=datetime.utcnow().isoformat(),
     )
