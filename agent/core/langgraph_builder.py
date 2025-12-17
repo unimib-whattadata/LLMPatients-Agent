@@ -13,7 +13,7 @@ import atexit
 from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
 from agent.core.llm_runner import create_llm_runner
-from agent.core.emotion_model import EMOTIONS, compute_emotional_state
+from agent.core.emotion_model import EMOTIONS, EVENT_SALIENCE, compute_emotional_state
 from agent.core.patient_profile import PatientProfile
 from agent.core.safety import SAFETY_PATTERNS
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
