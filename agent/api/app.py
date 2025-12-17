@@ -1,17 +1,16 @@
 """FastAPI entrypoint that exposes the simulated patient via /api/message."""
 
-from datetime import datetime
-import json
-from pathlib import Path
 import re
+import json
 import time
+
+from pathlib import Path
 from typing import Literal
-
-from fastapi import FastAPI, HTTPException
+from datetime import datetime
 from pydantic import BaseModel, Field
-
-from agent.core.langgraph_builder import build_graph
 from agent.utils.run_logger import RunLogger
+from fastapi import FastAPI, HTTPException, status
+from agent.core.langgraph_builder import build_graph
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
@@ -163,7 +162,11 @@ async def send_message(req: MessageRequest):
     entry = session_loggers.get(session_key)
     if not entry:
         run_logger = RunLogger(therapist_id)
-        base_state = run_logger.restore_state(patient_id)
+        try:
+            base_state = run_logger.restore_state(patient_id)
+        except Exception as e:
+            base_state = None
+            print(f"[WARN] restore_state failed: {e}")
         run_logger.start_run(
             patient_id=patient_id,
             session_id=req.session_id,
@@ -188,7 +191,12 @@ async def send_message(req: MessageRequest):
 
     # === Extract relevant info ===
     message = result.get("response", "...")
-    emotion = getattr(result.get("patient_profile", None), "current_emotional_state", "base")
+    patient_profile = result.get("patient_profile", {})
+    emotion = (
+        patient_profile.get("current_emotional_state", "base")
+        if isinstance(patient_profile, dict)
+        else "base"
+    )
     topic_info = result.get("last_topic", {})
     topic = topic_info.get("sub", "general") if isinstance(topic_info, dict) else "general"
 
