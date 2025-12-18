@@ -1049,5 +1049,5 @@ def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
     builder.add_edge("update_memory", "display")
 
     logger.info("✅ LangGraph pipeline built and compiled.")
-    compiled = builder.compile(checkpointer=checkpointer or InMemorySaver())
+    compiled = builder.compile(checkpointer=checkpointer)
     return compiled
