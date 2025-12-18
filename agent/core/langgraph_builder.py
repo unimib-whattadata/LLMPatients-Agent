@@ -14,8 +14,8 @@ from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
 from agent.core.llm_runner import create_llm_runner
 from agent.core.emotion_model import EMOTIONS, EVENT_SALIENCE, compute_emotional_state
-from agent.core.patient_profile import PatientProfile
-from agent.core.safety import SAFETY_PATTERNS
+from agent.core.patient_profile import PatientProfile, PatientDetails
+from agent.core.safety import SAFETY_PATTERNS, FOLLOW_UP_CUES, CONTEXT_EVENT_KEYWORDS
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
 from sentence_transformers import SentenceTransformer, util
@@ -52,6 +52,9 @@ SUMMARY_TIMEOUT_SECONDS = 10
 MAX_SHORT_TERM_TURNS = 5
 MAX_MESSAGE_WINDOW = 10
 
+DEFAULT_TRAIT_BASELINE = {emotion: 0.5 for emotion in EMOTIONS}
+
+
 
 def _shutdown_summary_executor():
     """Drain pending summary futures and close the executor on interpreter shutdown."""
@@ -75,14 +78,18 @@ def _get_cached_profile(patient_id: str, path: Path) -> PatientProfile:
     """Load a patient profile from disk and memoize it for subsequent requests."""
     if patient_id not in PROFILE_CACHE:
         loaded = PatientProfile.from_file(str(path))
-        PROFILE_CACHE[patient_id] = loaded.dict()
+        PROFILE_CACHE[patient_id] = loaded
         return loaded
-    return PatientProfile(**PROFILE_CACHE[patient_id])
+    cached = PROFILE_CACHE[patient_id]
+    if isinstance(cached, dict):
+        cached = PatientProfile(**cached)
+        PROFILE_CACHE[patient_id] = cached
+    return cached
 
 
 def _trait_baseline_from_profile(profile: PatientProfile) -> Dict[str, float]:
     """Return a clamped baseline vector for the patient's affective systems."""
-    dynamics = getattr(profile, "EmotionDynamics", None)
+    dynamics = getattr(profile, "emotionTraits", None) or getattr(profile, "EmotionDynamics", None)
     baseline = getattr(dynamics, "trait_baseline", None) if dynamics else None
     if not baseline:
         return dict(DEFAULT_TRAIT_BASELINE)
@@ -98,7 +105,7 @@ def _trait_baseline_from_profile(profile: PatientProfile) -> Dict[str, float]:
 
 
 def _volatility_from_profile(profile: PatientProfile) -> str:
-    dynamics = getattr(profile, "EmotionDynamics", None)
+    dynamics = getattr(profile, "emotionTraits", None) or getattr(profile, "EmotionDynamics", None)
     if dynamics and getattr(dynamics, "volatility_level", None):
         level = dynamics.volatility_level.lower()
         if level in ("low", "medium", "high"):
@@ -135,13 +142,20 @@ def _detect_context_event(text: str, safety_flags: List[str], topic_changed: boo
 
 
 def _infer_core_emotion(profile: PatientProfile) -> str:
-    metadata = getattr(profile, "Metadata", None)
-    if metadata:
-        core = getattr(metadata, "coreEmotion", None)
-        if core in EMOTION_PROTOTYPES:
-            return core
-    diagnoses = getattr(profile, "PsychiatricDiagnoses", []) or []
-    joined = " ".join(diagnoses).lower()
+    details = getattr(profile, "details", None)
+    tx = getattr(details, "treatmentsAndInterventions", None) if details else None
+    diagnoses = tx.previousPsychiatricDiagnoses if tx else []
+    clinical = getattr(details, "clinicalFunctioning", None) if details else None
+    syndrome = None
+    if clinical and getattr(clinical, "personalityAndSymptomAxis", None):
+        syndrome = clinical.personalityAndSymptomAxis.personalitySyndrome
+
+    joined = " ".join(diagnoses or [])
+    if syndrome:
+        joined += f" {syndrome}"
+    if profile.brief_description:
+        joined += f" {profile.brief_description}"
+    joined = joined.lower()
     if "depress" in joined:
         return "sadness"
     if "anx" in joined:
@@ -276,71 +290,6 @@ def _chunk_turns(turns: list, size: int) -> List[list]:
     return [turns[i:i + size] for i in range(0, len(turns), size)]
 
 
-FOLLOW_UP_CUES = {
-    "what do you mean",
-    "can you say more",
-    "tell me more",
-    "go on",
-    "and then",
-    "how so",
-    "why",
-    "uh huh",
-    "i see",
-    "okay",
-    "ok",
-    "mmh",
-    "hmm",
-    "right",
-    "continue",
-    "please continue",
-}
-
-DEFAULT_TRAIT_BASELINE = {emotion: 0.5 for emotion in EMOTIONS}
-
-CONTEXT_EVENT_KEYWORDS = {
-    "empathy": [
-        "i'm here",
-        "here for you",
-        "understand",
-        "hear you",
-        "holding space",
-        "take your time",
-        "i get it",
-        "that sounds hard",
-    ],
-    "boundary": [
-        "not appropriate",
-        "can't do that",
-        "won't do that",
-        "we should stay focused",
-        "stay in role",
-        "remember our roles",
-        "boundary",
-        "off limits",
-    ],
-    "abandonment_cue": [
-        "wrap up",
-        "time is up",
-        "see you next week",
-        "end here",
-        "goodbye",
-        "leave it there",
-        "stop for today",
-        "ending soon",
-        "out of time",
-    ],
-    "success_discussion": [
-        "progress",
-        "proud of you",
-        "improvement",
-        "doing better",
-        "win",
-        "success",
-        "better lately",
-        "great job",
-        "celebrate",
-    ],
-}
 
 
 def _is_follow_up(user_input: Optional[str]) -> bool:
@@ -348,7 +297,7 @@ def _is_follow_up(user_input: Optional[str]) -> bool:
     if not user_input:
         return False
     text = user_input.strip().lower()
-    if len(text) <= 20:
+    if len(text) <= 8:
         return True
     return any(cue in text for cue in FOLLOW_UP_CUES)
 
@@ -359,18 +308,29 @@ def _is_small_topic_shift(previous_score: float, new_score: float, epsilon: floa
 
 
 def _build_topic_text(state) -> str:
-    """Assemble the text snippet used for topic detection, preferring sanitized input and prior state."""
+    """
+    Assemble the text snippet used for topic detection.
+    Combines recent therapist inputs with the latest patient reply for more signal.
+    """
     pieces = []
-    if state.safe_user_input:
-        pieces.append(state.safe_user_input)
-    elif state.user_input:
-        pieces.append(state.user_input)
-    if state.last_topic:
-        pieces.append(f"(previous topic: {state.last_topic.get('top')} → {state.last_topic.get('sub')})")
+
+    # Last 2 therapist inputs (including current)
+    therapist_texts = []
+    current = (state.safe_user_input or state.user_input or "").strip()
+    if current:
+        therapist_texts.append(current)
+    if state.history:
+        prev = [turn.get("therapist", "") for turn in state.history[-2:]]
+        therapist_texts.extend([t for t in prev if t])
+    if therapist_texts:
+        pieces.append(" | ".join(therapist_texts))
+
+    # Latest patient reply for context
     if state.history:
         last_patient = state.history[-1].get("patient")
         if last_patient:
-            pieces.append(f"(patient previously said: {last_patient})")
+            pieces.append(last_patient)
+
     return " ".join(pieces).strip()
 
 
@@ -614,6 +574,23 @@ TOPIC_EMBEDDINGS = {
     f"{t['top']} → {t['sub']}": st_model.encode([t["desc"]], convert_to_tensor=True)[0]
     for t in flatten_topics(TOPIC_TREE)
 }
+TOPIC_LABELS = [f"{t['top']} → {t['sub']}" for t in flatten_topics(TOPIC_TREE)]
+
+
+def _llm_topic_classifier(text_input: str) -> str:
+    """Ask the LLM (out of character) to pick a topic label from the tree."""
+    labels_text = "\n".join(f"- {label}" for label in TOPIC_LABELS)
+    prompt = (
+        "You are a classifier. Given the therapist/patient exchange, "
+        "choose the most relevant topic label from the list or reply with 'unknown'. "
+        "Respond with exactly one label string or 'unknown'.\n\n"
+        f"Text:\n{text_input}\n\n"
+        "Available topic labels:\n"
+        f"{labels_text}\n"
+        "Answer:"
+    )
+    result = llm_runner.generate(prompt=prompt)
+    return result.strip()
 
 # === LangGraph State ===
 class State(BaseModel):
@@ -672,6 +649,8 @@ def load_profile(state):
         raise FileNotFoundError(f"❌ Patient file not found: {patient_path}")
 
     profile = _get_cached_profile(patient_id, patient_path)
+    if isinstance(profile.details, dict):
+        profile.details = PatientDetails(**profile.details)
     core = getattr(state, "core_emotion", None) or getattr(profile, "core_emotion", None)
     if not core:
         core = _infer_core_emotion(profile)
@@ -757,9 +736,19 @@ def update_emotional_state(state):
         "low_salience_streak": state.low_salience_streak,
     }
 
-def detect_intent_topic(state, threshold: float = 0.3):
-    """Infer the most likely topic for the current turn via semantic similarity."""
-    logger.info("🔍 Detecting topic with SentenceTransformer...")
+def _is_greeting_or_checkin(text: str) -> bool:
+    """Quick check for greeting/check-in phrases that should not force a new topic."""
+    lowered = text.lower()
+    simple = {"hi", "hey", "hello", "good morning", "good afternoon", "good evening"}
+    if any(lowered.startswith(g) for g in simple):
+        return True
+    cues = ["how are you", "how are things", "checking in", "how have you been", "how's it going", "you ok", "you okay"]
+    return any(cue in lowered for cue in cues)
+
+
+def detect_intent_topic(state):
+    """Infer the most likely topic via an LLM classifier that selects from the topic tree."""
+    logger.info("🔍 Detecting topic with LLM classifier...")
 
     text_input = _build_topic_text(state)
 
@@ -775,51 +764,48 @@ def detect_intent_topic(state, threshold: float = 0.3):
             "topic_similarity": 0.0,
         }
 
-    # Encode therapist input
-    text_emb = st_model.encode(text_input.strip(), convert_to_tensor=True)
+    try:
+        label = _llm_topic_classifier(text_input)
+    except Exception as exc:
+        logger.warning(f"⚠️ Topic classifier failed: {exc}. Marking as unknown.")
+        label = "unknown"
 
-    # Compute similarity to each subtopic
-    scores = {
-        key: util.cos_sim(text_emb, emb).item()
-        for key, emb in TOPIC_EMBEDDINGS.items()
-    }
+    greeting = _is_greeting_or_checkin(state.user_input or "")
+    follow_up = _is_follow_up(state.safe_user_input or state.user_input)
+    prev_topic = state.last_topic
 
-    # Pick best match
-    best_key, best_score = max(scores.items(), key=lambda x: x[1])
-    top, sub = best_key.split(" → ")
+    unknown_label = label.lower() == "unknown"
 
-    topic = {
-        "intent": "topic_detection",
-        "top": top,
-        "sub": sub if best_score >= threshold else "general",
-        "score": best_score
-    }
-
-    reuse_previous = (
-        state.last_topic
-        and (
-            best_score < threshold
-            or _is_follow_up(state.safe_user_input or state.user_input)
-            or _is_small_topic_shift(state.topic_similarity, best_score)
-        )
-    )
-
-    if reuse_previous:
-        logger.info(
-            f"↪️ Continuing previous topic: {state.last_topic['top']} → {state.last_topic['sub']}"
-        )
-        topic = state.last_topic
+    if unknown_label and prev_topic and (greeting or follow_up or state.history):
+        logger.info("↪️ Low-confidence/brief turn; keeping previous topic for continuity.")
+        topic = prev_topic
+    elif unknown_label:
+        topic = {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0}
     else:
-        logger.info(f"🧠 Detected topic: {topic['top']} → {topic['sub']} (score={topic['score']:.3f})")
+        if "→" in label:
+            parts = [p.strip() for p in label.split("→")]
+        elif ">" in label:
+            parts = [p.strip() for p in label.split(">")]
+        else:
+            parts = [label.strip(), "general"]
+        if len(parts) == 1:
+            parts.append("general")
+        topic = {
+            "intent": "topic_detection",
+            "top": parts[0],
+            "sub": parts[1],
+            "score": 1.0,
+        }
 
     logger.info(f"📌 State update → intent_topic={topic}, last_topic={topic}")
-    return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic["score"]}
+    return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic.get("score", 0.0)}
 
 def generate_response(state):
     """Call the configured LLM runner with retry/fallback logic."""
     logger.info("💬 Generating response to therapist input...")
     prompt = state.prompt or "Respond as the patient based on prior instructions."
     last_error = None
+    logging.info(prompt)
 
     for attempt in range(1, MAX_LLM_RETRIES + 1):
         try:

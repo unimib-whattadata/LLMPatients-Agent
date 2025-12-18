@@ -56,7 +56,7 @@ You can replace `InMemoryStore` with a LangGraph-compatible backend (Redis, Post
   - turns with raw/sanitized inputs, responses, topics, safety flags, emotional tone/intensity, and summary snapshots;
   - a lightweight `final_state` produced by `_state_snapshot` (summary, topic, last messages, core emotion, intensity, etc.).
 - **Restoring**: both the CLI (`scripts/chat_cli.py`) and the FastAPI endpoint look up the latest session for the therapist/patient pair via `RunLogger.restore_state`. The snapshot feeds into the next `graph.invoke` call so the agent immediately remembers the prior conversation.
-- **Session Opening**: `agent/utils/session_opening.py` uses the restored state to ask the LLM for a warm “welcome back” line that references the previous summary/topic without sounding mid-conversation. If no saved state exists, it falls back to the patient’s `Metadata.welcomeMessage`.
+- **Session Opening**: `agent/utils/session_opening.py` uses the restored state to ask the LLM for a warm “welcome back” line that references the previous summary/topic without sounding mid-conversation. If no saved state exists, it falls back to the patient’s `welcomeMessage`.
 
 ## 5. LLM Providers
 

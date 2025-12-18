@@ -13,6 +13,16 @@ VOLATILITY_SIGMA = {
     "high": 0.12,
 }
 
+EMOTION_SYSTEM_HINTS = {
+    "SEEKING": "Driven to fix problems, restless to take action.",
+    "RAGE": "Irritable, confrontational edge with flashes of anger.",
+    "FEAR": "Hypervigilant, anxious energy with protective scanning.",
+    "CARE": "Warmth and desire to nurture or be nurtured.",
+    "LUST": "Sensual undertones or flirtatious tension.",
+    "SADNESS": "Heavy, resigned, tearful or panicked weight.",
+    "PLAY": "Light, joking, mischievous tone.",
+}
+
 CONTEXT_MODIFIERS = {
     "empathy": {"SADNESS": -0.10, "CARE": 0.10},
     "boundary": {"RAGE": 0.15, "FEAR": 0.10},

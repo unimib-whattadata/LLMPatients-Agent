@@ -26,8 +26,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--patient",
-        default=os.getenv("DEFAULT_PATIENT_ID", "franklin_johnson_001"),
-        help="Patient identifier (defaults to DEFAULT_PATIENT_ID env var or Franklin).",
+        default=os.getenv("DEFAULT_PATIENT_ID", "juanita_delgado_001"),
+        help="Patient identifier (defaults to DEFAULT_PATIENT_ID env var or Juanita).",
     )
     parser.add_argument(
         "--session",

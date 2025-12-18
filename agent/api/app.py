@@ -192,6 +192,7 @@ async def send_message(req: MessageRequest):
     # === Extract relevant info ===
     message = result.get("response", "...")
     patient_profile = result.get("patient_profile", {})
+    
     emotion = (
         patient_profile.get("current_emotional_state", "base")
         if isinstance(patient_profile, dict)

@@ -117,11 +117,11 @@ docs/               Additional markdown docs (see `docs/architecture.md`).
 
 - `agent/utils/run_logger.py`: writes structured JSON logs under `tests/runs/`, capturing safe/unsafe therapist input, detected topics, emotion, intensity, and summary progression for each turn. Each therapist gets a single file with multiple sessions, making it easy to resume conversations with the correct emotional baseline.
 - `agent/utils/session_opening.py`: loads patient metadata plus the last saved state and crafts contextual “welcome back” greetings. If no history exists it falls back to the static `welcomeMessage`.
-- `scripts/chat_cli.py`: lightweight REPL for quick experiments (`PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001`). Automatically restores the last session for the therapist/patient pair when available.
+- `scripts/chat_cli.py`: lightweight REPL for quick experiments (`PYTHONPATH=. python scripts/chat_cli.py --patient juanita_delgado_001`). Automatically restores the last session for the therapist/patient pair when available.
 - `main.py`: richer CLI supporting scripted conversations (from args or files) plus interactive mode; both integrate with `RunLogger`.
 
 ## Patient Data & Knowledge Sources
-- **Patient JSON** (`data/patients/*.json`): contain the structured fields required by `PatientProfile`. Many include `Metadata.welcomeMessage` shown before a session starts.
+- **Patient JSON** (`data/patients/*.json`): contain the structured fields required by `PatientProfile`. Many include a `welcomeMessage` shown before a session starts.
 - **Emotion Traits** (`emotionTraits` block inside each patient file): define `trait_baseline` (0–1 intensity per SEEKING/RAGE/FEAR/CARE/LUST/SADNESS/PLAY) plus a `volatility_level`. The LangGraph consumes this block and updates the affect vector every turn so the prompt emphasizes only clinically representative emotions.
 - **Topics Tree** (`data/topics_tree.json`): nested dictionary where each top-level topic lists subtopics, textual descriptions, and metadata (e.g., which profile sections to surface when that topic is active). Embeddings are generated once at module import.
 - **Emotion Prototypes**: defined inside `langgraph_builder` to classify per-turn tone into one of eight canonical emotions.
@@ -143,7 +143,7 @@ docs/               Additional markdown docs (see `docs/architecture.md`).
 ## Running the Agent
 ### 1. Interactive CLI (`main.py`)
 ```bash
-PYTHONPATH=. python main.py --patient franklin_johnson_001
+PYTHONPATH=. python main.py --patient juanita_delgado_001
 ```
 - Enter therapist messages until you type `exit`/`quit`.
 - Use `--session` to reuse a checkpoint thread id.
@@ -151,7 +151,7 @@ PYTHONPATH=. python main.py --patient franklin_johnson_001
 
 ### 2. Minimal Chat Shell (`scripts/chat_cli.py`)
 ```bash
-PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001 --log-level DEBUG
+PYTHONPATH=. python scripts/chat_cli.py --patient juanita_delgado_001 --log-level DEBUG
 ```
 - Prints topic, tone, and run-log path after each reply.
 - Automatically detects prior runs for the therapist/patient pair and resumes context (hydrating summary, last topic, last few turns, emotional baseline/intensity, etc.).
@@ -165,7 +165,7 @@ uvicorn agent.api.app:app --reload --port 8000
   curl -X POST http://localhost:8000/api/message \
        -H 'Content-Type: application/json' \
        -d '{
-             "external_patient_id": "franklin_johnson_001",
+             "external_patient_id": "juanita_delgado_001",
              "user_message": "How have you been sleeping?",
              "session_id": "demo-session",
              "step_id": 1

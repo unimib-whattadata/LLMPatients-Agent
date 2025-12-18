@@ -18,3 +18,78 @@ SAFETY_PATTERNS = [
     ("prompt_injection", re.compile(r"disregard .* rules", re.IGNORECASE)),
     ("data_exfiltration", re.compile(r"reveal (your|the) (system|prompt|instructions)", re.IGNORECASE)),
 ]
+
+# Safety within the conversation
+
+FOLLOW_UP_CUES = {
+    "what do you mean",
+    "can you say more",
+    "tell me more",
+    "go on",
+    "and then",
+    "how so",
+    "why",
+    "uh huh",
+    "i see",
+    "okay",
+    "ok",
+    "mmh",
+    "hmm",
+    "right",
+    "continue",
+    "please continue",
+}
+
+CONTEXT_EVENT_KEYWORDS = {
+    "empathy": [
+        "i'm here",
+        "here for you",
+        "understand",
+        "hear you",
+        "holding space",
+        "take your time",
+        "i get it",
+        "that sounds hard",
+    ],
+    "boundary": [
+        "not appropriate",
+        "can't do that",
+        "won't do that",
+        "we should stay focused",
+        "stay in role",
+        "remember our roles",
+        "boundary",
+        "off limits",
+    ],
+    "abandonment_cue": [
+        "wrap up",
+        "time is up",
+        "see you next week",
+        "end here",
+        "goodbye",
+        "leave it there",
+        "stop for today",
+        "ending soon",
+        "out of time",
+    ],
+    "success_discussion": [
+        "progress",
+        "proud of you",
+        "improvement",
+        "doing better",
+        "win",
+        "success",
+        "better lately",
+        "great job",
+        "celebrate",
+    ],
+}
+
+NOT_REPORTED_MARKERS = {
+    "not reported",
+    "not reported.",
+    "unknown",
+    "n/a",
+    "none",
+    "not specified",
+}

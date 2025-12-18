@@ -21,9 +21,8 @@ def load_patient_profile(patient_id: str) -> PatientProfile:
 
 def default_welcome(profile: PatientProfile) -> str:
     """Return the static welcome message or fall back to a simple greeting."""
-    metadata = getattr(profile, "Metadata", None)
-    if metadata and getattr(metadata, "welcomeMessage", None):
-        return metadata.welcomeMessage
+    if getattr(profile, "welcomeMessage", None):
+        return profile.welcomeMessage
     return f"Hi, I'm {profile.name}. It's good to meet again."
 
 
