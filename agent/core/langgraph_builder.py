@@ -344,34 +344,13 @@ CONTEXT_EVENT_KEYWORDS = {
 
 
 def _is_follow_up(user_input: Optional[str]) -> bool:
-    """Heuristically decide if the therapist merely nudged the patient to continue."""
     if not user_input:
         return False
     text = user_input.strip().lower()
-    if len(text) <= 20:
+    # only treat *very short* utterances as follow-ups
+    if len(text) <= 6 and not any(c.isalpha() for c in text):
         return True
     return any(cue in text for cue in FOLLOW_UP_CUES)
-
-
-def _is_small_topic_shift(previous_score: float, new_score: float, epsilon: float = 0.05) -> bool:
-    """Return True when cosine scores suggest the conversation is still on the same topic."""
-    return previous_score and abs(previous_score - new_score) <= epsilon
-
-
-def _build_topic_text(state) -> str:
-    """Assemble the text snippet used for topic detection, preferring sanitized input and prior state."""
-    pieces = []
-    if state.safe_user_input:
-        pieces.append(state.safe_user_input)
-    elif state.user_input:
-        pieces.append(state.user_input)
-    if state.last_topic:
-        pieces.append(f"(previous topic: {state.last_topic.get('top')} → {state.last_topic.get('sub')})")
-    if state.history:
-        last_patient = state.history[-1].get("patient")
-        if last_patient:
-            pieces.append(f"(patient previously said: {last_patient})")
-    return " ".join(pieces).strip()
 
 
 EMOTION_PROTOTYPES = {
@@ -733,10 +712,14 @@ def update_emotional_state(state):
     primary_emotion, peak_value = dominant[0]
     secondary = dominant[1][1] if len(dominant) > 1 else primary_emotion
     intensity = 0.6 * peak_value + 0.4 * (secondary if isinstance(secondary, (int, float)) else peak_value)
+    prev_intensity = state.emotion_intensity or 0.7
+    intensity = max(
+        prev_intensity - 0.1,
+        min(prev_intensity + 0.1, intensity)
+    )
 
     profile.current_emotional_state = primary_emotion.lower()
     profile.emotion_state = snapshot
-    state.core_emotion = primary_emotion.lower()
     state.emotion_state = snapshot
     state.emotion_event = event
     state.emotion_salience = salience
@@ -758,62 +741,92 @@ def update_emotional_state(state):
     }
 
 def detect_intent_topic(state, threshold: float = 0.3):
-    """Infer the most likely topic for the current turn via semantic similarity."""
-    logger.info("🔍 Detecting topic with SentenceTransformer...")
+    """Two-stage topic handling: (1) confirm we are still in old topic, else (2) pick new best."""
+    logger.info("🔍 Detecting topic with SentenceTransformer (two-stage)...")
 
-    text_input = _build_topic_text(state)
+    # Use ONLY actual content for detection (no previous-topic injection)
+    # Keep your existing function but REMOVE the "(previous topic: ...)" part from _build_topic_text,
+    # or just build the input here explicitly:
+    text_input = (state.safe_user_input or state.user_input or "").strip()
+
+    if state.history and len(text_input) < 25:
+        last_patient = state.history[-1].get("patient", "")
+        if last_patient:
+            text_input = f"{text_input} {last_patient}"
 
     if not text_input:
-        return {
-            "intent_topic": {
-                "intent": "unknown",
-                "top": "unknown",
-                "sub": "unknown",
-                "score": 0.0
-            },
-            "last_topic": state.last_topic,
-            "topic_similarity": 0.0,
+        topic = state.last_topic or {
+            "intent": "unknown",
+            "top": "unknown",
+            "sub": "unknown",
+            "score": 0.0
         }
+        return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic.get("score", 0.0)}
 
-    # Encode therapist input
-    text_emb = st_model.encode(text_input.strip(), convert_to_tensor=True)
+    text_emb = st_model.encode(text_input, convert_to_tensor=True)
 
-    # Compute similarity to each subtopic
+    # --- 1) Find best candidate topic ---
     scores = {
         key: util.cos_sim(text_emb, emb).item()
         for key, emb in TOPIC_EMBEDDINGS.items()
     }
-
-    # Pick best match
     best_key, best_score = max(scores.items(), key=lambda x: x[1])
-    top, sub = best_key.split(" → ")
+    best_top, best_sub = best_key.split(" → ")
 
-    topic = {
+    best_topic = {
         "intent": "topic_detection",
-        "top": top,
-        "sub": sub if best_score >= threshold else "general",
-        "score": best_score
+        "top": best_top,
+        "sub": best_sub if best_score >= threshold else "general",
+        "score": best_score,
     }
 
-    reuse_previous = (
-        state.last_topic
-        and (
-            best_score < threshold
-            or _is_follow_up(state.safe_user_input or state.user_input)
-            or _is_small_topic_shift(state.topic_similarity, best_score)
-        )
-    )
+    # --- 2) Check whether we're still in the previous topic (directly) ---
+    prev_topic = state.last_topic
+    prev_score = 0.0
+    if prev_topic and prev_topic.get("top") and prev_topic.get("sub"):
+        prev_key = f"{prev_topic['top']} → {prev_topic['sub']}"
+        prev_emb = TOPIC_EMBEDDINGS.get(prev_key)
+        if prev_emb is not None:
+            prev_score = util.cos_sim(text_emb, prev_emb).item()
 
-    if reuse_previous:
+    # --- 3) Decision rules (hysteresis) ---
+    # Tune these two numbers; they’re the whole game.
+    STAY_MIN = max(0.25, threshold - 0.05)   # "still plausibly on old topic"
+    SWITCH_MARGIN = 0.05                     # new must beat old by this much to switch
+
+    # If therapist is just nudging and previous topic is still plausible -> stay
+    follow_up = _is_follow_up(state.safe_user_input or state.user_input)
+    if prev_topic and follow_up and prev_score >= STAY_MIN:
+        logger.info(f"↪️ Follow-up detected; staying on previous topic: {prev_topic['top']} → {prev_topic['sub']} (prev_score={prev_score:.3f})")
+        topic = dict(prev_topic)
+        topic["score"] = prev_score
+        return {"intent_topic": topic, "last_topic": topic, "topic_similarity": prev_score}
+
+    # If we have a previous topic, prefer staying unless new clearly wins
+    if prev_topic:
+        # Stay if previous is still strong enough AND new doesn't clearly beat it
+        if prev_score >= STAY_MIN and (best_score - prev_score) < SWITCH_MARGIN:
+            logger.info(
+                f"↪️ Staying on previous topic: {prev_topic['top']} → {prev_topic['sub']} "
+                f"(prev_score={prev_score:.3f}, best={best_top}→{best_sub} {best_score:.3f})"
+            )
+            topic = dict(prev_topic)
+            topic["score"] = prev_score
+            return {"intent_topic": topic, "last_topic": topic, "topic_similarity": prev_score}
+
+    # Otherwise switch to best topic (if it’s at least confident-ish)
+    if best_score < threshold and prev_topic:
+        # If best isn't confident, fall back to previous (continuity)
         logger.info(
-            f"↪️ Continuing previous topic: {state.last_topic['top']} → {state.last_topic['sub']}"
+            f"↪️ Best score below threshold; keeping previous topic: {prev_topic['top']} → {prev_topic['sub']} "
+            f"(best_score={best_score:.3f})"
         )
-        topic = state.last_topic
-    else:
-        logger.info(f"🧠 Detected topic: {topic['top']} → {topic['sub']} (score={topic['score']:.3f})")
+        topic = dict(prev_topic)
+        topic["score"] = prev_score
+        return {"intent_topic": topic, "last_topic": topic, "topic_similarity": prev_score}
 
-    logger.info(f"📌 State update → intent_topic={topic}, last_topic={topic}")
-    return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic["score"]}
+    logger.info(f"🧠 Switching/detecting topic: {best_topic['top']} → {best_topic['sub']} (score={best_score:.3f}, prev_score={prev_score:.3f})")
+    return {"intent_topic": best_topic, "last_topic": best_topic, "topic_similarity": best_score}
 
 def generate_response(state):
     """Call the configured LLM runner with retry/fallback logic."""
@@ -948,14 +961,12 @@ def update_memory(state):
         state.history = state.history[-MAX_SHORT_TERM_TURNS:]
 
     # === 3. Update emotional tone (prefer synthesized vector; fallback to LLM heuristic) ===
-    if state.emotion_state:
+    if state.emotion_state and state.emotion_salience >= 0.25:
         dominant_emotion, dominant_value = max(state.emotion_state.items(), key=lambda item: item[1])
         prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
         state.patient_profile.current_emotional_state = dominant_emotion.lower()
         state.patient_profile.emotion_state = state.emotion_state
-        state.patient_profile.__dict__["emotion_intensity"] = dominant_value
-        state.core_emotion = dominant_emotion.lower()
-        state.emotion_intensity = dominant_value
+        # keep intensity computed by the emotion model
         logger.info(
             f"🫀 Emotional tone (model-driven): '{prev_tone}' → '{dominant_emotion.lower()}' "
             f"(intensity={dominant_value:.2f}, event={state.emotion_event})"
@@ -1049,5 +1060,5 @@ def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
     builder.add_edge("update_memory", "display")
 
     logger.info("✅ LangGraph pipeline built and compiled.")
-    compiled = builder.compile(checkpointer=checkpointer or InMemorySaver())
+    compiled = builder.compile(checkpointer=checkpointer)
     return compiled

@@ -1,384 +1,260 @@
-"""Structured patient profile models plus helpers for loading legacy JSON schemas."""
+"""Structured patient profile models for the updated patient JSON schema."""
 
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 
-# === Subcomponents ===
-class DemographicInfo(BaseModel):
-    """Basic demographic snapshot used for prompts and UI."""
-    Name: str
-    Surname: str
-    Age: int
-    Gender: str
-    MaritalStatus: str
-    CulturalBackground: str
-    ReligiousBeliefs: str
-    SpokenLanguage: str
-    MigrationStatus: str
-
-class FamilySocialHistory(BaseModel):
-    """Developmental and relational history of the patient."""
-    ChildhoodFamilyDynamics: str
-    CurrentParentRelations: str
-    ChildhoodExperiences: str
-    SignificantDevelopmentalExperiences: Optional[str] = None
-    FamilyPsychiatricHistory: Optional[str] = None
-    AbuseHistory: Optional[str] = None
-    SocialSupport: Optional[str] = None
-    SupportNetwork: Optional[str] = None
-
-class EducationOccupation(BaseModel):
-    """Educational background plus work/life stability indicators."""
-    EducationLevel: str
-    WorkHistory: str
-    HousingStability: str
-    FinancialSituation: str
-    HobbiesInterests: str
-
-class PsychologicalProfile(BaseModel):
-    """Clinical symptoms, diagnoses, and cognitive functioning markers."""
-    PsychiatricDiagnoses: List[str]
-    MainSymptoms: List[str]
-    AffectiveEmotionalFunctioning: Optional[str] = None
-    PsychiatricComorbidities: Optional[str] = None
-    SenseOfSelfOthers: Optional[str] = None
-    ThoughtCognitiveStyle: Optional[str] = None
-    EmotionalReactions: Optional[str] = None
-    Aggressiveness: Optional[str] = None
-    SelfPerceptionIdentity: Optional[str] = None
-    SelfEsteem: Optional[str] = None
-    CognitiveStyle: Optional[List[str]] = None
-    AttachmentStyle: Optional[str] = None
-    ExecutiveFunctioning: Optional[str] = None
-    Memory: Optional[str] = None
-    AttentionConcentration: Optional[str] = None
-    SensoryPerception: Optional[str] = None
-    HigherCognitiveFunctions: Optional[str] = None
-
-class CopingDefenses(BaseModel):
-    """Summaries of coping strategies, defenses, and risk behaviors."""
-    CopingStrategies: str
-    DefenseMechanisms: List[str]
-    SelfHarmSuicidality: str
-    SubstanceAbuse: str
-    Avoidance: Optional[str] = None
-    ImpulsiveRiskBehaviors: Optional[str] = None
-    Morality: str
-
-class SocialRelations(BaseModel):
-    """Descriptions of interpersonal dynamics across key relationship categories."""
-    Friendships: str
-    RomanticRelationships: str
-    SexualRelationships: str
-    FamilyInteractions: str
-    PeerColleagueRelations: str
-    SocialMediaBehavior: str
-
-class TreatmentsInterventions(BaseModel):
-    """Medication/therapy history plus adherence and treatment goals."""
-    PastTherapies: List[str]
-    ProgressResistance: str
-    TherapeuticGoals: Union[str, List[str]]
-    MedicationHistory: List[str]
-    MedicationResponse: str
-    Hospitalizations: int
-    EmergencyRoomVisits: str
-    PastPsychiatricDiagnoses: List[str]
-    PreviousDropouts: Optional[str] = None
-
-class ClinicalJudgment(BaseModel):
-    """Clinician-rated insight, judgment, and impulse control."""
-    JudgmentCapacity: str
-    Insight: str
-    ImpulseControl: str
-
-class ResilienceWellbeing(BaseModel):
-    """Protective factors and measures of psychological wellbeing."""
-    PsychologicalResilience: str
-    SelfCompassion: str
-    LifeSatisfaction: str
-    PersonalGrowth: str
-    SenseOfCoherence: str
-    Empowerment: str
-    HopeForFuture: str
-    LongTermLifeGoals: str
-
-class MedicalHistory(BaseModel):
-    """Physical health context relevant to mental health treatment."""
-    PreexistingConditions: str
-    CurrentMedications: List[str]
-    PharmacologicalTreatments: Optional[List[str]] = None
-    Allergies: Optional[str] = None
-    Lifestyle: str
-    GeneralHealth: str
-    SleepPatterns: str
-    EatingHabits: str
-
-class SocialEnvironment(BaseModel):
-    """Environmental determinants such as housing and support networks."""
-    SocialSupport: str
-    HousingConditions: str
-    SocialSecurity: str
-    SocialCohesion: str
-    SocialDeterminantsMentalHealth: str
-
-class TestBehavior(BaseModel):
-    """Observations captured during assessments (speech, affect, posture)."""
-    RecurringDynamics: str
-    PredominantEmotions: List[str]
-    Speech: str
-    EyeContactPostureGestures: str
-    AvoidantAttitudesMoodChange: str
-
-
 class EmotionDynamics(BaseModel):
     """Traits controlling affective baseline and volatility."""
+
     trait_baseline: Dict[str, float] = Field(default_factory=dict)
     volatility_level: str = "medium"
 
-# === Metadata for UI/Simulation Layer ===
+
 class PatientMetadata(BaseModel):
     """Fields primarily consumed by the UI/simulation layers (voice, avatar, etc.)."""
-    background: str
-    therapy_goals: List[str]
-    difficulty: int
-    estimatedDuration: int
-    avatarUrl: str
-    voiceId: str
-    welcomeMessage: str
 
-# === Main Patient Profile ===
+    background: Optional[str] = None
+    therapy_goals: List[str] = Field(default_factory=list)
+    difficulty: Optional[int] = None
+    estimatedDuration: Optional[int] = None
+    avatarUrl: Optional[str] = None
+    voiceId: Optional[str] = None
+    welcomeMessage: Optional[str] = None
+
+
+class Demographics(BaseModel):
+    """Basic demographic snapshot used for prompts and UI."""
+
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    marital_status: Optional[str] = None
+    cultural_background: Optional[str] = None
+    religious_beliefs: Optional[str] = None
+    spoken_language: Optional[str] = None
+    migration_status: Optional[str] = None
+
+
+class FamilyHistory(BaseModel):
+    """Developmental and relational history of the patient."""
+
+    family_dynamics_during_development: Optional[str] = None
+    family_psychiatric_illnesses: Optional[str] = None
+    current_relationship_with_parents: Optional[str] = None
+    childhood_experiences: Optional[str] = None
+    significant_developmental_experiences: Optional[str] = None
+
+
+class EducationEmployment(BaseModel):
+    """Educational background plus work/life stability indicators."""
+
+    education_level: Optional[str] = None
+    work_history: Optional[str] = None
+    housing_stability: Optional[str] = None
+    financial_situation: Optional[str] = None
+    hobbies_and_interests: Optional[str] = None
+
+
+class TreatmentsInterventions(BaseModel):
+    """Medication/therapy history plus adherence and treatment goals."""
+
+    previous_therapeutic_experiences: Optional[str] = None
+    treatment_resistance: Optional[str] = None
+    therapeutic_goals: List[str] = Field(default_factory=list)
+    medication_history: List[str] = Field(default_factory=list)
+    response_to_medications: Optional[str] = None
+    previous_hospitalizations: Optional[str] = None
+    emergency_department_visits: Optional[str] = None
+    previous_dropouts: Optional[str] = None
+    previous_psychiatric_diagnoses: List[str] = Field(default_factory=list)
+
+
+class MedicalPhysicalHistory(BaseModel):
+    """Physical health context relevant to mental health treatment."""
+
+    pre_existing_medical_conditions: Optional[str] = None
+    pharmacological_treatments: Optional[str] = None
+    lifestyle: Optional[str] = None
+    general_physical_health: Optional[str] = None
+    eating_habits: Optional[str] = None
+
+
+class BehaviorObservations(BaseModel):
+    """Observations captured during assessments (speech, affect, posture)."""
+
+    recurring_dynamics: Optional[str] = None
+    expressed_emotions_and_congruence: Optional[str] = None
+    speech_characteristics: Optional[str] = None
+    non_verbal_behavior: Optional[str] = None
+    appearance_self_care_orientation: Optional[str] = None
+
+
+class PersonalityAndSymptomAxis(BaseModel):
+    """Personality organization, defenses, and symptom patterns."""
+
+    identity: Dict[str, str] = Field(default_factory=dict)
+    object_relations: Dict[str, str] = Field(default_factory=dict)
+    defensive_level: Dict[str, str] = Field(default_factory=dict)
+    reality_testing: Dict[str, str] = Field(default_factory=dict)
+    overall_personality_organization: Dict[str, str] = Field(default_factory=dict)
+    personality_syndrome: Optional[str] = None
+    symptom_patterns: Dict[str, Dict[str, str]] = Field(default_factory=dict)
+    comorbidity: Optional[str] = None
+
+
+class MentalFunctioningAxis(BaseModel):
+    """Mental functioning capacities (identity integration, regulation, etc.)."""
+
+    affect_experience_and_regulation: Dict[str, str] = Field(default_factory=dict)
+    identity_integration: Dict[str, str] = Field(default_factory=dict)
+    self_esteem_regulation: Dict[str, str] = Field(default_factory=dict)
+    attention_and_learning: Dict[str, str] = Field(default_factory=dict)
+    defensive_functioning: Dict[str, str] = Field(default_factory=dict)
+    impulse_control: Dict[str, str] = Field(default_factory=dict)
+    moral_standards_and_ideals: Dict[str, str] = Field(default_factory=dict)
+    relationships_and_intimacy: Dict[str, str] = Field(default_factory=dict)
+    mentalization: Dict[str, str] = Field(default_factory=dict)
+    self_observation: Dict[str, str] = Field(default_factory=dict)
+    adaptation_and_resilience: Dict[str, str] = Field(default_factory=dict)
+    meaning_and_directionality: Dict[str, str] = Field(default_factory=dict)
+
+
+class ClinicalFunctioning(BaseModel):
+    """Aggregated clinical functioning axes."""
+
+    personality_and_symptom_axis: PersonalityAndSymptomAxis = Field(
+        default_factory=PersonalityAndSymptomAxis
+    )
+    mental_functioning_axis: MentalFunctioningAxis = Field(
+        default_factory=MentalFunctioningAxis
+    )
+
+
 class PatientProfile(BaseModel):
     """Aggregated patient record used to condition the simulated agent."""
+
     patient_id: str
-    disorder_id: Optional[str] = None
+    name: str
+    disorder: str
     Metadata: Optional[PatientMetadata] = None
 
-    DemographicInfo: DemographicInfo
-    FamilySocialHistory: FamilySocialHistory
-    EducationOccupation: EducationOccupation
-    PsychologicalProfile: PsychologicalProfile
-    CopingDefenses: CopingDefenses
-    SocialRelations: SocialRelations
+    Demographics: Demographics
+    FamilyHistory: FamilyHistory
+    EducationEmployment: EducationEmployment
     TreatmentsInterventions: TreatmentsInterventions
-    ClinicalJudgment: ClinicalJudgment
-    ResilienceWellbeing: ResilienceWellbeing
-    MedicalHistory: MedicalHistory
-    SocialEnvironment: SocialEnvironment
-    TestBehavior: TestBehavior
+    MedicalHistory: MedicalPhysicalHistory
+    BehaviorObservations: BehaviorObservations
+    ClinicalFunctioning: ClinicalFunctioning
     EmotionDynamics: EmotionDynamics
 
     # === Clinical and dynamic fields ===
     ClinicalSummary: Optional[str] = None
+    brief_description: Optional[str] = None
     current_emotional_state: Optional[str] = "base"
     session_notes: Optional[str] = None
     emotion_state: Dict[str, float] = Field(default_factory=dict)
-    
 
     @property
-    def name(self) -> str:
+    def short_name(self) -> str:
         """Return formatted patient name."""
-        demo = getattr(self, "DemographicInfo", None)
-        if demo:
-            return f"{demo.Name} {demo.Surname}"
+        if self.name:
+            return self.name
         return self.patient_id.replace("_", " ").title()
 
     @classmethod
     def from_file(cls, path: str) -> "PatientProfile":
-        """Load legacy or new attribute-style patient files."""
+        """Load the updated patient schema from disk and normalize it."""
         with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            raw = json.load(f)
 
-        if "details" in data:
-            converted = cls._convert_from_attribute_schema(data, path)
-            return cls(**converted)
-
-        if "EmotionDynamics" not in data:
-            data["EmotionDynamics"] = _build_emotion_traits(data)
-        return cls(**data)
+        converted = cls._convert_from_new_schema(raw, path)
+        return cls(**converted)
 
     @staticmethod
-    def _convert_from_attribute_schema(raw: dict, path: str) -> dict:
-        """Map the new attribute schema into the legacy PatientProfile structure."""
+    def _convert_from_new_schema(raw: dict, path: str) -> dict:
+        """Map the current schema (details + clinicalFunctioning) into models."""
         details = raw.get("details", {})
-        patient_id = (
-            raw.get("patientId")
-            or raw.get("patient_id")
-            or Path(path).stem
-        )
-        name = raw.get("name", patient_id.replace("_", " ").title())
-        first_name, last_name = _split_name(name)
+        patient_id = raw.get("patientId") or raw.get("patient_id") or Path(path).stem
+        name = raw.get("name") or patient_id.replace("_", " ").title()
 
-        demo = details.get("demographicAndSocioculturalInformation", {})
+        demographics = details.get("demographicAndSocioculturalInformation", {})
         family = details.get("familyHistory", {})
-        edu = details.get("educationAndEmployment", {})
-        psych = details.get("psychologicalProfileAndCognitiveFunctioning", {})
-        coping = details.get("copingMechanismsAndDefenses", {})
-        dysfunction = details.get("dysfunctionalBehaviorsAndRiskyConduct", {})
-        morality = details.get("morality", {})
-        social = details.get("socialRelationshipsAndInteractions", {})
-        tx = details.get("treatmentsAndInterventions", {})
-        resources = details.get("psychologicalResources", {})
+        education = details.get("educationAndEmployment", {})
+        treatments = details.get("treatmentsAndInterventions", {})
         medical = details.get("medicalAndPhysicalHistory", {})
         behavior = details.get("behaviorDuringTestAdministration", {})
 
-        metadata = {
-            "background": raw.get("briefDescription", ""),
-            "therapy_goals": raw.get("objectives", []) or [],
-            "difficulty": raw.get("difficulty"),
-            "estimatedDuration": raw.get("estimatedDuration"),
-            "avatarUrl": raw.get("avatarUrl"),
-            "voiceId": raw.get("voiceId"),
-            "welcomeMessage": raw.get("welcomeMessage"),
-        }
-
-        disorder_name = details.get("disorder", {}).get("disorderName", "Unspecified disorder")
-        diagnoses = _ensure_list(disorder_name)
-        main_symptoms = [
-            psych.get("affectiveEmotionalFunctioningAndMoodRegulation"),
-            psych.get("psychiatricComorbidities"),
-            psych.get("senseOfSelfAndOthers"),
-            psych.get("thoughtFunctioningAndCognitiveStyle"),
-            dysfunction.get("selfHarmAndSuicidality"),
-            dysfunction.get("impulsiveAndRiskyBehaviors"),
-        ]
-        main_symptoms = [
-            s for s in (_clean_text(item, default="") for item in main_symptoms) if s
-        ]
-
-        therapeutic_goals = tx.get("therapeuticGoals")
-        if isinstance(therapeutic_goals, list):
-            goals_value = therapeutic_goals
-        elif therapeutic_goals:
-            goals_value = [therapeutic_goals]
-        else:
-            goals_value = []
+        metadata = PatientMetadata(
+            background=_clean_text(raw.get("briefDescription")),
+            therapy_goals=_ensure_list(raw.get("objectives")),
+            difficulty=raw.get("difficulty"),
+            estimatedDuration=raw.get("estimatedDuration"),
+            avatarUrl=raw.get("avatarUrl"),
+            voiceId=raw.get("voiceId"),
+            welcomeMessage=raw.get("welcomeMessage"),
+        )
 
         profile = {
             "patient_id": patient_id,
-            "disorder_id": _slugify(disorder_name),
+            "name": name,
+            "disorder": _clean_text(details.get("disorder", {}).get("disorderName"), default="Unspecified disorder"),
             "Metadata": metadata,
-             "EmotionDynamics": _build_emotion_traits(raw),
-            "DemographicInfo": {
-                "Name": first_name,
-                "Surname": last_name,
-                "Age": _safe_int(demo.get("age"), default=0),
-                "Gender": _clean_text(demo.get("gender"), default="Not reported"),
-                "MaritalStatus": _clean_text(demo.get("maritalStatus"), default="Not reported"),
-                "CulturalBackground": _clean_text(demo.get("culturalBackground")),
-                "ReligiousBeliefs": _clean_text(demo.get("religiousBeliefs")),
-                "SpokenLanguage": _clean_text(demo.get("spokenLanguage")),
-                "MigrationStatus": _clean_text(demo.get("migrationStatus")),
+            "Demographics": {
+                "age": _safe_int(demographics.get("age")),
+                "gender": _clean_text(demographics.get("gender")),
+                "marital_status": _clean_text(demographics.get("maritalStatus")),
+                "cultural_background": _clean_text(demographics.get("culturalBackground")),
+                "religious_beliefs": _clean_text(demographics.get("religiousBeliefs")),
+                "spoken_language": _clean_text(demographics.get("spokenLanguage")),
+                "migration_status": _clean_text(demographics.get("migrationStatus")),
             },
-            "FamilySocialHistory": {
-                "ChildhoodFamilyDynamics": _clean_text(family.get("familyDynamicsDuringDevelopment")),
-                "CurrentParentRelations": _clean_text(family.get("currentRelationshipWithParents")),
-                "ChildhoodExperiences": _clean_text(family.get("childhoodExperiences")),
-                "SignificantDevelopmentalExperiences": _clean_text(family.get("significantDevelopmentalExperiences")),
-                "FamilyPsychiatricHistory": _clean_text(family.get("familyPsychiatricIllnesses")),
-                "AbuseHistory": None,
-                "SocialSupport": None,
-                "SupportNetwork": None,
+            "FamilyHistory": {
+                "family_dynamics_during_development": _clean_text(family.get("familyDynamicsDuringDevelopment")),
+                "family_psychiatric_illnesses": _clean_text(family.get("familyPsychiatricIllnesses")),
+                "current_relationship_with_parents": _clean_text(family.get("currentRelationshipWithParents")),
+                "childhood_experiences": _clean_text(family.get("childhoodExperiences")),
+                "significant_developmental_experiences": _clean_text(family.get("significantDevelopmentalExperiences")),
             },
-            "EducationOccupation": {
-                "EducationLevel": _clean_text(edu.get("educationLevel")),
-                "WorkHistory": _clean_text(edu.get("workHistory")),
-                "HousingStability": _clean_text(edu.get("housingStability")),
-                "FinancialSituation": _clean_text(edu.get("financialSituation")),
-                "HobbiesInterests": _clean_text(edu.get("hobbiesAndInterests")),
-            },
-            "PsychologicalProfile": {
-                "PsychiatricDiagnoses": diagnoses,
-                "MainSymptoms": main_symptoms or ["Not specified"],
-                "AffectiveEmotionalFunctioning": _clean_text(psych.get("affectiveEmotionalFunctioningAndMoodRegulation")),
-                "PsychiatricComorbidities": _clean_text(psych.get("psychiatricComorbidities")),
-                "SenseOfSelfOthers": _clean_text(psych.get("senseOfSelfAndOthers")),
-                "ThoughtCognitiveStyle": _clean_text(psych.get("thoughtFunctioningAndCognitiveStyle")),
-                "EmotionalReactions": None,
-                "Aggressiveness": None,
-                "SelfPerceptionIdentity": None,
-                "SelfEsteem": None,
-                "CognitiveStyle": None,
-                "AttachmentStyle": None,
-                "ExecutiveFunctioning": None,
-                "Memory": _clean_text(psych.get("memory")),
-                "AttentionConcentration": _clean_text(psych.get("attentionAndConcentration")),
-                "SensoryPerception": _clean_text(psych.get("sensoryPerception")),
-                "HigherCognitiveFunctions": _clean_text(psych.get("higherCognitiveFunctions")),
-            },
-            "CopingDefenses": {
-                "CopingStrategies": _clean_text(coping.get("copingStrategies")),
-                "DefenseMechanisms": _ensure_list(coping.get("defenseMechanisms")),
-                "SelfHarmSuicidality": _clean_text(dysfunction.get("selfHarmAndSuicidality")),
-                "SubstanceAbuse": _clean_text(dysfunction.get("substanceAbuse")),
-                "Avoidance": _clean_text(coping.get("copingStrategies")),
-                "ImpulsiveRiskBehaviors": _clean_text(dysfunction.get("impulsiveAndRiskyBehaviors")),
-                "Morality": _clean_text(morality.get("moralValues")),
-            },
-            "SocialRelations": {
-                "Friendships": _clean_text(social.get("friendships")),
-                "RomanticRelationships": _clean_text(social.get("romanticRelationships")),
-                "SexualRelationships": _clean_text(social.get("sexualRelationships")),
-                "FamilyInteractions": _clean_text(social.get("familyInteractions")),
-                "PeerColleagueRelations": _clean_text(social.get("relationshipsWithPeersAndColleagues")),
-                "SocialMediaBehavior": _clean_text(social.get("socialMediaUseAndImpact")),
+            "EducationEmployment": {
+                "education_level": _clean_text(education.get("educationLevel")),
+                "work_history": _clean_text(education.get("workHistory")),
+                "housing_stability": _clean_text(education.get("housingStability")),
+                "financial_situation": _clean_text(education.get("financialSituation")),
+                "hobbies_and_interests": _clean_text(education.get("hobbiesAndInterests")),
             },
             "TreatmentsInterventions": {
-                "PastTherapies": _ensure_list(tx.get("previousTherapeuticExperiences")),
-                "ProgressResistance": _clean_text(tx.get("treatmentResistance")),
-                "TherapeuticGoals": goals_value,
-                "MedicationHistory": _ensure_list(tx.get("medicationHistory")),
-                "MedicationResponse": _clean_text(tx.get("responseToMedications")),
-                "Hospitalizations": _safe_int(tx.get("previousHospitalizations"), default=0),
-                "EmergencyRoomVisits": _clean_text(tx.get("emergencyDepartmentVisits")),
-                "PastPsychiatricDiagnoses": _ensure_list(tx.get("previousPsychiatricDiagnoses")),
-                "PreviousDropouts": _clean_text(tx.get("previousDropouts")),
-            },
-            "ClinicalJudgment": {
-                "JudgmentCapacity": _clean_text(psych.get("higherCognitiveFunctions")),
-                "Insight": _clean_text(psych.get("higherCognitiveFunctions")),
-                "ImpulseControl": _clean_text(dysfunction.get("impulsiveAndRiskyBehaviors")),
-            },
-            "ResilienceWellbeing": {
-                "PsychologicalResilience": _clean_text(resources.get("psychologicalResilience")),
-                "SelfCompassion": "Working on self-kindness while managing shame and self-criticism.",
-                "LifeSatisfaction": _clean_text(resources.get("lifeSatisfaction")),
-                "PersonalGrowth": "Committed to therapy to regain stability and purpose.",
-                "SenseOfCoherence": "Seeks to make sense of stressors and how they affect functioning.",
-                "Empowerment": "Therapeutic support is used to build agency and healthier routines.",
-                "HopeForFuture": _clean_text(resources.get("hopeForTheFuture")),
-                "LongTermLifeGoals": _clean_text(resources.get("longTermLifeGoals")),
+                "previous_therapeutic_experiences": _clean_text(treatments.get("previousTherapeuticExperiences")),
+                "treatment_resistance": _clean_text(treatments.get("treatmentResistance")),
+                "therapeutic_goals": _ensure_list(treatments.get("therapeuticGoals")),
+                "medication_history": _ensure_list(treatments.get("medicationHistory")),
+                "response_to_medications": _clean_text(treatments.get("responseToMedications")),
+                "previous_hospitalizations": _clean_text(treatments.get("previousHospitalizations")),
+                "emergency_department_visits": _clean_text(treatments.get("emergencyDepartmentVisits")),
+                "previous_dropouts": _clean_text(treatments.get("previousDropouts")),
+                "previous_psychiatric_diagnoses": _ensure_list(treatments.get("previousPsychiatricDiagnoses")),
             },
             "MedicalHistory": {
-                "PreexistingConditions": _clean_text(medical.get("preExistingMedicalConditions")),
-                "CurrentMedications": [],
-                "PharmacologicalTreatments": _ensure_list(medical.get("pharmacologicalTreatments")),
-                "Allergies": None,
-                "Lifestyle": _clean_text(medical.get("lifestyle")),
-                "GeneralHealth": _clean_text(medical.get("generalPhysicalHealth")),
-                "SleepPatterns": _clean_text(medical.get("sleepPatterns")),
-                "EatingHabits": _clean_text(medical.get("eatingHabits")),
+                "pre_existing_medical_conditions": _clean_text(medical.get("preExistingMedicalConditions")),
+                "pharmacological_treatments": _clean_text(medical.get("pharmacologicalTreatments")),
+                "lifestyle": _clean_text(medical.get("lifestyle")),
+                "general_physical_health": _clean_text(medical.get("generalPhysicalHealth")),
+                "eating_habits": _clean_text(medical.get("eatingHabits")),
             },
-            "SocialEnvironment": {
-                "SocialSupport": _infer_social_support(family, social),
-                "HousingConditions": _clean_text(edu.get("housingStability")),
-                "SocialSecurity": "Not reported.",
-                "SocialCohesion": "Navigates academic, occupational, and cultural environments with varying belonging.",
-                "SocialDeterminantsMentalHealth": "Financial pressure, discrimination, and relational stress influence mental health.",
+            "BehaviorObservations": {
+                "recurring_dynamics": _clean_text(behavior.get("recurringDynamicsTransferenceCountertransference")),
+                "expressed_emotions_and_congruence": _clean_text(behavior.get("expressedEmotionsAndCongruence")),
+                "speech_characteristics": _clean_text(behavior.get("speechCharacteristics")),
+                "non_verbal_behavior": _clean_text(behavior.get("nonVerbalBehavior")),
+                "appearance_self_care_orientation": _clean_text(behavior.get("appearanceSelfCareOrientation")),
             },
-            "TestBehavior": {
-                "RecurringDynamics": _clean_text(behavior.get("recurringDynamicsTransferenceCountertransference")),
-                "PredominantEmotions": _ensure_list(behavior.get("expressedEmotionsAndCongruence")) or ["Not reported."],
-                "Speech": _clean_text(behavior.get("speechCharacteristics")),
-                "EyeContactPostureGestures": _clean_text(behavior.get("nonVerbalBehavior")),
-                "AvoidantAttitudesMoodChange": _clean_text(behavior.get("appearanceSelfCareOrientation")),
-            },
+            "ClinicalFunctioning": _normalize_clinical_functioning(details.get("clinicalFunctioning", {})),
+            "EmotionDynamics": _build_emotion_traits(raw),
             "ClinicalSummary": raw.get("clinicalCase", ""),
+            "brief_description": _clean_text(raw.get("briefDescription"), default=""),
             "current_emotional_state": "base",
             "session_notes": None,
         }
@@ -386,15 +262,16 @@ class PatientProfile(BaseModel):
 
     def to_text_summary(self) -> str:
         """Compact summary for LLM or prompt context."""
-        demo = self.DemographicInfo
-        profile = self.PsychologicalProfile
-        symptoms = ", ".join(profile.MainSymptoms[:3]) if profile.MainSymptoms else "no major symptoms"
+        demo = self.Demographics
+        age = demo.age or "unknown age"
+        gender = demo.gender.lower() if demo.gender else "person"
+        description = self.brief_description or (self.Metadata.background if self.Metadata else "")
+        descriptor = description or "No brief description provided."
         return (
-            f"{demo.Name} {demo.Surname}, {demo.Age}-year-old {demo.Gender.lower()} "
-            f"with background: {demo.CulturalBackground.lower()}. "
-            f"Known for {symptoms}. Typical tone: {self.current_emotional_state}."
+            f"{self.short_name}, {age}-year-old {gender}. "
+            f"Disorder: {self.disorder}. {descriptor}"
         )
-    
+
     class Config:
         extra = "ignore"  # Ignore unexpected fields when loading from JSON
 
@@ -420,6 +297,68 @@ def _build_emotion_traits(raw: dict) -> dict:
     return {"trait_baseline": normalized, "volatility_level": volatility}
 
 
+def _normalize_clinical_functioning(raw: dict) -> dict:
+    """Normalize the clinicalFunctioning block into our models."""
+    personality = raw.get("personalityAndSymptomAxis", {}) if isinstance(raw, dict) else {}
+    mental = raw.get("mentalFunctioningAxis", {}) if isinstance(raw, dict) else {}
+
+    def _level_block(data: Optional[dict]) -> Dict[str, str]:
+        if not isinstance(data, dict):
+            return {}
+        return _clean_dict({
+            "level": _clean_text(data.get("impairmentLevel") or data.get("level")),
+            "description": _clean_text(data.get("description")),
+        })
+
+    def _impairment_block(data: Optional[dict]) -> Dict[str, str]:
+        if not isinstance(data, dict):
+            return {}
+        return _clean_dict({
+            "impairment": _clean_text(data.get("impairment")),
+            "description": _clean_text(data.get("description")),
+        })
+
+    def _symptom_patterns(data: Optional[dict]) -> Dict[str, Dict[str, str]]:
+        if not isinstance(data, dict):
+            return {}
+        cleaned = {}
+        for key, value in data.items():
+            if isinstance(value, dict):
+                cleaned[key] = _clean_dict({k: _clean_text(v) for k, v in value.items()})
+        return cleaned
+
+    return {
+        "personality_and_symptom_axis": {
+            "identity": _level_block(personality.get("identity")),
+            "object_relations": _level_block(personality.get("objectRelations")),
+            "defensive_level": _level_block(personality.get("defensiveLevel")),
+            "reality_testing": _level_block(personality.get("realityTesting")),
+            "overall_personality_organization": _clean_dict({
+                "organization": _clean_text(personality.get("overallPersonalityOrganization", {}).get("organization")),
+                "severity_range": _clean_text(personality.get("overallPersonalityOrganization", {}).get("severityRange")),
+                "description": _clean_text(personality.get("overallPersonalityOrganization", {}).get("description")),
+            }),
+            "personality_syndrome": _clean_text(personality.get("personalitySyndrome")),
+            "symptom_patterns": _symptom_patterns(personality.get("symptomPatterns")),
+            "comorbidity": _clean_text(personality.get("comorbidity")),
+        },
+        "mental_functioning_axis": {
+            "affect_experience_and_regulation": _impairment_block(mental.get("affectExperienceAndRegulation")),
+            "identity_integration": _impairment_block(mental.get("identityIntegration")),
+            "self_esteem_regulation": _impairment_block(mental.get("selfEsteemRegulation")),
+            "attention_and_learning": _impairment_block(mental.get("attentionAndLearning")),
+            "defensive_functioning": _impairment_block(mental.get("defensiveFunctioning")),
+            "impulse_control": _impairment_block(mental.get("impulseControl")),
+            "moral_standards_and_ideals": _impairment_block(mental.get("moralStandardsAndIdeals")),
+            "relationships_and_intimacy": _impairment_block(mental.get("relationshipsAndIntimacy")),
+            "mentalization": _impairment_block(mental.get("mentalization")),
+            "self_observation": _impairment_block(mental.get("selfObservation")),
+            "adaptation_and_resilience": _impairment_block(mental.get("adaptationAndResilience")),
+            "meaning_and_directionality": _impairment_block(mental.get("meaningAndDirectionality")),
+        },
+    }
+
+
 def _clamp_emotion_value(value) -> float:
     try:
         numeric = float(value)
@@ -428,28 +367,20 @@ def _clamp_emotion_value(value) -> float:
     return max(0.0, min(1.0, numeric))
 
 
-def _split_name(full_name: str) -> tuple[str, str]:
-    """Best-effort split of arbitrary name strings into first/last components."""
-    if not full_name:
-        return "Unknown", "Unknown"
-    parts = full_name.strip().split()
-    if not parts:
-        return "Unknown", "Unknown"
-    if len(parts) == 1:
-        return parts[0], parts[0]
-    return parts[0], " ".join(parts[1:])
-
-
-def _clean_text(value, default: str = "Not reported."):
+def _clean_text(value, default: Optional[str] = None):
     """Normalize various json fields into trimmed strings with sensible fallbacks."""
     if value is None:
-        return default if default != "" else ""
+        return default
     if isinstance(value, str):
         text = value.strip()
         if not text:
-            return default if default != "" else ""
+            return default
         return text
     return str(value)
+
+
+def _clean_dict(payload: Dict[str, Optional[str]]) -> Dict[str, str]:
+    return {k: v for k, v in payload.items() if v is not None and str(v).strip()}
 
 
 def _ensure_list(value) -> List[str]:
@@ -469,12 +400,12 @@ def _ensure_list(value) -> List[str]:
     return [str(value)]
 
 
-def _safe_int(value, default: int = 0) -> int:
+def _safe_int(value, default: Optional[int] = None) -> Optional[int]:
     """Extract an integer from loosely formatted sources (words, strings, etc.)."""
     if isinstance(value, (int, float)):
         return int(value)
     if isinstance(value, str):
-        digits = re.findall(r"-?\\d+", value)
+        digits = re.findall(r"-?\d+", value)
         if digits:
             try:
                 return int(digits[0])
@@ -494,26 +425,3 @@ def _safe_int(value, default: int = 0) -> int:
             if word in lowered:
                 return number
     return default
-
-
-def _slugify(text: str) -> str:
-    """Machine-friendly slug for disorders/patient IDs."""
-    if not text:
-        return "unspecified"
-    cleaned = re.sub(r"[^a-zA-Z0-9]+", "_", text.strip().lower())
-    return cleaned.strip("_") or "unspecified"
-
-
-def _infer_social_support(family: dict, social: dict) -> str:
-    """Synthesize a concise statement about the patient's practical support system."""
-    parts = []
-    fam = family.get("currentRelationshipWithParents")
-    if fam:
-        parts.append(fam)
-    cousin = social.get("friendships")
-    if cousin:
-        parts.append(cousin)
-    peers = social.get("relationshipsWithPeersAndColleagues")
-    if peers:
-        parts.append(peers)
-    return " ".join(parts).strip() or "Not reported."

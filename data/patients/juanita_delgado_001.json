@@ -1,6 +1,7 @@
 {
   "patientId": "juanita_perez_001",
   "name": "Juanita Pérez",
+  "clinicalCase": "Juanita Pérez is a 33-year-old single, unemployed Hispanic woman who sought therapy for depressed mood, chronic suicidal thoughts, social isolation, and poor self-care. She had spent six months largely confined to her apartment, lying in bed, eating junk food, watching television, and overspending online. Multiple treatments produced little relief. Raised as the middle child in an upper-middle-class immigrant family that prized professional success, she felt isolated throughout school and had recurrent depression. Known for angry outbursts, she excelled in high school but dropped out of college after conflicts with a roommate and professor. She cycled through internships and entry-level jobs, intending to return to college, but repeatedly quit, describing supervisors as initially impressive and ultimately manipulative. Each disappointment intensified her shame (\"I can't even succeed as a clerk?\") and anger (\"I could run the place and probably will\"). She dated men in adolescence but avoided physical intimacy because it triggered anxiety. Most neighborhood friends drifted away; she keeps loose online contact with former classmates, idolizing their achievements. Juanita reports predominantly depressed mood, diminished interests, overeating, low energy, and chronic suicidal ideation. She describes numerous one- to two-day bursts of energy that resemble brief hypomanic episodes followed by prolonged sleep, though these do not meet bipolar criteria. She occasionally cuts herself superficially and has been psychiatrically hospitalized after overdoses. Psychotherapy and medication trials—including mood stabilizers, antidepressants, and low-dose antipsychotics—have yielded limited benefit. In interviews she appears casually groomed, somewhat unkempt, cooperative, coherent, and goal-directed. Affect is dysphoric and constricted but capable of appropriate smiles. She feels ashamed of her performance yet believes she is destined for greatness, reflecting identity diffusion. She portrays her father as both spectacularly successful and a \"Machiavellian loser\" who manipulates others, and she quits jobs when she feels disrespected. Transference often reveals hypersensitivity to perceived rejection, as when she accused the interviewer of boredom for glancing at the clock. Juanita demonstrates affective instability, anger dysregulation, unstable relationships, identity disturbance, self-harm, chronic emptiness, and transient stress-related paranoia, meeting DSM-5 criteria for borderline personality disorder. Comorbid depressive symptoms—including persistent low mood, anergia, overeating, and suicidality—support a diagnosis of recurrent major depressive disorder, with possible persistent depressive disorder if symptoms have lasted two years. Her accusatory preoccupations suggest personality dynamics beyond typical depression. Thorough assessment should differentiate mood episodes from borderline affect storms, examine cultural and familial pressures surrounding success and shame, and track the meaning of her brief energizing episodes. Therapeutic work should validate her suffering, address shame and relational ruptures, reinforce strengths, and build consistent routines. Alliance sensitivity is crucial because feelings of judgment can trigger withdrawal or rage, yet a stable therapeutic relationship can help Juanita pursue her long-term goals of emotional stability, productive engagement, and healthier relationships.",
   "briefDescription": "33-year-old Hispanic woman with intense shame, fragile self-esteem, social withdrawal, and difficulty sustaining emotional, work, and relationship stability.",
   "avatarUrl": "/images/patients/juanita/base.png",
   "voiceId": "21m00Tcm4TlvDq8ikWAM",
@@ -54,49 +55,14 @@
       "financialSituation": "Financial stress tied to unemployment and self-comparisons with more successful peers.",
       "hobbiesAndInterests": "Interests diminish markedly during depressive episodes; no structured hobbies reported."
     },
-    "psychologicalProfileAndCognitiveFunctioning": {
-      "affectiveEmotionalFunctioningAndMoodRegulation": "Persistent depressed mood, anhedonia, chronic emptiness, irritability, and chronic suicidal ideation.",
-      "psychiatricComorbidities": "Recurrent major depressive disorder with prominent anxiety symptoms.",
-      "senseOfSelfAndOthers": "Fragile self-esteem with entrenched shame and feelings of unworthiness; oscillates between idealization and devaluation in relationships.",
-      "thoughtFunctioningAndCognitiveStyle": "Ruminative, dichotomous thinking without psychosis.",
-      "memory": "Reports concentration and memory difficulties during depressive episodes.",
-      "attentionAndConcentration": "Attention declines during mood deterioration.",
-      "sensoryPerception": "No perceptual disturbances reported.",
-      "higherCognitiveFunctions": "Insight is partial and fluctuates with affective state; judgment varies similarly."
-    },
-    "copingMechanismsAndDefenses": {
-      "copingStrategies": "Avoidance, social withdrawal, hypersomnia after anxiety spikes, reassurance seeking, and occasional binge eating.",
-      "defenseMechanisms": "Rationalization, splitting, idealization/devaluation, and avoidance."
-    },
-    "dysfunctionalBehaviorsAndRiskyConduct": {
-      "selfHarmAndSuicidality": "History of superficial cutting; chronic suicidal thoughts without current lethal plan.",
-      "substanceAbuse": "Episodic alcohol use to manage shame and anxiety; denies current illicit substance use.",
-      "otherDirectedAggression": "No significant hetero-directed aggression reported.",
-      "impulsiveAndRiskyBehaviors": "Displays impulsivity in relationships and emotional reactions, though no severe risk-taking behaviors described."
-    },
-    "morality": {
-      "moralValues": "Values centered on competence, success, and a strong internalized sense of duty.",
-      "senseOfGuilt": "Frequent guilt and self-devaluation.",
-      "deceitAndManipulation": "More prone to masking distress than to deliberate manipulation.",
-      "illicitActivities": "No illicit activities reported."
-    },
-    "socialRelationshipsAndInteractions": {
-      "friendships": "Marked social isolation with few active friendships.",
-      "romanticRelationships": "Unstable romantic relationships; tends to end them when intimacy deepens.",
-      "sexualRelationships": "Sexual life not deeply explored; diminished desire during depressive periods.",
-      "familyInteractions": "Critical family interactions that reinforce shame and inadequacy.",
-      "relationshipsWithPeersAndColleagues": "Frequent conflicts with supervisors; perceives herself as underestimated or devalued.",
-      "socialMediaUseAndImpact": "Not reported"
-    },
     "treatmentsAndInterventions": {
-      "previousTherapeuticExperiences": "Prior psychotherapies with limited benefit; alliance often destabilizes when shame themes arise.",
-      "treatmentResistance": "Partial responses with recurrent episodes.",
+      "previousTherapeuticExperiences": "Multiple, discontinuous psychotherapy experiences, with difficulty tolerating emotional closeness and vulnerability; tendency to experience therapists as critical or emotionally distant.",
+      "treatmentResistance": "Fluctuating engagement, alternating between involvement and withdrawal; during perceived disappointment or distance, she tends to test the therapeutic relationship through acting out or ruptures (e.g., missed sessions, temporary disengagement).",
       "therapeuticGoals": [
-        "Reduce depressive symptoms",
-        "Improve self-esteem and relational stability",
-        "Resume work or academic engagement",
-        "Develop healthier coping mechanisms",
-        "Enhance emotional regulation"
+        "Stabilize treatment and build a sufficiently solid therapeutic alliance to tolerate shame, anger, and disappointment",
+        "strengthen self-esteem and identity continuity; improve emotional regulation",
+        "reduce self-harming behaviors and suicidal ideation",
+        "promote more stable relational and occupational functioning"
       ],
       "medicationHistory": [
         "Past use of anxiolytics",
@@ -112,29 +78,117 @@
         "Borderline personality disorder traits"
       ]
     },
-    "psychologicalResources": {
-      "insightAndMentalizationCapacity": "Moderate insight into shame dynamics and self-devaluation, though inconsistent.",
-      "motivationForChange": "Wants change but is hindered by fear of failure and shame.",
-      "psychologicalResilience": "Recovery capacity is limited but improves with structured support.",
-      "lifeSatisfaction": "Low life satisfaction during depressive episodes.",
-      "hopeForTheFuture": "Hope fluctuates; guarded optimism connected to therapy.",
-      "longTermLifeGoals": "Regain emotional stability, resume professional or academic pursuits, and cultivate safer relationships."
-    },
     "medicalAndPhysicalHistory": {
       "preExistingMedicalConditions": "No significant medical conditions reported.",
-      "pharmacologicalTreatments": "Historical use of SSRIs, anxiolytics, and low-dose antipsychotics; current regimen unspecified.",
-      "lifestyle": "Irregular sleep–wake cycles, minimal exercise during depressive episodes, and disorganized eating habits.",
+      "pharmacologicalTreatments": "Current medication regimen not specified.",
+      "lifestyle": "Irregular daily routines, limited physical activity during periods of low mood and emotional withdrawal..",
       "generalPhysicalHealth": "Generally good physical health.",
-      "sleepPatterns": "Anxious hyperactivation followed by crashes with up to 12 hours of sleep; insomnia during rumination.",
       "eatingHabits": "Variable appetite with mood-linked overeating episodes."
     },
     "behaviorDuringTestAdministration": {
-      "recurringDynamicsTransferenceCountertransference": "Prominent shame and fear of judgment; possible oscillations between idealizing and devaluing the therapist.",
-      "expressedEmotionsAndCongruence": "Sad affect with occasional tearfulness; congruent with depressive content.",
-      "speechCharacteristics": "Speech slows during depressive phases and becomes rapid when anxiety rises.",
-      "nonVerbalBehavior": "Limited eye contact when ashamed; closed posture.",
-      "appearanceSelfCareOrientation": "Self-care varies and can become neglected during downturns."
+      "recurringDynamicsTransferenceCountertransference": "Marked sensitivity to judgment and perceived interpersonal distance emerges. Juanita alternates between moments of intense seeking of reassurance and closeness and sudden phases of withdrawal or suspiciousness (e.g., interpreting a neutral gesture as a sign of disinterest). Shame may trigger self-directed attacks or hostile attributions toward others. The therapist may experience feelings of caution, concern for her fragility, and at times a relational pressure to not disappoint.",
+      "expressedEmotionsAndCongruence": "Speech is low in volume and slowed during periods of sadness and emptiness; it becomes more rapid and pressured during anxious tension or irritability. Content is characterized by self-devaluation, perceptions of injustice, high expectations of herself, and disappointment toward significant others. Dichotomous thinking or suspicious interpretations may emerge under stress.",
+      "speechCharacteristics": "Closed posture during moments of shame, reduced eye contact with brief monitoring glances; increased motor agitation during irritability or internal tension. Facial expression is generally congruent but may appear flattened or suddenly intense, consistent with affective instability.",
+      "nonVerbalBehavior": "Closed posture during moments of shame, reduced eye contact with brief monitoring glances; increased motor agitation during irritability or internal tension. Facial expression is generally congruent but may appear flattened or suddenly intense, consistent with affective instability.",
+      "appearanceSelfCareOrientation": "Appearance is inconsistently groomed and at times neglected during periods of mood worsening. She is oriented and cooperative during the interview. Personal hygiene and daily organization are variable, reflecting depressive withdrawal and difficulty maintaining regular routines."
+    },
+
+    "clinicalFunctioning": {
+      "personalityAndSymptomAxis": {
+        "identity": {
+          "impairmentLevel": "3/10",
+          "description": "Fragile and unstable sense of self with marked identity diffusion, chronic feelings of emptiness and shame, poorly defined self–other boundaries, and oscillations between overidentification and withdrawal. Self-esteem is fragile, highly reactive to interpersonal events, and polarized between feelings of worthlessness and specialness."
+        },
+        "objectRelations": {
+          "impairmentLevel": "3/10",
+          "description": "Unstable and poorly reciprocal relationships, with a strong need for closeness alternating with fear of abandonment. Intimacy is compromised by oscillations between idealization and withdrawal. Empathy is inconsistent and becomes largely self-referential under emotional stress."
+        },
+        "defensiveLevel": {
+          "level": "4/10",
+          "description": "Predominantly borderline defensive functioning characterized by splitting, projective identification, idealization/devaluation, and acting out. Access to neurotic defenses is limited, and reality-based defenses are only intermittently available."
+        },
+        "realityTesting": {
+          "level": "5/10",
+          "description": "Generally intact reality testing with transient stress-related distortions and suspicious interpersonal interpretations; no persistent psychotic impairment."
+        },
+        "overallPersonalityOrganization": {
+          "organization": "Borderline",
+          "severityRange": "3–4",
+          "description": "Personality organization marked by identity diffusion, unstable relationships, impaired affect regulation, and poor impulse control, with predominant use of borderline defenses."
+        },
+        "personalitySyndrome": "Borderline",
+        "symptomPatterns": {
+          "depressiveExperience": {
+            "code": "S22",
+            "severity": "moderate",
+            "features": ["suicidal ideation"]
+          },
+          "interpersonalAnxiety": {
+            "code": "S31",
+            "trigger": "perceived rejection or criticism"
+          },
+          "dissociation": {
+            "code": "S42.1",
+            "pattern": "transient under affective overload"
+          },
+          "sleepWakeCycle": {
+            "code": "S62",
+            "pattern": "insomnia with rumination alternating with hypersomnia after emotional crashes"
+          }
+        },
+        "comorbidity": "None"
+      },
+
+      "mentalFunctioningAxis": {
+        "affectExperienceAndRegulation": {
+          "impairment": "marked",
+          "description": "Affective states are intense, rapidly shifting, and poorly mentalized, with limited tolerance for emotional complexity. Emotions such as shame, anger, and sadness are often experienced as overwhelming and expressed behaviorally or interpersonally rather than verbally reflected upon. Verbalization is possible at low arousal but breaks down under stress."
+        },
+        "identityIntegration": {
+          "impairment": "marked",
+          "description": "Limited capacity to maintain a differentiated and integrated sense of self and others. Self and object representations are polarized and unstable, collapsing under emotional stress into confusion and identity diffusion."
+        },
+        "selfEsteemRegulation": {
+          "impairment": "marked",
+          "description": "Self-esteem is fragile, unstable, and highly dependent on interpersonal feedback, collapsing easily in response to perceived criticism or rejection and leading to insecurity, shame, and reduced sense of agency."
+        },
+        "attentionAndLearning": {
+          "impairment": "moderate",
+          "description": "Attention and learning capacities are state-dependent and deteriorate under emotional stress. Intrusive ruminative thoughts and affective overload interfere with concentration, leading to repetitive maladaptive patterns rather than cumulative learning."
+        },
+        "defensiveFunctioning": {
+          "impairment": "marked",
+          "description": "Reliance on borderline defenses such as splitting, idealization/devaluation, projective identification, denial, and acting out. Higher-level defenses are unstable and easily overridden under affective activation."
+        },
+        "impulseControl": {
+          "impairment": "marked",
+          "description": "Impulses are experienced as urgent and overwhelming and are frequently enacted behaviorally through self-harm, suicidal ideation, abrupt disengagement, episodic substance use, and overeating, rather than being verbally processed."
+        },
+        "moralStandardsAndIdeals": {
+          "impairment": "moderate",
+          "description": "Moral standards are rigid and self-critical, organized around competence and achievement, with guilt that is primarily self-directed and punitive rather than relational."
+        },
+        "relationshipsAndIntimacy": {
+          "impairment": "marked",
+          "description": "Difficulty sustaining stable, reciprocal relationships. Closeness–distance regulation is unstable, with intense reassurance seeking followed by withdrawal. Sexuality is inconsistently integrated with emotional intimacy."
+        },
+        "mentalization": {
+          "impairment": "moderate_to_marked",
+          "description": "Mentalization is state-dependent: available at low arousal but rapidly collapses under interpersonal stress into rigid, suspicious interpretations."
+        },
+        "selfObservation": {
+          "impairment": "moderate",
+          "description": "Psychological mindedness is intermittent and fragile, with reduced reflective distance under shame and anxiety, leading to affective absorption rather than observation."
+        },
+        "adaptationAndResilience": {
+          "impairment": "moderate",
+          "description": "Limited flexibility in response to stress, with withdrawal and dysregulation predominating. Adaptive resources are present but fragile and context-dependent."
+        },
+        "meaningAndDirectionality": {
+          "impairment": "moderate_to_marked",
+          "description": "Difficulty constructing a coherent life narrative and sustaining long-term goals. Sense of meaning is unstable, collapses under stress, and is dominated by present-focused emotional concerns."
+        }
+      }
     }
-  },
-  "clinicalCase": "Juanita Pérez is a 33-year-old single, unemployed Hispanic woman who sought therapy for depressed mood, chronic suicidal thoughts, social isolation, and poor self-care. She had spent six months largely confined to her apartment, lying in bed, eating junk food, watching television, and overspending online. Multiple treatments produced little relief. Raised as the middle child in an upper-middle-class immigrant family that prized professional success, she felt isolated throughout school and had recurrent depression. Known for angry outbursts, she excelled in high school but dropped out of college after conflicts with a roommate and professor. She cycled through internships and entry-level jobs, intending to return to college, but repeatedly quit, describing supervisors as initially impressive and ultimately manipulative. Each disappointment intensified her shame (\"I can't even succeed as a clerk?\") and anger (\"I could run the place and probably will\"). She dated men in adolescence but avoided physical intimacy because it triggered anxiety. Most neighborhood friends drifted away; she keeps loose online contact with former classmates, idolizing their achievements. Juanita reports predominantly depressed mood, diminished interests, overeating, low energy, and chronic suicidal ideation. She describes numerous one- to two-day bursts of energy that resemble brief hypomanic episodes followed by prolonged sleep, though these do not meet bipolar criteria. She occasionally cuts herself superficially and has been psychiatrically hospitalized after overdoses. Psychotherapy and medication trials—including mood stabilizers, antidepressants, and low-dose antipsychotics—have yielded limited benefit. In interviews she appears casually groomed, somewhat unkempt, cooperative, coherent, and goal-directed. Affect is dysphoric and constricted but capable of appropriate smiles. She feels ashamed of her performance yet believes she is destined for greatness, reflecting identity diffusion. She portrays her father as both spectacularly successful and a \"Machiavellian loser\" who manipulates others, and she quits jobs when she feels disrespected. Transference often reveals hypersensitivity to perceived rejection, as when she accused the interviewer of boredom for glancing at the clock. Juanita demonstrates affective instability, anger dysregulation, unstable relationships, identity disturbance, self-harm, chronic emptiness, and transient stress-related paranoia, meeting DSM-5 criteria for borderline personality disorder. Comorbid depressive symptoms—including persistent low mood, anergia, overeating, and suicidality—support a diagnosis of recurrent major depressive disorder, with possible persistent depressive disorder if symptoms have lasted two years. Her accusatory preoccupations suggest personality dynamics beyond typical depression. Thorough assessment should differentiate mood episodes from borderline affect storms, examine cultural and familial pressures surrounding success and shame, and track the meaning of her brief energizing episodes. Therapeutic work should validate her suffering, address shame and relational ruptures, reinforce strengths, and build consistent routines. Alliance sensitivity is crucial because feelings of judgment can trigger withdrawal or rage, yet a stable therapeutic relationship can help Juanita pursue her long-term goals of emotional stability, productive engagement, and healthier relationships."
+  }
 }

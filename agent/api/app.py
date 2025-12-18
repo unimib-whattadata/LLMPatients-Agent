@@ -214,7 +214,7 @@ async def send_message(req: MessageRequest):
     )
 
 
-@app.post("/patients", response_model=PatientInitResponse)
+@app.post("/initialise-patient", response_model=PatientInitResponse)
 async def create_patient(req: PatientInitRequest):
     """Create a patient file if it does not already exist."""
 

@@ -54,7 +54,10 @@ def sample_noise(volatility_level: str, *, salience: float = 1.0) -> Dict[str, f
     # Map salience in [0,1] → multiplier in [0.25, 1.0] so neutral turns barely move.
     salience = max(0.0, min(1.0, salience))
     effective_sigma = sigma * (0.25 + 0.75 * salience)
-    return {emotion: random.gauss(0.0, effective_sigma) for emotion in EMOTIONS}
+    return {
+        emotion: clamp(random.gauss(0.0, effective_sigma), -0.15, 0.15)
+        for emotion in EMOTIONS
+    }
 
 
 def context_adjustments(event: str) -> Dict[str, float]:
@@ -77,7 +80,18 @@ def compute_emotional_state(
 
     target = {}
     for emotion in EMOTIONS:
-        raw = baseline[emotion] + noise[emotion] + modifiers.get(emotion, 0.0)
+        prev = (
+            previous_state.get(emotion, baseline[emotion])
+            if previous_state
+            else baseline[emotion]
+        )
+
+        raw = (
+            0.6 * baseline[emotion] +
+            0.3 * prev +
+            noise[emotion] +
+            modifiers.get(emotion, 0.0)
+        )
         target[emotion] = clamp(raw)
 
     # Apply light counterweights so supportive systems can soften hot ones.
