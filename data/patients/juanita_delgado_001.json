@@ -1,5 +1,6 @@
 {
   "patientId": "juanita_delgado_001",
+  "disorderId" : "6D11_5",
   "name": "Juanita Delgado",
   "briefDescription": "33-year-old Hispanic woman with intense shame, fragile self-esteem, social withdrawal, and difficulty sustaining emotional, work, and relationship stability.",
   "avatarUrl": "/images/patients/juanita/base.png",
@@ -26,7 +27,7 @@
       "FEAR": 0.8,
       "CARE": 0.65,
       "LUST": 0.65,
-      "SADNESS": 0.85,
+      "PANIC_GRIEF": 0.85,
       "PLAY": 0.3
     }
   },

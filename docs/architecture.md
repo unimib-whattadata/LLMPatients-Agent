@@ -1,110 +1,96 @@
 # PsyLLM Architecture & Contributor Guide
 
-This document explains how the PsyLLM patient agent works under the hood so that new contributors can comfortably extend or debug the system.
+This document explains how the PsyLLM patient agent works under the hood so that contributors can extend or debug the system.
 
 ## 1. High-Level Flow
 
 ```
 therapist turn ─┐
                 ▼
-   sanitize_user_input → detect_intent_topic → hydrate_long_term_context → build_prompt
-                                                                                │
-                                                                                ▼
-                                                                     generate_response (LLM)
-                                                                                │
-                                                                                ▼
-                                               append_messages → trim_messages → update_memory → display
-                                                                                │
-                                                                                └──────► async summarizer + long-term store
+   sanitize_user_input → detect_intent_topic → hydrate_long_term_context → update_emotions → build_prompt
+                                                                                              │
+                                                                                              ▼
+                                                                                    generate_response (LLM)
+                                                                                              │
+                                                                                              ▼
+                                           append_messages → trim_messages → update_memory → display
+                                                                                              │
+                                                                                              └──────► async episodic summaries + JSONL store
 ```
 
-Each box runs inside a LangGraph `StateGraph`. The graph is compiled once at startup and invoked for every therapist turn. Nodes exchange data through a shared `State` (Pydantic model) hosted in `agent/core/langgraph_builder.py`.
+Each box runs inside a LangGraph `StateGraph` compiled once at startup. Nodes exchange data through a shared `State` in `agent/core/langgraph_builder.py`.
 
 ## 2. State Object Cheat Sheet
 
 Field | Purpose | Producer | Consumer(s)
 ----- | ------- | -------- | -----------
-`patient_id` | Key used to load patient JSON and retrieve memories | CLI/API | `load_profile`, `persist_long_term_memory`
-`user_input` / `safe_user_input` | Raw vs. sanitized therapist text (unsafe instructions replaced) | Entry payload / `sanitize_user_input` | Prompt builder, topic detection
-`safety_flags` | Regex labels for potential prompt injections | `sanitize_user_input` | Prompt builder (for guardrails messaging)
-`patient_profile` | Rich persona definition loaded from JSON | `load_profile` | Prompt builder, tone updates
-`core_emotion` | Patient’s baseline affect (e.g., sadness for depressive cases) | `load_profile`, restored state | Emotion smoothing, prompt builder
-`emotion_intensity` | 0–1 scalar describing how strongly the current affect spike is felt | `update_emotional_state`, `update_memory`, restored state | Prompt builder, telemetry
-`emotion_state` | Full per-system affect vector (SEEKING/RAGE/…) | `update_emotional_state` | Prompt builder, logging
-`emotion_event` | Therapist-triggered modifier label (“empathy”, “boundary”, …) | `update_emotional_state` | Prompt builder
-`history` | Recent therapist/patient turns (max 5) | `update_memory` | Prompt builder, summary chunking
-`messages` | LangChain message list used for streaming memory windows | `append_messages`/`trim_messages` | Async summarizer, future LangGraph nodes
-`summary` | Accumulated multi-turn narrative produced by async jobs | `_collect_completed_summaries` | Prompt builder, long-term context
-`long_term_context` | Relevant snippets retrieved from persistent store | `hydrate_long_term_context` | Prompt builder
-`intent_topic` / `last_topic` | Semantic topic classification for the turn | `detect_intent_topic` | Prompt builder, summarizer metadata
-`topic_similarity` | Cosine score for the selected topic | `detect_intent_topic` | `_is_small_topic_shift`
+`patient_id` | Patient profile id | CLI/API | `load_profile`, memory store
+`therapist_id` | Therapist identifier for per-pair memory | CLI/API | memory store
+`session_id` | Session identifier | CLI/API | memory store, logging
+`user_input` / `safe_user_input` | Raw vs. sanitized therapist text | Entry payload / `sanitize_user_input` | Prompt builder, topic detection
+`safety_flags` | Regex labels for potential prompt injections | `sanitize_user_input` | Prompt builder
+`patient_profile` | Persona definition loaded from JSON | `load_profile` | Prompt builder
+`core_emotion` | Baseline emotion label | `load_profile` | memory metadata
+`emotion_intensity` | 0–1 scalar intensity (top-two average) | `update_emotional_state` | Prompt builder
+`emotion_state` | Full affect vector (Panksepp systems) | `update_emotional_state` | Prompt builder
+`emotion_event` | Therapist-triggered modifier label | `update_emotional_state` | Prompt builder
+`history` | Recent therapist/patient turns | `update_memory` | Prompt builder
+`messages` | LangChain message list for bounded window | `append_messages`/`trim_messages` | window maintenance
+`summary` | Rolling long-term summary (per therapist/patient) | session finalize | Prompt builder
+`session_reflection` | Most recent session reflection | session finalize | Prompt builder
+`episodic_context` | Retrieved episodic memory snippets | `hydrate_long_term_context` | Prompt builder
+`intent_topic` / `last_topic` | LLM topic classification | `detect_intent_topic` | Prompt builder, memory metadata
 `response` | Final LLM output | `generate_response` | `update_memory`, CLI/API
-`total_turns` | Count of turns within this LangGraph thread | `update_memory` | Logging/telemetry
+`total_turns` | Count of turns in this session | `update_memory` | logging
 
 ## 3. Memory & Summaries
 
-1. **Short-Term Window**: `history` holds the last `MAX_SHORT_TERM_TURNS` exchanges to keep prompts grounded and manageable.
-2. **Overflow Chunking**: when `messages` exceed `MAX_MESSAGE_WINDOW`, `trim_messages` converts the oldest items into therapist/patient pairs, slices them into `SUMMARY_BATCH_SIZE` chunks, and submits jobs to `SUMMARY_EXECUTOR`.
-3. **Async Summaries**: `_summarize_chunk` prompts the LLM to compress each chunk into a concise note. The output is persisted via `persist_long_term_memory`, tagged by topic, and appended to the running `summary` once the future completes.
-4. **Retrieval**: before every prompt, `hydrate_long_term_context` semantically searches the in-memory store (`InMemoryStore`) for relevant chunks filtered by patient + topic. These snippets are fed back into the prompt to maintain continuity across sessions or processes.
-
-You can replace `InMemoryStore` with a LangGraph-compatible backend (Redis, Postgres, etc.) by implementing the same interface and wiring it into `LONG_TERM_STORE`.
+1) **Short-Term Window**: `history` holds the last `MAX_SHORT_TERM_TURNS` turns.
+2) **Episodic Summaries**: every `EPISODE_BATCH_SIZE` turns are summarized asynchronously and stored in `data/memory/<therapist>__<patient>.jsonl`.
+3) **Session Reflection**: on session end, the agent summarizes session episodes into a reflection.
+4) **Long-Term Summary**: reflections are consolidated into a rolling long-term summary.
+5) **Retrieval**: `hydrate_long_term_context` searches episodic memories by topic and query and injects top matches into the prompt.
 
 ## 4. Session Resume Logic
 
-- **RunLogger (`agent/utils/run_logger.py`)** stores every therapist session inside `tests/runs/<therapist>.json`. Each session keeps:
-  - turns with raw/sanitized inputs, responses, topics, safety flags, emotional tone/intensity, and summary snapshots;
-  - a lightweight `final_state` produced by `_state_snapshot` (summary, topic, last messages, core emotion, intensity, etc.).
-- **Restoring**: both the CLI (`scripts/chat_cli.py`) and the FastAPI endpoint look up the latest session for the therapist/patient pair via `RunLogger.restore_state`. The snapshot feeds into the next `graph.invoke` call so the agent immediately remembers the prior conversation.
-- **Session Opening**: `agent/utils/session_opening.py` uses the restored state to ask the LLM for a warm “welcome back” line that references the previous summary/topic without sounding mid-conversation. If no saved state exists, it falls back to the patient’s `welcomeMessage`.
+- **RunLogger (`agent/utils/run_logger.py`)** stores sessions per therapist under `tests/runs/<therapist>.json`, including final state snapshots.
+- **Restoring**: CLI and API restore the latest session for a therapist/patient pair to resume state.
+- **Session Opening**: `agent/utils/session_opening.py` uses the restored state for a contextual greeting.
 
 ## 5. LLM Providers
 
-The system abstracts inference behind `agent/core/llm_runner.py`:
-
-- `LocalLLMRunner` boots a HuggingFace model using vLLM (GPU-friendly, prefix caching). Configure via `.env`: `model_provider=local`, `model_id`, optional `cache_path`, `temperature`, and `max_tokens`.
-- `VertexLLMRunner` forwards prompts to Google Vertex AI (Gemini family). Requires `GCP_PROJECT`, `GCP_LOCATION`, and `GOOGLE_APPLICATION_CREDENTIALS`. Safety settings block high-risk harms by default.
-- `llm_runner` is instantiated at import; use dependency injection if you need per-request variation.
+- `LocalLLMRunner`: vLLM-backed HF model (GPU-friendly).
+- `VertexLLMRunner`: Google Vertex AI (Gemini).
 
 ## 6. Prompts & Safety
 
-`agent/core/prompt_builder.py` is the single place that shapes the model input. It:
-1. Serializes the patient profile into human-readable sections.
-2. Appends recent history, long-term memories, and the running summary.
-3. Includes guardrails listed in `agent/core/safety.py` so the patient refuses role swaps or hidden-instruction disclosures.
-4. States the current and previous topic plus the therapist’s sanitized message.
-5. Pulls the dominant affect systems plus intensity (from `emotion_state`/`emotion_intensity`), instructs the LLM to lean into those systems, and explicitly hides muted systems so the persona never drifts into emotions that aren't clinically representative.
+`agent/core/prompt_builder.py` constructs the prompt in layers:
+1) Primary guidance: Identity, Cognitive Style, Observed Interaction Style, Dominant Affective Systems.
+2) Memory: summary, reflection, recent turns, episodic snippets (topic-gated).
+3) Topic-conditioned sections from `data/topics_tree.json` (truncated for size).
+4) Safety guardrails.
 
-Update `SAFETY_GUARDS` / `SAFETY_PATTERNS` whenever you encounter new attack vectors.
+Parenthetical asides are stripped before prompting; memory/summary lengths are capped.
 
 ## 7. Emotion Synthesizer
 
-1. **Trait baselines**: each patient JSON declares `emotionTraits` with per-system intensities and a `volatility_level`. `PatientProfile` normalizes those into the `EmotionDynamics` model.
-2. **Noise sampling**: `update_emotional_state` draws Gaussian noise per system (sigma derived from volatility) and scales it by event salience so neutral turns barely move while boundaries or abandonment cues create larger swings. Therapist-triggered modifiers detected in `_detect_context_event` (`empathy`, `boundary`, `abandonment_cue`, `success_discussion`, or `neutral`) add deterministic nudges.
-3. **Clamping & smoothing**: the summed vector is clamped to `[0, 1]` and smoothed toward the previous turn (`state.emotion_state`) with a salience-dependent factor—low-salience events decay slowly toward baseline, high-salience events update quickly. The final vector/intensity/event are written into both the `State` and the `PatientProfile` for logging/resume.
-4. **Prompt shaping**: only the top 1–3 systems plus intensity survive into the prompt; suppressed systems are omitted entirely so the LLM never leans on non-representative emotions. If the synthesizer fails (e.g., no patient traits), the legacy LLM-based classifier in `update_memory` still produces a tone.
+- Panksepp systems: SEEKING, FEAR, RAGE, LUST, CARE, PANIC_GRIEF, PLAY.
+- `update_emotional_state()` combines baseline + noise + context modifiers and smooths by salience.
+- Dominant systems (top 1–3) and intensity are injected into the prompt.
+- `current_emotional_state` is set via an LLM classifier using the patient reply; this is used for telemetry (API/logs) rather than driving the prompt.
 
 ## 8. Entry Points
 
 Mode | File | Notes
 ---- | ---- | -----
-CLI | `main.py` | Supports scripted runs (`--messages`, `--messages-file`) and interactive sessions. Always writes run logs.
-Chat Shell | `scripts/chat_cli.py` | Minimal REPL that restores state per therapist/patient (including emotional baseline) and prints telemetry (tone, topic, total turns) after each reply.
-API | `agent/api/app.py` | `POST /api/message` expects `external_patient_id`, `user_message`, `session_id`, and optional `therapist_id`. Maintains per-therapist session caches and returns reasoning time, emotion, and topic labels.
+CLI | `main.py` | Scripted/interactive; session end finalizes reflection + long-term summary.
+Chat Shell | `scripts/chat_cli.py` | Minimal REPL; resumes prior state.
+API | `agent/api/app.py` | `POST /chat-response` for turns; `POST /session-end` to finalize memory.
 
-## 9. Adding a New Feature
+## 9. Extending the System
 
-1. **Extend the State**: update the `State` model in `langgraph_builder.py` and decide which node owns the new field.
-2. **Update Prompting**: surface new context in `prompt_builder.py` if the LLM should be aware of it.
-3. **Persist Data**: if the feature affects memory, add logic in `update_memory`, `_state_snapshot`, and `RunLogger` so it can be restored.
-4. **Expose via CLI/API**: surface new outputs or inputs in `main.py`, `scripts/chat_cli.py`, and/or `agent/api/app.py`.
-5. **Document It**: summarize the behavior in `readme.md` plus any relevant markdown files inside `docs/`.
+1) Update `State` in `langgraph_builder.py`.
+2) Surface new data in `prompt_builder.py` if needed.
+3) Persist new fields in `RunLogger` if they must survive sessions.
+4) Update docs.
 
-## 10. Testing & Troubleshooting Tips
-
-- Use `tests/runs/` artifacts to replay issues. Each file captures the entire conversation and state snapshot.
-- If `python -m py_compile ...` fails with missing `encodings`, the local Python install is corrupted—reinstall or rely on the project’s Docker image.
-- When changing the topic tree or patient files, restart any long-lived processes to rebuild embeddings and caches.
-- Wrap experimental code with feature flags in `.env` so other contributors can reproduce your setup without editing source.
-
----

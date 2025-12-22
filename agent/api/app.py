@@ -10,7 +10,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from agent.utils.run_logger import RunLogger
 from fastapi import FastAPI, HTTPException, status
-from agent.core.langgraph_builder import build_graph
+from agent.core.langgraph_builder import build_graph, finalize_session_memory
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
@@ -66,6 +66,20 @@ class PatientInitResponse(BaseModel):
     timestamp: str
 
 
+class SessionEndRequest(BaseModel):
+    """Payload describing a session end event."""
+    external_patient_id: str
+    session_id: str
+    therapist_id: str | None = "therapist0"
+
+
+class SessionEndResponse(BaseModel):
+    """Ack for session finalization."""
+    status: Literal["finalized", "not_found"]
+    message: str
+    timestamp: str
+
+
 def _sanitize_patient_id(raw_id: str) -> str:
     """Normalize and validate patient IDs to safe filenames."""
     cleaned = re.sub(r"[^a-zA-Z0-9_-]+", "_", raw_id.strip()).strip("_").lower()
@@ -116,7 +130,7 @@ def _serialize_patient(req: PatientInitRequest, patient_id: str) -> dict:
                 "FEAR": 0.35,
                 "CARE": 0.5,
                 "LUST": 0.25,
-                "SADNESS": 0.35,
+                "PANIC_GRIEF": 0.35,
                 "PLAY": 0.35,
             },
         },
@@ -182,7 +196,12 @@ async def send_message(req: MessageRequest):
         entry["base_state"] = None
 
     # === Run the agent ===
-    payload = {"user_input": req.user_message, "patient_id": patient_id}
+    payload = {
+        "user_input": req.user_message,
+        "patient_id": patient_id,
+        "therapist_id": therapist_id,
+        "session_id": req.session_id,
+    }
     if base_state:
         payload.update(base_state)
     result = graph.invoke(payload, config=config)
@@ -194,9 +213,9 @@ async def send_message(req: MessageRequest):
     patient_profile = result.get("patient_profile", {})
     
     emotion = (
-        patient_profile.get("current_emotional_state", "base")
+        patient_profile.get("current_emotional_state", "seeking")
         if isinstance(patient_profile, dict)
-        else "base"
+        else "seeking"
     )
     topic_info = result.get("last_topic", {})
     topic = topic_info.get("sub", "general") if isinstance(topic_info, dict) else "general"
@@ -212,6 +231,36 @@ async def send_message(req: MessageRequest):
         emotion=emotion,
         topic=topic,
         timestamp=datetime.utcnow().isoformat()
+    )
+
+
+@app.post("/session-end", response_model=SessionEndResponse)
+async def end_session(req: SessionEndRequest):
+    """Finalize memory and logs for a therapist/patient session."""
+    therapist_id = req.therapist_id or "therapist0"
+    session_key = (therapist_id, req.session_id)
+    entry = session_loggers.get(session_key)
+    if not entry:
+        return SessionEndResponse(
+            status="not_found",
+            message="No active session found for this therapist/session id.",
+            timestamp=datetime.utcnow().isoformat(),
+        )
+
+    run_logger = entry.get("logger")
+    state = entry.get("latest_state") or entry.get("base_state") or {}
+    state.setdefault("patient_id", req.external_patient_id)
+    state.setdefault("therapist_id", therapist_id)
+    state.setdefault("session_id", req.session_id)
+    state = finalize_session_memory(state)
+    if run_logger:
+        run_logger.finalize(state or {})
+    session_loggers.pop(session_key, None)
+
+    return SessionEndResponse(
+        status="finalized",
+        message="Session memory finalized.",
+        timestamp=datetime.utcnow().isoformat(),
     )
 
 

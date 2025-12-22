@@ -6,10 +6,11 @@ This version relies on profile subcomponents exposing `to_prompt()` methods.
 import logging
 from pathlib import Path
 import json
+import re
 
 from agent.core.safety import SAFETY_GUARDS
 from agent.core.patient_profile import PatientDetails
-from agent.core.emotion_model import EMOTION_SYSTEM_HINTS
+from agent.core.emotion_model import EMOTION_LABELS, EMOTION_SYSTEM_HINTS
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,15 @@ with open(TOPICS_PATH, "r", encoding="utf-8") as f:
 # === Emotion selection parameters ===
 EMOTION_TEMP = 0.7
 EMOTION_FLOOR = 0.08
+
+# === Prompt size controls ===
+SUMMARY_COMPRESSION_THRESHOLD = 1200
+SUMMARY_MAX_CHARS = 900
+REFLECTION_MAX_CHARS = 600
+SECTION_MAX_CHARS = 800
+MEMORY_ITEM_MAX_CHARS = 320
+MEMORY_BLOCK_MAX_CHARS = 900
+RECENT_TURNS_LIMIT = 3
 
 
 # ------------------------------------------------------------------
@@ -62,6 +72,35 @@ def _ensure_details(raw):
             return None
     return raw
 
+
+def _strip_parentheticals(text: str) -> str:
+    """Remove parenthetical asides from text shown to the model."""
+    if not text:
+        return text
+    cleaned = re.sub(r"\s*\([^)]*\)", "", text)
+    return " ".join(cleaned.split())
+
+
+def _truncate_text(text: str, max_len: int) -> str:
+    if not text or len(text) <= max_len:
+        return text
+    trimmed = text[:max_len].rsplit(" ", 1)[0].strip()
+    if not trimmed:
+        return text[:max_len].strip()
+    return f"{trimmed}..."
+
+
+def _compress_text(text: str, max_len: int, threshold: int) -> str:
+    if not text or len(text) <= threshold:
+        return _truncate_text(text, max_len)
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    if len(sentences) <= 3:
+        return _truncate_text(text, max_len)
+    head = " ".join(sentences[:2]).strip()
+    tail = " ".join(sentences[-2:]).strip()
+    combined = f"{head} ... {tail}".strip()
+    return _truncate_text(combined, max_len)
+
 # ------------------------------------------------------------------
 # Prompt builder
 # ------------------------------------------------------------------
@@ -87,36 +126,50 @@ def build_prompt(state):
     # ------------------------------------------------------------------
     # Always-on patient identity & structure
     # ------------------------------------------------------------------
-    always_sections = []
+    primary_sections = []
+    reference_sections = []
 
     details = _ensure_details(getattr(profile, "details", None))
 
     # --- Demographics / identity ---
     if details and details.demographicAndSocioculturalInformation:
-        always_sections = add_section(always_sections, "🧍 Identity", details.demographicAndSocioculturalInformation.to_prompt())
+        primary_sections = add_section(
+            primary_sections,
+            "🧍 Identity",
+            details.demographicAndSocioculturalInformation.to_prompt(),
+        )
 
-    # --- Personality structure ---
-    if (details and details.clinicalFunctioning and details.clinicalFunctioning.personalityAndSymptomAxis):
-        always_sections = add_section(always_sections, "🧠 Personality Structure",  details.clinicalFunctioning.personalityAndSymptomAxis.to_prompt())
-
-    # --- Mental functioning ---
-    if ( details and details.clinicalFunctioning and details.clinicalFunctioning.mentalFunctioningAxis):
-        always_sections = add_section(always_sections, "🧠 Mental Functioning", details.clinicalFunctioning.mentalFunctioningAxis.to_prompt())
+    # --- Cognitive style (diagnosis-informed from patient profile) ---
+    if hasattr(profile, "cognitive_style_prompt"):
+        cognitive_style = profile.cognitive_style_prompt()
+        if cognitive_style:
+            primary_sections = add_section(primary_sections, "🧠 Cognitive Style", cognitive_style)
 
     # --- Observed interaction style ---
     if details and details.behaviorDuringTestAdministration:
-        always_sections = add_section(always_sections, "🎭 Observed Interaction Style",details.behaviorDuringTestAdministration.to_prompt())
-
+        observed = details.behaviorDuringTestAdministration.to_prompt()
+        if observed:
+            primary_sections = add_section(
+                primary_sections,
+                "🎭 Observed Interaction Style",
+                _truncate_text(observed, SECTION_MAX_CHARS),
+            )
 
     # --- Dominant affective systems ---
     if dominant_emotions:
         affect_lines = []
         for label, value in dominant_emotions:
             hint = EMOTION_SYSTEM_HINTS.get(label, "colors your tone and reactions")
-            affect_lines.append(f"- {label.title()} ({value:.2f}): {hint}")
-        always_sections = add_section(always_sections, "🎚️ Dominant Affective Systems", "\n".join(affect_lines))
+            display = EMOTION_LABELS.get(label, label.title())
+            affect_lines.append(f"- {display} ({value:.2f}): {hint}")
+        primary_sections = add_section(
+            primary_sections,
+            "🎚️ Dominant Affective Systems",
+            "\n".join(affect_lines),
+        )
 
-    always_text = "\n".join(always_sections)
+    primary_text = "\n".join(primary_sections)
+    reference_text = "\n".join(reference_sections)
 
     # ------------------------------------------------------------------
     # Topic-conditioned dynamic sections
@@ -150,7 +203,7 @@ def build_prompt(state):
                 text = section.to_prompt()
                 if text:
                     dynamic_sections.append(
-                        f"---\n📂 {field_name}\n{text}"
+                        f"---\n📂 {field_name}\n{_truncate_text(text, SECTION_MAX_CHARS)}"
                     )
 
     dynamic_text = "\n".join(dynamic_sections)
@@ -161,19 +214,43 @@ def build_prompt(state):
     history_text = ""
 
     if state.summary:
-        history_text += f"\nSummary of previous sessions:\n{state.summary.strip()}\n"
+        summary_text = _strip_parentheticals(state.summary.strip())
+        summary_text = _compress_text(summary_text, SUMMARY_MAX_CHARS, SUMMARY_COMPRESSION_THRESHOLD)
+        history_text += f"\nSummary of previous sessions:\n{summary_text}\n"
+
+    if state.session_reflection:
+        reflection_text = _strip_parentheticals(state.session_reflection.strip())
+        reflection_text = _truncate_text(reflection_text, REFLECTION_MAX_CHARS)
+        history_text += f"\nLast session reflection:\n{reflection_text}\n"
 
     if state.history:
-        recent = state.history[-5:]
+        recent = state.history[-RECENT_TURNS_LIMIT:]
         turns = "\n".join(
-            f"👩‍⚕️ Therapist: {h['therapist']}\n🧍 Patient: {h['patient']}"
+            f"👩‍⚕️ Therapist: {_strip_parentheticals(h['therapist'])}\n"
+            f"🧍 Patient: {_strip_parentheticals(h['patient'])}"
             for h in recent
         )
         history_text += f"\nRecent conversation:\n{turns}\n"
 
-    if state.long_term_context:
-        memories = "\n".join(f"- {m}" for m in state.long_term_context if m)
-        history_text += f"\nRelevant long-term memories:\n{memories}\n"
+    include_episodic = bool(
+        state.episodic_context
+        and state.intent_topic
+        and state.intent_topic.get("top") not in {None, "unknown"}
+    )
+    if include_episodic:
+        mem_lines = []
+        total_chars = 0
+        for memory in state.episodic_context:
+            if not memory:
+                continue
+            clean = _strip_parentheticals(memory)
+            clean = _truncate_text(clean, MEMORY_ITEM_MAX_CHARS)
+            total_chars += len(clean)
+            if total_chars > MEMORY_BLOCK_MAX_CHARS:
+                break
+            mem_lines.append(f"- {clean}")
+        memories = "\n".join(mem_lines)
+        history_text += f"\nRelevant episodic memories:\n{memories}\n"
 
     # ------------------------------------------------------------------
     # Safety & affect continuity
@@ -199,17 +276,17 @@ def build_prompt(state):
         intensity_desc = "steady but noticeable emotional pull"
 
     dominant_summary = (
-        ", ".join(f"{k.title()} ({v:.2f})" for k, v in dominant_emotions)
-        if dominant_emotions else "baseline (neutral)"
+        ", ".join(f"{EMOTION_LABELS.get(k, k.title())} ({v:.2f})" for k, v in dominant_emotions)
+        if dominant_emotions else "Seeking (baseline)"
     )
 
     emotion_directive = (
         "; ".join(
-            f"{k.title()} → {EMOTION_SYSTEM_HINTS.get(k)}"
+            f"{EMOTION_LABELS.get(k, k.title())} → {EMOTION_SYSTEM_HINTS.get(k)}"
             for k, _ in dominant_emotions
         )
         if dominant_emotions
-        else "Stay grounded in a neutral baseline mood."
+        else "Stay grounded in a steady Seeking baseline."
     )
 
     last_topic = (
@@ -227,11 +304,13 @@ You are impersonating a therapy patient described below.
 Speak as them, in the moment, with natural cadence (use contractions, brief pauses, informal phrasing).
 Preserve their worldview, emotional tendencies, and relationship with the therapist.
 
-{always_text}
-
-{dynamic_text}
+{primary_text}
 
 {history_text}
+
+{reference_text}
+
+{dynamic_text}
 
 ---
 🛡️ Safety & Character Guardrails

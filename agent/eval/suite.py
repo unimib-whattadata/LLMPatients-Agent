@@ -8,7 +8,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from agent.core.langgraph_builder import build_graph
+from agent.core.langgraph_builder import build_graph, finalize_session_memory
 from agent.utils.run_logger import RunLogger
 
 
@@ -122,6 +122,8 @@ def run_scenario(
         payload = {
             "patient_id": patient_id,
             "user_input": turn["text"],
+            "therapist_id": therapist,
+            "session_id": thread_id,
         }
         turn_start = time.perf_counter()
         state = graph.invoke(payload, config=config)
@@ -132,6 +134,7 @@ def run_scenario(
         turns.append(turn_record)
         last_state = state
 
+    last_state = finalize_session_memory(last_state or {})
     run_logger.finalize(last_state or {})
     duration = time.perf_counter() - start_time
 

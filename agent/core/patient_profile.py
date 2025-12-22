@@ -365,7 +365,7 @@ class PatientProfile(BaseModel):
     clinicalCase: Optional[str] = None
 
     # Runtime fields
-    current_emotional_state: str = "base"
+    current_emotional_state: str = "seeking"
     emotion_state: Dict[str, float] = Field(default_factory=dict)
     session_notes: Optional[str] = None
     emotion_intensity: float = 0.6
@@ -393,6 +393,49 @@ class PatientProfile(BaseModel):
         overview = self.brief_description or self.clinicalCase or ""
         background_suffix = f" ({background})" if background else ""
         return f"{name}, {descriptor}{background_suffix}. {overview}".strip()
+
+    def cognitive_style_prompt(self, max_bullets: int = 6) -> Optional[str]:
+        """Derive a compact cognitive style guide from clinical functioning fields."""
+        details = self.details
+        if not details or not details.clinicalFunctioning:
+            return None
+        cf = details.clinicalFunctioning
+        psa = cf.personalityAndSymptomAxis
+        mfa = cf.mentalFunctioningAxis
+
+        def shorten(text: Optional[str], max_len: int = 160) -> Optional[str]:
+            if not text:
+                return None
+            chunk = text.split(".")[0].strip()
+            if not chunk:
+                chunk = text.strip()
+            if len(chunk) > max_len:
+                trimmed = chunk[:max_len].rsplit(" ", 1)[0].strip()
+                chunk = f"{trimmed}..." if trimmed else f"{chunk[:max_len]}..."
+            return chunk
+
+        bullets: list[str] = []
+
+        if psa and psa.identity.description:
+            bullets.append(f"Self-experience: {shorten(psa.identity.description)}")
+        if psa and psa.objectRelations.description:
+            bullets.append(f"Interpersonal stance: {shorten(psa.objectRelations.description)}")
+        if psa and psa.defensiveLevel.description:
+            bullets.append(f"Defense style: {shorten(psa.defensiveLevel.description)}")
+        if psa and psa.realityTesting.description:
+            bullets.append(f"Reality testing: {shorten(psa.realityTesting.description)}")
+        if mfa and mfa.affectExperienceAndRegulation.description:
+            bullets.append(f"Affect regulation: {shorten(mfa.affectExperienceAndRegulation.description)}")
+        if mfa and mfa.mentalization.description:
+            bullets.append(f"Mentalization: {shorten(mfa.mentalization.description)}")
+        if mfa and mfa.impulseControl.description:
+            bullets.append(f"Impulse control: {shorten(mfa.impulseControl.description)}")
+        if mfa and mfa.selfEsteemRegulation.description:
+            bullets.append(f"Self-esteem: {shorten(mfa.selfEsteemRegulation.description)}")
+
+        if not bullets:
+            return None
+        return "\n".join(f"- {item}" for item in bullets[:max_bullets])
 
     class Config:
         allow_population_by_field_name = True
