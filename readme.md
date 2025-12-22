@@ -190,3 +190,4 @@ Relevant episodic memories (topic-gated)
 ## Further Reading
 - `docs/architecture.md`: detailed LangGraph state and memory flow.
 - `docs/api_usage.md`: API usage examples.
+- `docs/prompt_building.md`: how prompt layers are assembled and constrained.
