@@ -1,6 +1,6 @@
 # Emotion Dynamics Walkthrough
 
-This document explains how PsyLLM models a patient's momentary emotional state each turn and how that affects the prompt the LLM receives.
+This document explains how PsyLLM models a patient's momentary emotional state and how that affects the prompt.
 
 ## 1. Inputs from the Patient JSON
 
@@ -15,124 +15,48 @@ Each profile carries `emotionTraits`:
     "FEAR": 0.80,
     "CARE": 0.65,
     "LUST": 0.65,
-    "SADNESS": 0.85,
+    "PANIC_GRIEF": 0.85,
     "PLAY": 0.30
   }
 }
 ```
 
-These values are clamped to `[0,1]` and stored in `PatientProfile.EmotionDynamics`. They represent the archetypal Panksepp systems for the persona (here, Juanita: high fear/rage/sadness, low playfulness).
+These values are clamped to `[0,1]` and represent Panksepp systems (here: high fear/rage/panic-grief, low playfulness).
 
 ## 2. Per-Turn Emotion Synthesis
 
 When the therapist sends a message, LangGraph runs `update_emotional_state` with these steps:
 
-1. **Context Event Detection** – the therapist text (or safety flags) is matched against `_detect_context_event`:
-   - "I'm proud of how you handled that boundary" → `success_discussion`
-   - "We need to end here for today" → `abandonment_cue`
-   - No keywords + no safety flags → `neutral`
+1) **Context Event Detection** – `_detect_context_event` uses therapist text + safety flags + topic change to select an event:
+   - `success_discussion`, `boundary`, `abandonment_cue`, `empathy`, or `neutral`.
+2) **Salience Weight** – each event maps to a salience score; longer turns and topic changes slightly increase salience.
+3) **Gaussian Noise** – per-emotion noise scaled by volatility and salience.
+4) **Deterministic Modifiers** – event-specific deltas (e.g., `abandonment_cue` boosts FEAR and PANIC_GRIEF).
+5) **Clamp + Smooth** – values are clamped and smoothed toward the previous turn based on salience. After multiple low-salience turns, the vector decays toward baseline.
 
-2. **Salience Weight** – each event maps to a salience score (`neutral=0.2`, `empathy=0.4`, `success_discussion=0.5`, `boundary=0.75`, `abandonment_cue=0.9`). Salience also bumps up slightly for long therapist turns or topic changes and is forced high when safety flags fire.
-
-3. **Gaussian Noise** – for every emotion we sample `Normal(0, sigma)` where `sigma = base_sigma(volatility) * (0.25 + 0.75 * salience)`. Low-salience turns barely move; high-salience turns swing harder. Example for Juanita (`volatility=high → base_sigma=0.12`):
-
-```
-neutral salience 0.2 → multiplier 0.25 + 0.75*0.2 = 0.40 → sigma ≈ 0.048
-boundary salience 0.75 → multiplier 0.25 + 0.75*0.75 = 0.8125 → sigma ≈ 0.0975
-```
-
-4. **Deterministic Modifiers** – we then add fixed deltas per event:
-
-| Event              | Modifiers                                             |
-|--------------------|-------------------------------------------------------|
-| `empathy`          | SADNESS −0.10, CARE +0.10                             |
-| `boundary`         | RAGE +0.15, FEAR +0.10                                |
-| `abandonment_cue`  | FEAR +0.20, SADNESS +0.15                             |
-| `success_discussion` | SEEKING +0.10, PLAY +0.10                           |
-| `neutral`          | (no change)                                           |
-
-5. **Clamp, Counterweight, and Smooth** – `baseline + noise + modifier` is clamped to `[0,1]`, lightly counterweighted (e.g., CARE/PLAY can soften RAGE/SADNESS by a few points), then exponentially smoothed with the previous turn's vector. The smoothing factor is `0.2 + salience * 0.6`. Neutral turns (salience 0.2) blend 32% of the new value with 68% of the old value; abandonment cues (salience 0.9) blend ~74% new with 26% old. After two+ low-salience turns, the vector slowly decays toward baseline (5% of the delta per turn).
-
-The resulting map is saved into `state.emotion_state`, `profile.emotion_state`, and is used to compute `emotion_intensity` (weighted top-two average) and `emotion_event`.
+The resulting vector is stored in `state.emotion_state` and drives the prompt. `emotion_intensity` is a weighted top-two average.
 
 ## 3. Prompt Builder Integration
 
-`prompt_builder` now includes (after a temperatured softmax with a floor, exposing only the dominant 1–3 systems):
+The prompt exposes only the dominant 1–3 systems (softmax + floor), then instructs the model to follow those systems:
 
 ```
-🎚️ Dominant Affective Systems
-{
-  "RAGE": "0.87",
-  "FEAR": "0.79",
-  "SADNESS": "0.81"
-}
-...
-• Dominant affect systems: RAGE (0.87), SADNESS (0.81), FEAR (0.79)
-• Affect intensity: 0.85 (weighted top-two; high tension and emotions close to the surface)
-• Therapist-triggered context event: boundary
-...
-- Follow affect drivers: RAGE (0.87) → Irritable, confrontational edge...; SADNESS ...
+• Dominant affect systems: PANIC_GRIEF (0.82), RAGE (0.78), FEAR (0.79)
+• Affect intensity: 0.82 (high tension and emotions close to the surface)
+- Follow affect drivers: Panic/Grief → Separation distress...; Rage → Irritable edge...; Fear → Hypervigilant...
 ```
 
-Only the top 1–3 systems are surfaced, so the LLM never leans on muted emotions (e.g., PLAY 0.14 is omitted). Morality and dysfunctional behavior sections are always included (unless their values are "Not reported") so the persona remembers its ethical boundaries and risks.
+Muted emotions are hidden so the agent doesn’t drift into unrepresentative affect.
 
-## 4. Full Turn Timeline
+## 4. Tone Classification (Telemetry)
+
+Separately from the vector, `update_memory()` uses a lightweight LLM classifier to label the patient's reply as one of the Panksepp systems. This label is used for telemetry (API and logs), while the emotion vector continues to drive prompt tone.
+
+## 5. End-to-End Turn
 
 Therapist input: **“We’re almost at time, but I’m proud of how you held your needs with your partner this week.”**
 
-Below is the exact order of nodes and what each one contributes for a single LangGraph invocation (Juanita, volatility `high`).
+- Event detection: `success_discussion`.
+- Modifiers: SEEKING +0.10, PLAY +0.10.
+- The dominant systems remain PANIC_GRIEF/RAGE/FEAR, so the response is guarded but receptive.
 
-| Step | Node / Function | Internal Work |
-| ---- | --------------- | ------------- |
-| 1 | `sanitize_user_input` | Text is safe → `safe_user_input` unchanged, no safety flags. |
-| 2 | `detect_intent_topic` | Embedding search flags *Relationships → BoundariesCommunication & RecurringDynamics*. |
-| 3 | `hydrate_long_term_context` | Pulls 2 snippets about last session’s argument. |
-| 4 | `update_emotional_state` | Detailed breakdown below. |
-| 5 | `build_prompt` | Injects profile, morality/dysfunction sections, dominant affect systems, context bullet list. |
-| 6 | `generate_response` | LLM receives the prompt and answers in character. |
-| 7 | `update_memory` | Stores the new turn, writes telemetry to RunLogger, persists the latest emotion vector for smoothing next turn. |
-
-### 4.1 Emotion Update Internals
-
-1. **Event detection**: keywords “proud”/“held your needs” ⇒ `success_discussion` (salience 0.5).
-2. **Noise**: `base_sigma(juanita=0.12)` × `(0.25 + 0.75 * 0.5) = 0.075`. Example draws (per dimension):
-   - SEEKING noise +0.05
-   - RAGE noise −0.07
-   - FEAR noise −0.02
-   - SADNESS noise −0.03
-   - PLAY noise +0.02
-3. **Deterministic modifiers**: +0.10 to SEEKING, +0.10 to PLAY.
-4. **Baseline + noise + modifier**:
-   - SEEKING: 0.70 + 0.05 + 0.10 → **0.85** (clamped)
-   - RAGE:    0.85 − 0.07        → **0.78**
-   - FEAR:    0.80 − 0.02        → **0.78**
-   - SADNESS: 0.85 − 0.03        → **0.82**
-   - PLAY:    0.30 + 0.02 + 0.10 → **0.42**
-5. **Smoothing**: salience=0.5 ⇒ smoothing factor `0.2 + 0.6*0.5 = 0.5`. If the previous FEAR value was 0.80, the new FEAR becomes `0.80 + 0.5*(0.78 - 0.80) = 0.79`. After two low-salience turns, the vector would also decay 5% toward baseline. The dominant systems stay SADNESS/RAGE/FEAR; SEEKING/PLAY rises but not enough to overtake them. `emotion_intensity` is a weighted top-two measure, so if FEAR was next-highest, intensity is `0.6 * SADNESS + 0.4 * FEAR ≈ 0.80`.
-6. **State writes**: `state.emotion_state` holds the final smoothed map, `emotion_intensity` is the weighted top-two value, `emotion_event` is `success_discussion`, and salience/decay counters are stored for the next turn.
-
-### 4.2 Prompt Surface
-
-```
-🎚️ Dominant Affective Systems
-{
-  "RAGE": "0.78",
-  "SADNESS": "0.82",
-  "FEAR": "0.79"
-}
-
-🧩 Context for This Turn
-• Last discussed topic: Relationships → BoundariesCommunication & RecurringDynamics
-• Current detected topic: Relationships → BoundariesCommunication & RecurringDynamics
-• Dominant affect systems: SADNESS (0.82), RAGE (0.78), FEAR (0.79)
-• Affect intensity: 0.82 (high tension and emotions close to the surface)
-• Therapist-triggered context event: success_discussion
-• Therapist's latest message: "We’re almost at time..."
-
-✳️ Instruction (excerpt)
-- Follow affect drivers: SADNESS (0.82) → Heavy, resigned tone; RAGE (0.78) → Irritable edge; FEAR (0.79) → hypervigilance. Avoid SEEKING/PLAY unless they rise above muted levels.
-```
-
-### 4.3 Outcome
-
-Because the therapist praised Juanita, SEEKING/PLAY nudge upward—but not enough to unseat the dominant grief/anger/fear profile—so her reply remains guardedly hopeful: proud of herself yet anxious about the session ending. If the therapist had instead said “We need to stop here, goodbye,” the `abandonment_cue` modifier (salience 0.9) would quickly spike FEAR/SADNESS while the smoothing factor (≈0.74) prevents the next neutral turn from instantly snapping back.

@@ -7,7 +7,7 @@ import sys
 import uuid
 from pathlib import Path
 
-from agent.core.langgraph_builder import build_graph, llm_runner
+from agent.core.langgraph_builder import build_graph, finalize_session_memory, llm_runner
 from agent.utils.run_logger import RunLogger
 from agent.utils.session_opening import (
     build_session_opening,
@@ -26,8 +26,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--patient",
-        default=os.getenv("DEFAULT_PATIENT_ID", "franklin_johnson_001"),
-        help="Patient identifier (defaults to DEFAULT_PATIENT_ID env var or Franklin).",
+        default=os.getenv("DEFAULT_PATIENT_ID", "juanita_delgado_001"),
+        help="Patient identifier (defaults to DEFAULT_PATIENT_ID env var or Juanita).",
     )
     parser.add_argument(
         "--session",
@@ -90,7 +90,12 @@ def main() -> int:
                 print("Session ended.")
                 break
 
-            payload = {"user_input": therapist_msg, "patient_id": args.patient}
+            payload = {
+                "user_input": therapist_msg,
+                "patient_id": args.patient,
+                "therapist_id": args.therapist,
+                "session_id": thread_id,
+            }
             if pending_state:
                 payload = {**pending_state, **payload}
                 pending_state = None  # only hydrate state once at session start
@@ -120,6 +125,7 @@ def main() -> int:
             print(f"❌ Error: {exc}")
             break
 
+    last_state = finalize_session_memory(last_state or {})
     run_logger.finalize(last_state or {})
     return 0
 

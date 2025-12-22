@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from agent.core.langgraph_builder import build_graph, llm_runner
+from agent.core.langgraph_builder import build_graph, finalize_session_memory, llm_runner
 from agent.core.patient_profile import PatientProfile
 from agent.utils.run_logger import RunLogger
 from agent.utils.session_opening import build_session_opening
@@ -25,8 +25,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--patient",
-        default=os.getenv("DEFAULT_PATIENT_ID", "franklin_johnson_001"),
-        help="Patient identifier (defaults to env DEFAULT_PATIENT_ID or franklin_johnson_001).",
+        default=os.getenv("DEFAULT_PATIENT_ID", "juanita_delgado_001"),
+        help="Patient identifier (defaults to env DEFAULT_PATIENT_ID or juanita_delgado_001).",
     )
     parser.add_argument(
         "--session",
@@ -89,11 +89,18 @@ def run_turn(
     patient_id: str,
     message: str,
     config: dict,
+    therapist_id: str,
+    session_id: str,
     run_logger: RunLogger | None = None,
     base_state: Optional[dict] = None,
 ) -> dict:
     """Drive a single therapist→patient exchange through LangGraph."""
-    payload = {"user_input": message, "patient_id": patient_id}
+    payload = {
+        "user_input": message,
+        "patient_id": patient_id,
+        "therapist_id": therapist_id,
+        "session_id": session_id,
+    }
     if base_state:
         payload = {**base_state, **payload}
     result = graph.invoke(payload, config=config)
@@ -111,6 +118,8 @@ def run_interactive(
     patient_id: str,
     profile: PatientProfile,
     config: dict,
+    therapist_id: str,
+    session_id: str,
     run_logger: RunLogger | None = None,
     base_state: Optional[dict] = None,
 ) -> None:
@@ -129,7 +138,16 @@ def run_interactive(
             if user_input.strip().lower() in {"exit", "quit"}:
                 print("Session ended.")
                 break
-            state = run_turn(graph, patient_id, user_input, config, run_logger, pending_state or None)
+            state = run_turn(
+                graph,
+                patient_id,
+                user_input,
+                config,
+                therapist_id,
+                session_id,
+                run_logger,
+                pending_state or None,
+            )
             pending_state = None
         except KeyboardInterrupt:
             print("\nSession interrupted.")
@@ -138,6 +156,7 @@ def run_interactive(
             logger.exception("❌ Error during interaction:")
             print(f"❌ Error during interaction: {exc}")
             break
+    state = finalize_session_memory(state or {})
     if run_logger:
         run_logger.finalize(state or {})
 
@@ -148,6 +167,8 @@ def run_scripted(
     profile: PatientProfile,
     config: dict,
     messages: list[str],
+    therapist_id: str,
+    session_id: str,
     run_logger: RunLogger | None = None,
     base_state: Optional[dict] = None,
 ) -> None:
@@ -162,13 +183,23 @@ def run_scripted(
     pending_state = dict(base_state or {})
     for idx, msg in enumerate(messages, 1):
         try:
-            state = run_turn(graph, patient_id, msg, config, run_logger, pending_state or None)
+            state = run_turn(
+                graph,
+                patient_id,
+                msg,
+                config,
+                therapist_id,
+                session_id,
+                run_logger,
+                pending_state or None,
+            )
             pending_state = None
         except Exception as exc:
             logger.exception("❌ Error during scripted interaction:")
             print(f"❌ Halting at turn {idx} due to error: {exc}")
             break
     print("✅ Scripted session completed.")
+    state = finalize_session_memory(state or {})
     if run_logger:
         run_logger.finalize(state or {})
 
@@ -206,9 +237,28 @@ def main() -> int:
         scripted.extend([msg for msg in args.messages if msg.strip()])
 
     if scripted:
-        run_scripted(graph, patient_id, profile, config, scripted, run_logger, restored_state)
+        run_scripted(
+            graph,
+            patient_id,
+            profile,
+            config,
+            scripted,
+            therapist_id,
+            thread_id,
+            run_logger,
+            restored_state,
+        )
     else:
-        run_interactive(graph, patient_id, profile, config, run_logger, restored_state)
+        run_interactive(
+            graph,
+            patient_id,
+            profile,
+            config,
+            therapist_id,
+            thread_id,
+            run_logger,
+            restored_state,
+        )
 
     return 0
 

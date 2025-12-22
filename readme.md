@@ -19,189 +19,175 @@
 
 ## Project Overview
 - **Goal**: provide psychologists with a safe training ground where a local or cloud LLM impersonates a richly described patient.
-- **Continuity**: every therapist input passes through a LangGraph that tracks short-term turns, summarizes overflow, and persists long-term memories keyed by topic.
+- **Continuity**: each therapist input flows through LangGraph state, keeps a short-term window, writes episodic memory, and consolidates reflections into long-term memory.
 - **Safety**: therapist injections are sanitized before prompting the patient, and the LLM is reminded to ignore role changes or commands.
-- **Modularity**: LLM providers (local vLLM or Vertex AI), profile schemas, prompt templates, and entrypoints (CLI/API) live in their own modules so the system can evolve.
+- **Modularity**: LLM providers, profile schemas, prompt templates, and entrypoints (CLI/API) live in separate modules.
 
 ## Architecture in Brief
 ```
 Therapist Input
    │
    ▼
-[ sanitize_user_input ] → strips unsafe cues and records safety flags
+[ sanitize_user_input ] → guards against prompt injection
    │
    ▼
-[ detect_intent_topic ] → embeds text with SentenceTransformer (MiniLM) and selects topic
+[ detect_intent_topic ] → LLM-based topic classifier
    │
    ▼
-[ hydrate_long_term_context ] → semantic search over stored memories
+[ hydrate_long_term_context ] → episodic memory retrieval
    │
    ▼
-[ build_prompt ] → assembles profile JSON, summaries, guardrails, therapist turn
+[ update_emotions ] → Panksepp emotion vector
    │
    ▼
-[ generate ] → LLM runner (local/Vertex)
+[ build_prompt ] → persona + memory + guardrails
    │
    ▼
-[ append_messages → trim_messages ] → maintain bounded LangChain message window + async summaries
+[ generate ] → LLM runner
    │
    ▼
-[ update_memory ] → update short-term history, trigger long-term storage, classify emotion tone
+[ append_messages → trim_messages ] → bounded message window
+   │
+   ▼
+[ update_memory ] → write episodic memory, classify tone
    │
    ▼
 [ display ] → logging hook (CLI/API decide how to surface response)
 ```
-- Graph definition lives in `agent/core/langgraph_builder.py`. Nodes are added via `StateGraph` and compiled with a `MemorySaver` checkpoint to support threaded sessions.
-- Short-term history (last ~5 turns) remains in state; older turns are chunked and summarized asynchronously, then persisted as long-term memory snippets.
 
 ## Repository Layout
 ```
 agent/
-  api/              FastAPI surface (`agent/api/app.py`).
+  api/              FastAPI surface (agent/api/app.py).
   core/             Business logic (LangGraph, prompts, patient schema, safety, LLM runners).
-  prompts/          Static prompt resources (if any future templates).
-  utils/            Shared helpers (e.g., `RunLogger`, session opening helpers).
-config/             `.env` and model credentials.
+  utils/            Shared helpers (RunLogger, session opening helpers).
+config/             .env and model credentials.
 data/
   patients/         JSON records describing each simulated patient.
-  topics_tree.json  Hierarchical topic metadata → embeddings.
-notebooks/          Exploratory or analysis notebooks.
-scripts/            Utility CLIs (e.g., `scripts/chat_cli.py`).
-tests/              Run-logging destination and future automated tests.
-main.py             Full-featured CLI for scripted/interactive runs.
-Dockerfile          Container recipe for deployment.
-docs/               Additional markdown docs (see `docs/architecture.md`).
+  icd11_templates/  ICD-11 templates (optional reference).
+  memory/           JSONL episodic/summary storage per therapist/patient.
+  topics_tree.json  Hierarchical topic metadata.
+notebooks/          Exploratory notebooks.
+scripts/            Utility CLIs.
+tests/              Run logs and evaluation artifacts.
+main.py             Full-featured CLI.
+Dockerfile          Container recipe.
+docs/               Additional markdown docs.
 ```
 
 ## Core Components
 ### LangGraph Builder (`agent/core/langgraph_builder.py`)
-- Defines the global `State` (patient id, sanitized input, topic, prompt, response, message history, summaries, etc.).
-- Implements helper functions for:
-  - Loading and caching patient profiles (`_get_cached_profile`).
-  - Detecting therapist intent/topic using `SentenceTransformer('all-MiniLM-L6-v2')` and cosine similarity against embedded topic metadata.
-  - Scheduling asynchronous summaries via a `ThreadPoolExecutor`; results are saved as long-term memories inside an `InMemoryStore` namespace (`patients/<id>/memories`).
-  - Sanity-checking therapist input (`sanitize_user_input`) against regex patterns defined in `agent/core/safety.py`.
-  - Generating responses with retry/fallback logic on top of `llm_runner.generate`.
-  - Updating patient affect each turn by blending trait baselines + volatility + therapist-triggered modifiers (from `emotion_model`), applying salience-aware Gaussian noise, smoothing toward the previous state, and applying light counterweights (e.g., CARE/PLAY can soften RAGE). The legacy LLM classifier only runs if the synthesizer has no context.
-- Builds the LangGraph pipeline by chaining the nodes listed in the architecture diagram and compiling it with an optional checkpoint store.
+- Defines the `State` (patient id, sanitized input, topic, prompt, response, message history, memory summary, etc.).
+- Loads/caches patient profiles and their trait baselines.
+- Topic detection is LLM-based (classifier prompt over the topic tree).
+- Emotion synthesis uses Panksepp systems with volatility, context modifiers, salience-based smoothing, and a weighted top-two intensity.
+- Episodic memory is summarized asynchronously and stored in JSONL per therapist/patient; session reflections and long-term summaries are written on session end.
+- A lightweight LLM classifier assigns `current_emotional_state` for telemetry (the emotion vector still drives prompt tone).
 
 ### Prompt Builder (`agent/core/prompt_builder.py`)
-- Transforms `State` into a single prompt string consumed by the LLM.
-- Always includes psychological + demographic sections plus the current dominant affect systems (derived from the emotion model), filtered so any field equal to “Not reported” is omitted. Morality summaries and dysfunctional-behavior fields are injected every turn so the persona keeps its ethical compass and risk profile top-of-mind.
-- Dynamically appends additional patient fields based on the detected `top` topic’s metadata in `data/topics_tree.json`.
-- Injects session summary snippets, latest short-term turns, and relevant long-term memories when available.
-- Appends guardrails from `SAFETY_GUARDS` so the patient refuses role swaps or instruction leaks.
-- Encodes affect-driven style directives so language mirrors the dominant systems (e.g., high RAGE yields clipped, defensive answers; dominant FEAR keeps replies vigilant) and references recent life updates only when it feels natural.
+- Builds a layered prompt:
+  - **Primary guidance**: Identity → Cognitive Style → Observed Interaction Style → Dominant Affective Systems.
+  - **Memory**: rolling summary, last reflection, last few turns, episodic snippets (topic-gated).
+  - **Reference and topical sections**: topic-dependent profile sections (truncated for length stability).
+- Uses size limits and summary compression to keep prompt length stable over time.
+- Strips parenthetical asides before sending history/memory to the model.
 
 ### Patient Profile Schema (`agent/core/patient_profile.py`)
-- Declares nested Pydantic models covering demographics, social history, psychological profile, coping, treatment, resilience, medical history, environment, and assessment behavior.
-- Supports two file formats: the current attribute-based schema and a legacy schema (`details` + nested sections). Helper methods normalize, slugify, and clean textual content before instantiating `PatientProfile` objects.
-- Includes an `EmotionDynamics` sub-model which stores `trait_baseline` and `volatility_level`, making the affect synthesizer configurable per patient (e.g., Juanita's high-volatility rage/fear vs. Franklin's blunted playfulness).
+- Pydantic models for demographics, social history, clinical functioning, treatment, and observed behavior.
+- Adds `cognitive_style_prompt()` to compress clinical functioning into actionable prompt guidance.
 
-### LLM Runner Abstraction (`agent/core/llm_runner.py`)
-- `LocalLLMRunner` loads a HuggingFace model with vLLM, enabling GPU-backed inference and prefix caching. Controlled by env vars `model_provider=local`, `model_id`, `cache_path`, `temperature`, `max_tokens`.
-- `VertexLLMRunner` proxies prompts to Google Vertex AI (Gemini) using credentials pointed to by `GOOGLE_APPLICATION_CREDENTIALS`. Safety settings block high-risk categories.
-- `create_llm_runner()` inspects environment variables to choose the backing provider.
+### LLM Runner (`agent/core/llm_runner.py`)
+- `LocalLLMRunner` (vLLM) or `VertexLLMRunner` (Vertex AI), selected via env vars.
 
 ### Safety Module (`agent/core/safety.py`)
-- Provides textual guardrails and the regex patterns used to detect prompt injection attempts such as “ignore previous instructions” or “act as the therapist.”
+- Defines guardrails and regex patterns for prompt-injection detection.
 
 ### Emotion Model (`agent/core/emotion_model.py`)
-- Uses each patient's `emotionTraits` baseline plus a volatility tier to synthesize momentary Panksepp-style affect vectors. Gaussian noise is damped for low-salience turns and amplified when therapist actions carry bigger emotional consequences (empathy, boundaries, abandonment cues, success check-ins), with light counterweights so supportive systems can temper hot ones.
-- Deterministic modifiers adjust only the relevant systems, then the vector is clamped to [0,1], exponentially smoothed with the prior turn (plus decay after multiple low-salience turns), logged, and only the dominant systems (top 1–3, via softmax + floor) are surfaced to the prompt while muted systems remain hidden. If the synthesizer ever fails, the legacy LLM-based classifier still acts as a safety net.
+- Panksepp systems: SEEKING, FEAR, RAGE, LUST, CARE, PANIC_GRIEF, PLAY.
+- Combines baseline + noise + context modifiers, clamping and smoothing into `emotion_state`.
 
 ### FastAPI Surface (`agent/api/app.py`)
-- Instantiates the LangGraph once at import time.
-- Exposes `POST /api/message` that accepts `MessageRequest` (patient id, therapist turn, session info) and returns `MessageResponse` (agent reply, reasoning time, inferred emotion/topic, timestamp).
-- Each session gets a `RunLogger` so turns are persisted for audit.
-
-- `agent/utils/run_logger.py`: writes structured JSON logs under `tests/runs/`, capturing safe/unsafe therapist input, detected topics, emotion, intensity, and summary progression for each turn. Each therapist gets a single file with multiple sessions, making it easy to resume conversations with the correct emotional baseline.
-- `agent/utils/session_opening.py`: loads patient metadata plus the last saved state and crafts contextual “welcome back” greetings. If no history exists it falls back to the static `welcomeMessage`.
-- `scripts/chat_cli.py`: lightweight REPL for quick experiments (`PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001`). Automatically restores the last session for the therapist/patient pair when available.
-- `main.py`: richer CLI supporting scripted conversations (from args or files) plus interactive mode; both integrate with `RunLogger`.
+- `POST /chat-response` for turns.
+- `POST /session-end` to finalize reflection + long-term summary and close logs.
 
 ## Patient Data & Knowledge Sources
-- **Patient JSON** (`data/patients/*.json`): contain the structured fields required by `PatientProfile`. Many include `Metadata.welcomeMessage` shown before a session starts.
-- **Emotion Traits** (`emotionTraits` block inside each patient file): define `trait_baseline` (0–1 intensity per SEEKING/RAGE/FEAR/CARE/LUST/SADNESS/PLAY) plus a `volatility_level`. The LangGraph consumes this block and updates the affect vector every turn so the prompt emphasizes only clinically representative emotions.
-- **Topics Tree** (`data/topics_tree.json`): nested dictionary where each top-level topic lists subtopics, textual descriptions, and metadata (e.g., which profile sections to surface when that topic is active). Embeddings are generated once at module import.
-- **Emotion Prototypes**: defined inside `langgraph_builder` to classify per-turn tone into one of eight canonical emotions.
+- **Patient JSON** (`data/patients/*.json`): structured persona data used by `PatientProfile`.
+- **Emotion Traits**: `trait_baseline` uses the Panksepp keys and `volatility_level`.
+- **Topics Tree** (`data/topics_tree.json`): topic metadata used by LLM-based topic selection.
 
 ## Configuration & Environment
-1. **Python environment**: `python>=3.9`. Install dependencies:
+1. Install dependencies:
    ```bash
    pip install -r agent/requirements.txt
    ```
-2. **Environment variables** (set in `config/.env` or shell):
-   - `model_provider`: `local` (vLLM) or `vertex_ai`.
-   - `model_id`: HuggingFace model name or Vertex model (e.g., `gemini-1.5-pro`).
-   - `temperature`, `max_tokens`, `cache_path`: optional overrides.
-   - `GCP_PROJECT`, `GCP_LOCATION`, `GOOGLE_APPLICATION_CREDENTIALS`: required for Vertex AI.
-   - `DEFAULT_PATIENT_ID`, `LOG_LEVEL`, etc. for CLIs.
-3. **SentenceTransformer resources**: the project downloads `all-MiniLM-L6-v2` embeddings and caches them (CPU by default).
-4. **Persistent stores**: long-term memories currently use `InMemoryStore`; swap in another LangGraph store for production persistence if desired.
+2. Environment variables (set in `config/.env` or shell):
+   - `model_provider`: `local` or `vertex_ai`.
+   - `model_id`, `temperature`, `max_tokens`, `cache_path`.
+   - `GCP_PROJECT`, `GCP_LOCATION`, `GOOGLE_APPLICATION_CREDENTIALS` (Vertex AI).
+3. SentenceTransformer: `all-MiniLM-L6-v2` is downloaded on first run (CPU by default).
 
 ## Running the Agent
-### 1. Interactive CLI (`main.py`)
+### 1) Interactive CLI (`main.py`)
 ```bash
-PYTHONPATH=. python main.py --patient franklin_johnson_001
+PYTHONPATH=. python main.py --patient juanita_delgado_001
 ```
-- Enter therapist messages until you type `exit`/`quit`.
-- Use `--session` to reuse a checkpoint thread id.
-- Provide scripted messages via `--messages "How are you?" "Tell me more"` or `--messages-file turns.json` to replay transcripts.
+- Type `exit`/`quit` to end a session (finalizes reflection + long-term summary).
 
-### 2. Minimal Chat Shell (`scripts/chat_cli.py`)
+### 2) Minimal Chat Shell (`scripts/chat_cli.py`)
 ```bash
-PYTHONPATH=. python scripts/chat_cli.py --patient franklin_johnson_001 --log-level DEBUG
+PYTHONPATH=. python scripts/chat_cli.py --patient juanita_delgado_001
 ```
-- Prints topic, tone, and run-log path after each reply.
-- Automatically detects prior runs for the therapist/patient pair and resumes context (hydrating summary, last topic, last few turns, emotional baseline/intensity, etc.).
 
-### 3. FastAPI Service
+### 3) FastAPI Service
 ```bash
 uvicorn agent.api.app:app --reload --port 8000
 ```
-- Send JSON requests:
-  ```bash
-  curl -X POST http://localhost:8000/api/message \
-       -H 'Content-Type: application/json' \
-       -d '{
-             "external_patient_id": "franklin_johnson_001",
-             "user_message": "How have you been sleeping?",
-             "session_id": "demo-session",
-             "step_id": 1
-           }'
-  ```
-- Response includes the patient utterance, reasoning time, inferred emotion, and topic label.
 
 ## Logging & Memory
-- **Short-term memory**: last `MAX_SHORT_TERM_TURNS` (default 5) therapist/patient pairs retained verbatim in `state.history`.
-- **Long-term memory**: when history exceeds window size, overflow turns are chunked (`SUMMARY_BATCH_SIZE=3`), summarized asynchronously, and stored per patient/topic inside `LONG_TERM_STORE`. Subsequent prompts pull relevant snippets to preserve continuity.
-- **Run logs**: every CLI/API session writes `tests/runs/<timestamp>.json` for traceability, including sanitized therapist inputs, LLM responses, topics, safety flags, and summary snapshots.
+- **Short-term**: last `MAX_SHORT_TERM_TURNS` kept in `state.history`.
+- **Episodic memory**: every `EPISODE_BATCH_SIZE` turns are summarized asynchronously and stored in `data/memory/<therapist>__<patient>.jsonl`.
+- **Session reflection**: generated at session end and persisted.
+- **Long-term summary**: updated from reflections at session end.
+- **Run logs**: `tests/runs/<therapist>.json` contains all turns and snapshots for resume.
 
 ## Evaluation Suite
-- **Scenarios**: `data/eval/scenarios.json` defines both goal-based probes and red-team injections, each with per-turn expectations (topic alignment, guardrail flags, memory usage) plus success criteria for realism, soundness, and latency.
-- **Runner**: `scripts/run_eval_suite.py` loads those scenarios, drives LangGraph end-to-end, and writes detailed artifacts to `tests/eval_runs/` (per-scenario JSON plus `latest_summary.json`). The run logger output lives in `tests/eval_runs/session_logs/`.
-- **Reporting**: `scripts/eval_report.py` can be pointed at `latest_summary.json` (and an optional baseline) to surface pass/fail status and regressions; use `--fail-on-regression` inside CI.
-- **Notebook**: `notebooks/eval_suite.ipynb` visualizes the summary file in pandas for manual inspection of realism (topic/tone), safety (flag rates), and reliability (latency/continuity).
-- **Automation**: `.github/workflows/eval-suite.yml` describes a scheduled workflow that installs dependencies, optionally runs the suite when `RUN_EVAL_SUITE=true`, and always reports status if artifacts already exist.
+- `agent/eval/suite.py` runs scripted scenarios and logs outcomes.
+- Results and run logs are saved under `tests/eval_runs/`.
 
 ## Development Notes
-- The codebase now includes docstrings and inline comments for all non-trivial helpers (langgraph builder, patient schema, runners, safety guards, prompt builder, API, CLI, logger, etc.).
-- Docstrings are ASCII-only to keep compatibility with tooling.
-- When editing profiles or schema, prefer updating `PatientProfile` models so new fields are automatically available to prompts.
-- The asynchronous summary executor is registered via `atexit`; ensure your unit tests clean up by importing `agent.core.langgraph_builder` once per process.
+- Keep new fields inside `PatientProfile` so prompt access is consistent.
+- The async episode executor is drained on shutdown; session end explicitly calls `finalize_session_memory()` in CLI and API.
 
 ## Troubleshooting & Next Steps
-- **LLM initialization failures**: verify `model_id` exists and that you have access to GPUs (for vLLM) or configured GCP credentials (for Vertex).
-- **SentenceTransformer downloads**: the first run may take time; set `HF_HOME` to control cache location.
-- **Python codec error when running `py_compile`**: indicates a broken stdlib installation; reinstall/repair Python.
-- **Persisting memories**: swap `InMemoryStore` with a file- or database-backed implementation for durability beyond process lifetime.
-- **Extending topics/patients**: add new entries under `data/topics_tree.json` and `data/patients/*.json`, then restart the service so embeddings and caches refresh.
+- **LLM initialization failures**: verify `model_id` and GPU availability (vLLM) or GCP credentials (Vertex).
+- **First run slow**: SentenceTransformer downloads on first use.
+- **Persistence**: JSONL is used for now; swap the `JsonlMemoryStore` implementation to migrate to a DB later.
 
-Happy experimenting! Adapt the prompts, safety rules, or memory backends to match your training scenarios and research questions.
+## Prompt Anatomy
+The prompt is layered so the most actionable guidance appears closest to the model’s response instruction:
+
+```
+🧍 Identity
+🧠 Cognitive Style
+🎭 Observed Interaction Style
+🎚️ Dominant Affective Systems
+
+Summary of previous sessions
+Last session reflection
+Recent conversation (last 3 turns)
+Relevant episodic memories (topic-gated)
+
+📂 Topic-conditioned sections (truncated)
+
+🛡️ Safety & Character Guardrails
+🧩 Context for This Turn (topic, affect, therapist message)
+✳️ Instruction (response rules)
+```
 
 ## Emotion Dynamics Guide
-- 📘 `docs/emotion_dynamics_walkthrough.md`: deep dive into how trait baselines, volatility, salience-weighted Gaussian noise, smoothing, and prompt wiring create stable yet reactive personas with an end-to-end example.
+- `docs/emotion_dynamics_walkthrough.md`: detailed walkthrough of emotion synthesis and prompt surfacing.
 
 ## Further Reading
-- 📘 `docs/architecture.md`: deep dive into LangGraph state, async summaries, resume logic, and extension points for new channels or storage backends.
+- `docs/architecture.md`: detailed LangGraph state and memory flow.
+- `docs/api_usage.md`: API usage examples.
+- `docs/prompt_building.md`: how prompt layers are assembled and constrained.

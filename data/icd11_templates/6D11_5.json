@@ -1,0 +1,55 @@
+{
+  "code": "6D11.5",
+  "title": "Borderline pattern",
+  "foundationURI": "http://id.who.int/icd/entity/2006821354",
+  "description": "The Borderline pattern specifier may be applied to individuals whose pattern of personality disturbance is characterised by a pervasive pattern of instability of interpersonal relationships, self-image, and affects, and marked impulsivity, as indicated by many of the following: Frantic efforts to avoid real or imagined abandonment; A pattern of unstable and intense interpersonal relationships; Identity disturbance, manifested in markedly and persistently unstable self-image or sense of self; A tendency to act rashly in states of high negative affect, leading to potentially self-damaging behaviours; Recurrent episodes of self-harm; Emotional instability due to marked reactivity of mood; Chronic feelings of emptiness; Inappropriate intense anger or difficulty controlling anger; Transient dissociative symptoms or psychotic-like features in situations of high affective arousal.",
+  "exclusionsFromAboveLevels": [
+    {
+      "title": "Acute stress reaction",
+      "code": "QE84"
+    },
+    {
+      "title": "Uncomplicated bereavement",
+      "code": "QE62"
+    }
+  ],
+  "allIndexTerms": [
+    "Borderline pattern"
+  ],
+  "codingNote": "This category should ONLY be used in combination with a Personality disorder category (Mild, Moderate, or Severe) or Personality difficulty.",
+  "postcoordination": {
+    "hasCausingCondition": {
+      "axis": "Has causing condition",
+      "options": [
+        {
+          "code": "6D10",
+          "title": "Personality disorder"
+        }
+      ]
+    },
+    "otherPostcoordination": {
+      "axis": "Other postcoordination",
+      "note": "Use additional code, if desired."
+    }
+  },
+  "diagnosticRequirements": {
+    "note": "The Borderline pattern specifier has been included to enhance the clinical utility of the classification of Personality Disorder. There is considerable overlap between this pattern and information contained in the trait domain specifiers (most typically Negative Affectivity, Dissociality and Disinhibition). However, use of this specifier may facilitate the identification of individuals who may respond to certain psychotherapeutic treatments.",
+    "criteria": [
+      "Frantic efforts to avoid real or imagined abandonment.",
+      "A pattern of unstable and intense interpersonal relationships, which may be characterized by vacillations between idealization and devaluation, typically associated with both strong desire for and fear of closeness and intimacy.",
+      "Identity disturbance, manifested in markedly and persistently unstable self-image or sense of self.",
+      "A tendency to act rashly in states of high negative affect, leading to potentially self-damaging behaviours (e.g., risky sexual behaviour, reckless driving, excessive alcohol or substance use, binge eating).",
+      "Recurrent episodes of self-harm (e.g., suicide attempts or gestures, self-mutilation).",
+      "Emotional instability due to marked reactivity of mood. Fluctuations of mood may be triggered either internally (e.g., by one’s own thoughts) or by external events. As a consequence, the individual experiences intense dysphoric mood states, which typically last for a few hours but may last for up to several days.",
+      "Chronic feelings of emptiness.",
+      "Inappropriate intense anger or difficulty controlling anger manifested in frequent displays of temper (e.g., yelling or screaming, throwing or breaking things, getting into physical fights).",
+      "Transient dissociative symptoms or psychotic-like features (e.g., brief hallucinations, paranoia) in situations of high affective arousal."
+    ],
+    "otherManifestations": [
+      "A view of the self as inadequate, bad, guilty, disgusting, and contemptible.",
+      "An experience of the self as profoundly different and isolated from other people; a painful sense of alienation and pervasive loneliness.",
+      "Proneness to rejection hypersensitivity; problems in establishing and maintaining consistent and appropriate levels of trust in interpersonal relationships; frequent misinterpretation of social signals."
+    ]
+  }
+}
+

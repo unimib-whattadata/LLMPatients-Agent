@@ -46,12 +46,17 @@ def _deserialize_messages(payload: List[Dict[str, str]]) -> List[BaseMessage]:
 def _state_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
     """Persist only the state fields required to resume a conversation."""
     snapshot = {
+        "therapist_id": state.get("therapist_id"),
+        "session_id": state.get("session_id"),
         "summary": state.get("summary", ""),
+        "session_reflection": state.get("session_reflection", ""),
         "history": state.get("history", []),
         "long_term_context": state.get("long_term_context", []),
+        "episodic_context": state.get("episodic_context", []),
         "last_topic": state.get("last_topic"),
         "topic_similarity": state.get("topic_similarity"),
         "total_turns": state.get("total_turns"),
+        "last_episode_turn": state.get("last_episode_turn", 0),
         "messages": _serialize_messages(state.get("messages", [])),
         "core_emotion": state.get("core_emotion"),
         "emotion_intensity": state.get("emotion_intensity"),

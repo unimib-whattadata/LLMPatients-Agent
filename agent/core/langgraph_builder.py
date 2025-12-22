@@ -1,24 +1,26 @@
+import hashlib
 import json
 import logging
 from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor, wait, ALL_COMPLETED
 from datetime import datetime, timezone
-
 from pathlib import Path
 from typing import Dict, List, Optional
+from uuid import uuid4
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 import atexit
 
 from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
+from agent.core.memory_store import JsonlMemoryStore
 from agent.core.llm_runner import create_llm_runner
 from agent.core.emotion_model import EMOTIONS, EVENT_SALIENCE, compute_emotional_state
-from agent.core.patient_profile import PatientProfile
-from agent.core.safety import SAFETY_PATTERNS
+from agent.core.patient_profile import PatientProfile, PatientDetails
+from agent.core.safety import SAFETY_PATTERNS, FOLLOW_UP_CUES, CONTEXT_EVENT_KEYWORDS
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
@@ -42,28 +44,34 @@ st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
 CHECKPOINTER = MemorySaver()
 PROFILE_CACHE: Dict[str, dict] = {}
 MAX_LLM_RETRIES = 2
-LLM_FALLBACK_RESPONSE = (
-    "I'm trying to stay with what I'm feeling right now. Could we keep talking about that?"
-)
-SUMMARY_BATCH_SIZE = 3
 SUMMARY_EXECUTOR = ThreadPoolExecutor(max_workers=2)
-SUMMARY_TASKS: Dict[str, List[Future]] = defaultdict(list)
+EPISODE_TASKS: Dict[tuple[str, str], List[Future]] = defaultdict(list)
 SUMMARY_TIMEOUT_SECONDS = 10
 MAX_SHORT_TERM_TURNS = 5
 MAX_MESSAGE_WINDOW = 10
+EPISODE_BATCH_SIZE = 5
+
+MEMORY_DIR = ROOT_DIR / "data" / "memory"
+MEMORY_STORE = JsonlMemoryStore(MEMORY_DIR)
+MEMORY_CACHE_LOADED: Dict[tuple[str, str], Optional[float]] = {}
+LATEST_SUMMARY_CACHE: Dict[tuple[str, str], str] = {}
+LATEST_REFLECTION_CACHE: Dict[tuple[str, str], str] = {}
+
+DEFAULT_TRAIT_BASELINE = {emotion: 0.5 for emotion in EMOTIONS}
+
 
 
 def _shutdown_summary_executor():
     """Drain pending summary futures and close the executor on interpreter shutdown."""
-    for patient_id, futures in SUMMARY_TASKS.items():
+    for key, futures in EPISODE_TASKS.items():
         done, not_done = wait(futures, timeout=SUMMARY_TIMEOUT_SECONDS, return_when=ALL_COMPLETED)
         for fut in done:
             try:
                 fut.result()
             except Exception as exc:
-                logger.warning(f"⚠️ Summary future error during shutdown ({patient_id}): {exc}")
+                logger.warning(f"⚠️ Summary future error during shutdown ({key}): {exc}")
         for fut in not_done:
-            logger.warning(f"⚠️ Summary future still running for {patient_id}; cancelling.")
+            logger.warning(f"⚠️ Summary future still running for {key}; cancelling.")
             fut.cancel()
     SUMMARY_EXECUTOR.shutdown(wait=False)
 
@@ -75,14 +83,18 @@ def _get_cached_profile(patient_id: str, path: Path) -> PatientProfile:
     """Load a patient profile from disk and memoize it for subsequent requests."""
     if patient_id not in PROFILE_CACHE:
         loaded = PatientProfile.from_file(str(path))
-        PROFILE_CACHE[patient_id] = loaded.dict()
+        PROFILE_CACHE[patient_id] = loaded
         return loaded
-    return PatientProfile(**PROFILE_CACHE[patient_id])
+    cached = PROFILE_CACHE[patient_id]
+    if isinstance(cached, dict):
+        cached = PatientProfile(**cached)
+        PROFILE_CACHE[patient_id] = cached
+    return cached
 
 
 def _trait_baseline_from_profile(profile: PatientProfile) -> Dict[str, float]:
     """Return a clamped baseline vector for the patient's affective systems."""
-    dynamics = getattr(profile, "EmotionDynamics", None)
+    dynamics = getattr(profile, "emotionTraits", None) or getattr(profile, "EmotionDynamics", None)
     baseline = getattr(dynamics, "trait_baseline", None) if dynamics else None
     if not baseline:
         return dict(DEFAULT_TRAIT_BASELINE)
@@ -98,7 +110,7 @@ def _trait_baseline_from_profile(profile: PatientProfile) -> Dict[str, float]:
 
 
 def _volatility_from_profile(profile: PatientProfile) -> str:
-    dynamics = getattr(profile, "EmotionDynamics", None)
+    dynamics = getattr(profile, "emotionTraits", None) or getattr(profile, "EmotionDynamics", None)
     if dynamics and getattr(dynamics, "volatility_level", None):
         level = dynamics.volatility_level.lower()
         if level in ("low", "medium", "high"):
@@ -135,85 +147,159 @@ def _detect_context_event(text: str, safety_flags: List[str], topic_changed: boo
 
 
 def _infer_core_emotion(profile: PatientProfile) -> str:
-    metadata = getattr(profile, "Metadata", None)
-    if metadata:
-        core = getattr(metadata, "coreEmotion", None)
-        if core in EMOTION_PROTOTYPES:
-            return core
-    diagnoses = getattr(profile, "PsychiatricDiagnoses", []) or []
-    joined = " ".join(diagnoses).lower()
-    if "depress" in joined:
-        return "sadness"
+    details = getattr(profile, "details", None)
+    tx = getattr(details, "treatmentsAndInterventions", None) if details else None
+    diagnoses = tx.previousPsychiatricDiagnoses if tx else []
+    clinical = getattr(details, "clinicalFunctioning", None) if details else None
+    syndrome = None
+    if clinical and getattr(clinical, "personalityAndSymptomAxis", None):
+        syndrome = clinical.personalityAndSymptomAxis.personalitySyndrome
+
+    joined = " ".join(diagnoses or [])
+    if syndrome:
+        joined += f" {syndrome}"
+    if profile.brief_description:
+        joined += f" {profile.brief_description}"
+    joined = joined.lower()
+    if "depress" in joined or "grief" in joined or "loss" in joined:
+        return "PANIC_GRIEF"
     if "anx" in joined:
-        return "anticipation"
+        return "FEAR"
     if "ptsd" in joined or "trauma" in joined:
-        return "sadness"
-    return "base"
+        return "FEAR"
+    return "SEEKING"
 
 
-def _blend_scores_with_baseline(scores: dict, core: str, intensity: float) -> dict:
-    blended = {}
-    for emotion, score in scores.items():
-        boost = 0.0
-        if emotion == core:
-            boost += 0.25 * intensity
-        else:
-            boost -= 0.08 * intensity
-        blended[emotion] = max(0.0, score + boost)
-    return blended
+def _normalize_emotion_key(emotion: Optional[str]) -> str:
+    if not emotion:
+        return ""
+    return (
+        emotion.strip()
+        .replace("/", "_")
+        .replace("-", "_")
+        .replace(" ", "_")
+        .upper()
+    )
 
 
-def _adjust_intensity(current: float, emotion: str) -> float:
-    if emotion in POSITIVE_EMOTIONS:
-        return max(0.0, current - 0.03)
-    if emotion in NEGATIVE_EMOTIONS:
-        return min(1.0, current + 0.02)
-    # drift slowly toward midpoint
-    if current > 0.5:
-        return current - 0.01
-    elif current < 0.5:
-        return current + 0.01
-    return current
+def _memory_key(patient_id: Optional[str], therapist_id: Optional[str]) -> tuple[str, str]:
+    """Return a stable key for per-therapist/per-patient memory caches."""
+    return (therapist_id or "therapist0", patient_id or "unknown")
 
 
-def _collect_completed_summaries(patient_id: str, state):
-    """Merge finished summary futures into the running state summary buffer."""
-    futures = SUMMARY_TASKS.get(patient_id, [])
+def _memory_namespace(patient_id: str, therapist_id: str) -> tuple[str, ...]:
+    """Namespace for all memory artifacts tied to a therapist/patient pair."""
+    return ("therapists", therapist_id, "patients", patient_id, "memories")
+
+
+def _append_memory_record(record: dict) -> None:
+    MEMORY_STORE.append(record)
+
+
+def _index_memory_record(record: dict) -> None:
+    patient_id = record.get("patient_id")
+    therapist_id = record.get("therapist_id")
+    if not patient_id or not therapist_id:
+        return
+    namespace = _memory_namespace(patient_id, therapist_id)
+    record_id = record.get("id") or _record_fingerprint(record)
+    LONG_TERM_STORE.put(namespace, record_id, record)
+
+
+def _load_persisted_memories(patient_id: str, therapist_id: str) -> None:
+    memory_key = _memory_key(patient_id, therapist_id)
+    current_mtime = MEMORY_STORE.file_mtime(patient_id, therapist_id)
+    cached_mtime = MEMORY_CACHE_LOADED.get(memory_key)
+    if cached_mtime is not None and current_mtime is not None and current_mtime <= cached_mtime:
+        return
+    LATEST_SUMMARY_CACHE.pop(memory_key, None)
+    LATEST_REFLECTION_CACHE.pop(memory_key, None)
+    latest_summary = None
+    latest_summary_time = None
+    latest_reflection = None
+    latest_reflection_time = None
+    for record in MEMORY_STORE.iter_records(patient_id, therapist_id):
+        _index_memory_record(record)
+        record_type = record.get("type")
+        if record_type == "long_term_summary":
+            updated_at = record.get("updated_at")
+            if updated_at and (latest_summary_time is None or updated_at > latest_summary_time):
+                latest_summary_time = updated_at
+                latest_summary = record.get("text", "")
+        elif record_type == "session_reflection":
+            created_at = record.get("created_at")
+            if created_at and (latest_reflection_time is None or created_at > latest_reflection_time):
+                latest_reflection_time = created_at
+                latest_reflection = record.get("text", "")
+    if latest_summary:
+        LATEST_SUMMARY_CACHE[memory_key] = latest_summary
+        namespace = _memory_namespace(patient_id, therapist_id)
+        LONG_TERM_STORE.put(
+            namespace,
+            "summary",
+            {"type": "long_term_summary", "text": latest_summary, "updated_at": latest_summary_time},
+        )
+    if latest_reflection:
+        LATEST_REFLECTION_CACHE[memory_key] = latest_reflection
+    MEMORY_CACHE_LOADED[memory_key] = current_mtime
+
+
+def _record_fingerprint(record: dict) -> str:
+    serialized = json.dumps(record, sort_keys=True, ensure_ascii=True)
+    return f"{record.get('type', 'memory')}-{hashlib.sha1(serialized.encode('utf-8')).hexdigest()}"
+
+def _collect_completed_episodes(memory_key: tuple[str, str]) -> None:
+    """Drain completed episode futures to prevent unbounded task buildup."""
+    futures = EPISODE_TASKS.get(memory_key, [])
     if not futures:
         return
 
     remaining = []
-    new_chunks = []
     for fut in futures:
         if fut.done():
             try:
-                summary_text = fut.result()
-                if summary_text:
-                    new_chunks.append(summary_text)
+                fut.result()
             except Exception as exc:
-                logger.warning(f"⚠️ Summary future failed for {patient_id}: {exc}")
+                logger.warning(f"⚠️ Episode future failed for {memory_key}: {exc}")
         else:
             remaining.append(fut)
 
-    SUMMARY_TASKS[patient_id] = remaining
-    if new_chunks:
-        addition = "\n".join(new_chunks)
-        state.summary = (state.summary + "\n" + addition).strip() if state.summary else addition
+    EPISODE_TASKS[memory_key] = remaining
 
 
-def _schedule_summary_job(patient_id: str, chunk: list, topic: Optional[dict]):
-    """Fire-and-forget a background task that summarizes a chunk of conversation turns."""
+def _schedule_episode_job(
+    patient_id: str,
+    therapist_id: str,
+    session_id: str,
+    chunk: list,
+    topic: Optional[dict],
+    turn_range: tuple[int, int],
+    emotion_label: str,
+    emotion_intensity: float,
+    salience: float,
+):
+    """Fire-and-forget a background task that summarizes a chunk into an episode."""
     chunk_text = _format_chunk_text(chunk)
     turn_count = len(chunk)
+    memory_key = _memory_key(patient_id, therapist_id)
     future = SUMMARY_EXECUTOR.submit(
-        _summarize_chunk,
+        _summarize_episode,
         patient_id,
+        therapist_id,
+        session_id,
         chunk_text,
         topic,
+        turn_range,
         turn_count,
+        emotion_label,
+        emotion_intensity,
+        salience,
     )
-    SUMMARY_TASKS[patient_id].append(future)
-    logger.info(f"📨 Scheduled async summary for {patient_id} (turns={turn_count}).")
+    EPISODE_TASKS[memory_key].append(future)
+    logger.info(
+        f"📨 Scheduled async episode summary for {patient_id}/{therapist_id} "
+        f"(turns={turn_count}, range={turn_range})."
+    )
 
 
 def _format_chunk_text(chunk: list) -> str:
@@ -224,24 +310,46 @@ def _format_chunk_text(chunk: list) -> str:
     )
 
 
-def _summarize_chunk(patient_id: str, chunk_text: str, topic: Optional[dict], turn_count: int) -> str:
-    """Call the LLM to summarize a chunk and persist the result as long-term memory."""
+def _summarize_episode(
+    patient_id: str,
+    therapist_id: str,
+    session_id: str,
+    chunk_text: str,
+    topic: Optional[dict],
+    turn_range: tuple[int, int],
+    turn_count: int,
+    emotion_label: str,
+    emotion_intensity: float,
+    salience: float,
+) -> str:
+    """Call the LLM to summarize a chunk into an episodic memory item."""
     prompt = (
-        "You are maintaining a patient's long-term therapy memory. Summarize the dialogue below in 2-3 natural sentences that capture:\n"
+        "You are maintaining episodic therapy memory. Summarize the dialogue below in 2-3 natural sentences that capture:\n"
         "- Concrete events or stressors mentioned\n"
-        "- Emotional tone shifts and trust toward the therapist\n"
+        "- Emotional tone shifts, trust, or relational dynamics\n"
         "- Any unresolved questions or worries to revisit\n"
-        "Keep the summary expressive yet concise.\n\n"
+        "Write as a compact clinical note, but in plain language.\n\n"
         f"{chunk_text}"
     )
     try:
         summary_update = llm_runner.generate(prompt=prompt).strip()
     except Exception as exc:
-        logger.warning(f"⚠️ Async summary generation failed: {exc}")
+        logger.warning(f"⚠️ Async episode generation failed: {exc}")
         return ""
 
     if summary_update:
-        persist_long_term_memory(patient_id, summary_update, topic, turn_count)
+        persist_episode_summary(
+            patient_id=patient_id,
+            therapist_id=therapist_id,
+            session_id=session_id,
+            summary_text=summary_update,
+            topic=topic,
+            turn_range=turn_range,
+            turn_count=turn_count,
+            emotion_label=emotion_label,
+            emotion_intensity=emotion_intensity,
+            salience=salience,
+        )
     return summary_update
 
 
@@ -271,116 +379,43 @@ def _turns_to_messages(turns: list) -> List[BaseMessage]:
     return msgs
 
 
-def _chunk_turns(turns: list, size: int) -> List[list]:
-    """Split turn history into equal-sized chunks for asynchronous summarization."""
-    return [turns[i:i + size] for i in range(0, len(turns), size)]
-
-
-FOLLOW_UP_CUES = {
-    "what do you mean",
-    "can you say more",
-    "tell me more",
-    "go on",
-    "and then",
-    "how so",
-    "why",
-    "uh huh",
-    "i see",
-    "okay",
-    "ok",
-    "mmh",
-    "hmm",
-    "right",
-    "continue",
-    "please continue",
-}
-
-DEFAULT_TRAIT_BASELINE = {emotion: 0.5 for emotion in EMOTIONS}
-
-CONTEXT_EVENT_KEYWORDS = {
-    "empathy": [
-        "i'm here",
-        "here for you",
-        "understand",
-        "hear you",
-        "holding space",
-        "take your time",
-        "i get it",
-        "that sounds hard",
-    ],
-    "boundary": [
-        "not appropriate",
-        "can't do that",
-        "won't do that",
-        "we should stay focused",
-        "stay in role",
-        "remember our roles",
-        "boundary",
-        "off limits",
-    ],
-    "abandonment_cue": [
-        "wrap up",
-        "time is up",
-        "see you next week",
-        "end here",
-        "goodbye",
-        "leave it there",
-        "stop for today",
-        "ending soon",
-        "out of time",
-    ],
-    "success_discussion": [
-        "progress",
-        "proud of you",
-        "improvement",
-        "doing better",
-        "win",
-        "success",
-        "better lately",
-        "great job",
-        "celebrate",
-    ],
-}
-
-
 def _is_follow_up(user_input: Optional[str]) -> bool:
     if not user_input:
         return False
     text = user_input.strip().lower()
-    # only treat *very short* utterances as follow-ups
-    if len(text) <= 6 and not any(c.isalpha() for c in text):
+    if len(text) <= 8:
         return True
     return any(cue in text for cue in FOLLOW_UP_CUES)
 
 
-EMOTION_PROTOTYPES = {
-    "anger": "experiencing irritation, frustration, or hostility toward someone or something",
-    "anticipation": "feeling hopeful, curious, or mentally preparing for what might happen next",
-    "disgust": "feeling strong aversion, rejection, or discomfort toward a person, idea, or situation",
-    "joy": "feeling content, pleased, or uplifted, with a generally positive emotional tone",
-    "sadness": "feeling downcast, dejected, or emotionally heavy, with low energy or motivation",
-    "surprise": "feeling startled, taken aback, or caught off guard by an unexpected event or realization",
-    "trust": "feeling open, safe, and receptive, showing confidence in others or the situation",
-    "base": "displaying a neutral, calm, or emotionally even state, without marked positive or negative affect"
-}
+def _build_topic_text(state) -> str:
+    """
+    Assemble the text snippet used for topic detection.
+    Combines recent therapist inputs with the latest patient reply for more signal.
+    """
+    pieces = []
 
-EMOTION_EMBEDDINGS = {
-    e: st_model.encode([desc], convert_to_tensor=True)[0]
-    for e, desc in EMOTION_PROTOTYPES.items()
-}
+    # Last 2 therapist inputs (including current)
+    therapist_texts = []
+    current = (state.safe_user_input or state.user_input or "").strip()
+    if current:
+        therapist_texts.append(current)
+    if state.history:
+        prev = [turn.get("therapist", "") for turn in state.history[-2:]]
+        therapist_texts.extend([t for t in prev if t])
+    if therapist_texts:
+        pieces.append(" | ".join(therapist_texts))
 
-EMOTION_ORDER = ["anger", "disgust", "sadness", "base", "trust", "anticipation", "joy", "surprise"]
-EMOTION_TRANSITION_SIM = {}
-for a, emb_a in EMOTION_EMBEDDINGS.items():
-    EMOTION_TRANSITION_SIM[a] = {}
-    for b, emb_b in EMOTION_EMBEDDINGS.items():
-        sim = util.cos_sim(emb_a, emb_b).item()
-        if a == b:
-            sim = 1.0
-        EMOTION_TRANSITION_SIM[a][b] = sim
+    # Latest patient reply for context
+    if state.history:
+        last_patient = state.history[-1].get("patient")
+        if last_patient:
+            pieces.append(last_patient)
 
-POSITIVE_EMOTIONS = {"trust", "anticipation", "joy", "surprise"}
-NEGATIVE_EMOTIONS = {"anger", "disgust", "sadness"}
+    return " ".join(pieces).strip()
+
+
+PANKSEPP_LABELS = ["SEEKING", "FEAR", "RAGE", "LUST", "CARE", "PANIC_GRIEF", "PLAY"]
 
 
 def _embed_texts(texts):
@@ -399,13 +434,6 @@ LONG_TERM_STORE = InMemoryStore(
     }
 )
 
-MAX_SHORT_TERM_TURNS = 5
-
-
-def _long_term_namespace(patient_id: str) -> tuple[str, ...]:
-    """Return the namespace tuple under which a patient's memories are stored."""
-    return ("patients", patient_id, "memories")
-
 
 def _topic_key(topic: Optional[dict]) -> str:
     """Represent a topic dictionary as a consistent lookup key."""
@@ -414,69 +442,145 @@ def _topic_key(topic: Optional[dict]) -> str:
     return f"{topic.get('top', 'unknown')}::{topic.get('sub', 'unknown')}"
 
 
-def load_long_term_summary(patient_id: str) -> str:
-    """Return the persisted long-term summary for this patient, if any."""
-    if not patient_id:
+def load_long_term_summary(patient_id: str, therapist_id: str) -> str:
+    """Return the persisted long-term summary for this therapist/patient pair."""
+    if not patient_id or not therapist_id:
         return ""
-    namespace = ("patients", patient_id, "memories")
+    _load_persisted_memories(patient_id, therapist_id)
+    memory_key = _memory_key(patient_id, therapist_id)
+    cached = LATEST_SUMMARY_CACHE.get(memory_key)
+    if cached:
+        return cached.strip()
+    namespace = _memory_namespace(patient_id, therapist_id)
     item = LONG_TERM_STORE.get(namespace, "summary")
     if not item:
         return ""
     return item.value.get("text", "").strip()
 
 
-def persist_long_term_memory(patient_id: str, summary_chunk: str, topic: Optional[dict], turn_count: int) -> str:
-    """Store the new long-term memory chunk and return the aggregated summary."""
-    if not patient_id or not summary_chunk:
-        return summary_chunk
+def load_latest_session_reflection(patient_id: str, therapist_id: str) -> str:
+    """Return the most recent session reflection, if any."""
+    if not patient_id or not therapist_id:
+        return ""
+    _load_persisted_memories(patient_id, therapist_id)
+    memory_key = _memory_key(patient_id, therapist_id)
+    cached = LATEST_REFLECTION_CACHE.get(memory_key)
+    return cached.strip() if cached else ""
 
-    namespace = _long_term_namespace(patient_id)
+
+def persist_episode_summary(
+    *,
+    patient_id: str,
+    therapist_id: str,
+    session_id: str,
+    summary_text: str,
+    topic: Optional[dict],
+    turn_range: tuple[int, int],
+    turn_count: int,
+    emotion_label: str,
+    emotion_intensity: float,
+    salience: float,
+) -> dict:
+    """Store a new episodic memory chunk and return its record."""
+    if not patient_id or not therapist_id or not summary_text:
+        return {}
     now = datetime.now(timezone.utc).isoformat()
     topic_label = _topic_key(topic)
+    record = {
+        "id": uuid4().hex,
+        "type": "episode_summary",
+        "patient_id": patient_id,
+        "therapist_id": therapist_id,
+        "session_id": session_id or "unknown",
+        "text": summary_text.strip(),
+        "topic_key": topic_label,
+        "topic": topic or {},
+        "turn_range": turn_range,
+        "turn_count": turn_count,
+        "emotion_label": emotion_label,
+        "emotion_intensity": float(emotion_intensity),
+        "salience": float(salience),
+        "created_at": now,
+    }
+    _append_memory_record(record)
+    _index_memory_record(record)
+    return record
 
-    LONG_TERM_STORE.put(
-        namespace,
-        f"chunk-{now}",
-        {
-            "type": "summary_chunk",
-            "text": summary_chunk,
-            "topic_key": topic_label,
-            "topic": topic or {},
-            "turn_count": turn_count,
-            "created_at": now,
-        },
-    )
 
-    existing = LONG_TERM_STORE.get(namespace, "summary")
-    combined = summary_chunk.strip()
-    if existing:
-        previous = existing.value.get("text", "").strip()
-        combined = f"{previous}\n{summary_chunk}".strip() if previous else combined
+def persist_session_reflection(
+    *,
+    patient_id: str,
+    therapist_id: str,
+    session_id: str,
+    reflection_text: str,
+) -> dict:
+    """Persist a session reflection and update caches."""
+    if not patient_id or not therapist_id or not reflection_text:
+        return {}
+    now = datetime.now(timezone.utc).isoformat()
+    record = {
+        "id": uuid4().hex,
+        "type": "session_reflection",
+        "patient_id": patient_id,
+        "therapist_id": therapist_id,
+        "session_id": session_id or "unknown",
+        "text": reflection_text.strip(),
+        "created_at": now,
+    }
+    _append_memory_record(record)
+    _index_memory_record(record)
+    LATEST_REFLECTION_CACHE[_memory_key(patient_id, therapist_id)] = reflection_text.strip()
+    return record
 
+
+def persist_long_term_summary(
+    *,
+    patient_id: str,
+    therapist_id: str,
+    summary_text: str,
+) -> dict:
+    """Persist the rolling long-term summary."""
+    if not patient_id or not therapist_id or not summary_text:
+        return {}
+    now = datetime.now(timezone.utc).isoformat()
+    record = {
+        "id": uuid4().hex,
+        "type": "long_term_summary",
+        "patient_id": patient_id,
+        "therapist_id": therapist_id,
+        "text": summary_text.strip(),
+        "updated_at": now,
+    }
+    _append_memory_record(record)
+    _index_memory_record(record)
+    namespace = _memory_namespace(patient_id, therapist_id)
     LONG_TERM_STORE.put(
         namespace,
         "summary",
         {
-            "type": "summary",
-            "text": combined,
+            "type": "long_term_summary",
+            "text": summary_text.strip(),
             "updated_at": now,
         },
     )
-    return combined
+    LATEST_SUMMARY_CACHE[_memory_key(patient_id, therapist_id)] = summary_text.strip()
+    return record
 
 
-def fetch_relevant_long_term_memories(
+def fetch_relevant_episodic_memories(
+    *,
     patient_id: Optional[str],
+    therapist_id: Optional[str],
     topic: Optional[dict],
     query: Optional[str],
     limit: int = 3,
 ) -> list[str]:
-    """Pull the most relevant long-term memories to enrich the prompt."""
-    if not patient_id:
+    """Pull the most relevant episodic memories to enrich the prompt."""
+    if not patient_id or not therapist_id:
         return []
 
-    namespace = _long_term_namespace(patient_id)
-    filters = {"type": "summary_chunk"}
+    namespace = _memory_namespace(patient_id, therapist_id)
+    filters = {"type": "episode_summary"}
     if topic:
         filters["topic_key"] = _topic_key(topic)
 
@@ -487,15 +591,15 @@ def fetch_relevant_long_term_memories(
             filter=filters,
             limit=limit,
         )
-        if not results and len(filters) > 1:  # fall back to any chunk
+        if not results and len(filters) > 1:
             results = LONG_TERM_STORE.search(
                 namespace,
                 query=query or None,
-                filter={"type": "summary_chunk"},
+                filter={"type": "episode_summary"},
                 limit=limit,
             )
     except Exception as exc:
-        logger.warning(f"⚠️ Long-term memory search failed: {exc}")
+        logger.warning(f"⚠️ Episodic memory search failed: {exc}")
         return []
 
     return [
@@ -504,69 +608,24 @@ def fetch_relevant_long_term_memories(
         if item and item.value.get("text")
     ]
 
-def classify_emotion_by_similarity(text: str, threshold: float = 0.3):
-    """
-    Map a tone description (e.g. 'sad but receptive') into one of the canonical
-    emotion categories using cosine similarity with precomputed emotion embeddings.
-    Returns 'base' if similarity is below the threshold.
-    """
+def classify_emotion_by_llm(text: str) -> str:
+    """Ask the LLM to classify the patient's tone into a Panksepp system label."""
     if not text or not text.strip():
-        return "base"
-
-    text_emb = st_model.encode([text.strip()], convert_to_tensor=True)
-    sims = {
-        emotion: util.cos_sim(text_emb, emb).item()
-        for emotion, emb in EMOTION_EMBEDDINGS.items()
-    }
-
-    best_emotion, best_score = max(sims.items(), key=lambda x: x[1])
-    logger.debug(f"🔎 Emotion similarity scores: {sims}")
-    logger.info(f"🎭 Best emotion={best_emotion} (score={best_score:.3f}) for tone='{text}'")
-
-    if best_score < threshold:
-        best_emotion = "base"
-    return best_emotion, best_score, sims
-
-
-def smooth_emotion_transition(previous: Optional[str], proposed: str, scores: dict, intensity: float, core: str) -> str:
-    if not previous or previous in {"unknown", ""}:
-        return proposed
-    if previous == proposed:
-        return proposed
-    prev_score = scores.get(previous, -1.0)
-    proposed_score = scores.get(proposed, -1.0)
-    transition_sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(proposed, 0.0)
-
-    threshold_sim = 0.5 + 0.2 * (1 - intensity)  # higher intensity -> higher threshold
-    threshold_delta = 0.12 + 0.1 * (1 - intensity)
-
-    if proposed_score - prev_score >= threshold_delta or transition_sim >= threshold_sim:
-        return proposed
-
-    # Try to find intermediate emotion with high similarity to both
-    candidates = sorted(
-        scores.items(),
-        key=lambda item: item[1],
-        reverse=True
+        return "SEEKING"
+    labels = ", ".join(PANKSEPP_LABELS)
+    prompt = (
+        "You are a classifier. Given the patient's reply, choose the single best "
+        f"emotion system label from: {labels}. Respond with exactly one label.\n\n"
+        f"Patient reply:\n{text.strip()}\n\n"
+        "Label:"
     )
-    for candidate, score in candidates:
-        if candidate == previous:
-            continue
-        sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(candidate, 0.0)
-        if score >= proposed_score - 0.05 and sim >= threshold_sim:
-            return candidate
-
-    # Fall back to whichever emotion has highest blend of prev similarity and evidence
-    blend_best = previous
-    blend_score = prev_score
-    for candidate, score in scores.items():
-        sim = EMOTION_TRANSITION_SIM.get(previous, {}).get(candidate, 0.0)
-        core_bonus = 0.2 * intensity if candidate == core else 0.0
-        blended = 0.5 * sim + 0.4 * score + core_bonus
-        if blended > blend_score + 0.05:
-            blend_score = blended
-            blend_best = candidate
-    return blend_best
+    try:
+        result = llm_runner.generate(prompt=prompt).strip()
+    except Exception as exc:
+        logger.warning(f"⚠️ Tone classification failed: {exc}")
+        return "SEEKING"
+    normalized = _normalize_emotion_key(result)
+    return normalized if normalized in PANKSEPP_LABELS else "SEEKING"
 
 # === Load Topic Tree JSON ===
 TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
@@ -593,11 +652,30 @@ TOPIC_EMBEDDINGS = {
     f"{t['top']} → {t['sub']}": st_model.encode([t["desc"]], convert_to_tensor=True)[0]
     for t in flatten_topics(TOPIC_TREE)
 }
+TOPIC_LABELS = [f"{t['top']} → {t['sub']}" for t in flatten_topics(TOPIC_TREE)]
+
+
+def _llm_topic_classifier(text_input: str) -> str:
+    """Ask the LLM (out of character) to pick a topic label from the tree."""
+    labels_text = "\n".join(f"- {label}" for label in TOPIC_LABELS)
+    prompt = (
+        "You are a classifier. Given the therapist/patient exchange, "
+        "choose the most relevant topic label from the list or reply with 'unknown'. "
+        "Respond with exactly one label string or 'unknown'.\n\n"
+        f"Text:\n{text_input}\n\n"
+        "Available topic labels:\n"
+        f"{labels_text}\n"
+        "Answer:"
+    )
+    result = llm_runner.generate(prompt=prompt)
+    return result.strip()
 
 # === LangGraph State ===
 class State(BaseModel):
     """Central LangGraph state container passed between nodes."""
     patient_id: Optional[str] = None  # NEW
+    therapist_id: Optional[str] = None
+    session_id: Optional[str] = None
     user_input: Optional[str] = None
     safe_user_input: Optional[str] = None
     safety_flags: list = Field(default_factory=list)
@@ -609,9 +687,12 @@ class State(BaseModel):
     topic_similarity: float = 0.0
     history: list = Field(default_factory=list)
     summary: str = ""
+    session_reflection: str = ""
     long_term_context: list[str] = Field(default_factory=list)
+    episodic_context: list[str] = Field(default_factory=list)
     messages: List[BaseMessage] = Field(default_factory=list)
     total_turns: int = 0
+    last_episode_turn: int = 0
     core_emotion: Optional[str] = None
     emotion_intensity: float = 0.7
     emotion_state: Dict[str, float] = Field(default_factory=dict)
@@ -628,6 +709,7 @@ def load_profile(state):
     logger.info("🔄 Loading patient profile...")
 
     patient_id = getattr(state, "patient_id", None)
+    therapist_id = getattr(state, "therapist_id", None) or "therapist0"
     if not patient_id:
         raise ValueError("❌ Missing patient_id in state — cannot load profile.")
 
@@ -635,15 +717,21 @@ def load_profile(state):
         logger.info("ℹ️ Patient profile already loaded; refreshing long-term summary if needed.")
         updates = {}
         if not state.summary:
-            stored_summary = load_long_term_summary(patient_id)
+            stored_summary = load_long_term_summary(patient_id, therapist_id)
             if stored_summary:
                 updates["summary"] = stored_summary
+        if not state.session_reflection:
+            stored_reflection = load_latest_session_reflection(patient_id, therapist_id)
+            if stored_reflection:
+                updates["session_reflection"] = stored_reflection
         if state.core_emotion is None and hasattr(state.patient_profile, "core_emotion"):
-            updates["core_emotion"] = state.patient_profile.core_emotion
+            updates["core_emotion"] = _normalize_emotion_key(state.patient_profile.core_emotion).lower()
         if state.emotion_intensity is None and hasattr(state.patient_profile, "emotion_intensity"):
             updates["emotion_intensity"] = state.patient_profile.emotion_intensity
         if not state.emotion_state and getattr(state.patient_profile, "emotion_state", None):
             updates["emotion_state"] = state.patient_profile.emotion_state
+        if not state.therapist_id:
+            updates["therapist_id"] = therapist_id
         return updates
 
     patient_path = ROOT_DIR / "data" / "patients" / f"{patient_id}.json"
@@ -651,9 +739,12 @@ def load_profile(state):
         raise FileNotFoundError(f"❌ Patient file not found: {patient_path}")
 
     profile = _get_cached_profile(patient_id, patient_path)
+    if isinstance(profile.details, dict):
+        profile.details = PatientDetails(**profile.details)
     core = getattr(state, "core_emotion", None) or getattr(profile, "core_emotion", None)
     if not core:
         core = _infer_core_emotion(profile)
+    core = _normalize_emotion_key(core) or "SEEKING"
     intensity = getattr(state, "emotion_intensity", None)
     if intensity is None:
         intensity = getattr(profile, "emotion_intensity", 0.7)
@@ -661,21 +752,25 @@ def load_profile(state):
     profile.__dict__["core_emotion"] = core
     profile.__dict__["emotion_intensity"] = float(intensity)
     if not hasattr(profile, "current_emotional_state"):
-        profile.current_emotional_state = core
+        profile.current_emotional_state = core.lower()
     if not getattr(profile, "emotion_state", None):
         profile.emotion_state = dict(DEFAULT_TRAIT_BASELINE)
 
-    stored_summary = load_long_term_summary(patient_id)
+    stored_summary = load_long_term_summary(patient_id, therapist_id)
+    stored_reflection = load_latest_session_reflection(patient_id, therapist_id)
     logger.info(f"✅ Patient profile loaded: {patient_id}")
     updates = {
         "patient_profile": profile,
         "patient_id": patient_id,
+        "therapist_id": therapist_id,
         "core_emotion": core,
         "emotion_intensity": float(intensity),
     }
     if stored_summary:
         logger.info("📚 Loaded existing long-term summary for patient.")
         updates["summary"] = stored_summary
+    if stored_reflection:
+        updates["session_reflection"] = stored_reflection
     return updates
 
 
@@ -718,7 +813,6 @@ def update_emotional_state(state):
         min(prev_intensity + 0.1, intensity)
     )
 
-    profile.current_emotional_state = primary_emotion.lower()
     profile.emotion_state = snapshot
     state.emotion_state = snapshot
     state.emotion_event = event
@@ -740,9 +834,19 @@ def update_emotional_state(state):
         "low_salience_streak": state.low_salience_streak,
     }
 
-def detect_intent_topic(state, threshold: float = 0.3):
-    """Two-stage topic handling: (1) confirm we are still in old topic, else (2) pick new best."""
-    logger.info("🔍 Detecting topic with SentenceTransformer (two-stage)...")
+def _is_greeting_or_checkin(text: str) -> bool:
+    """Quick check for greeting/check-in phrases that should not force a new topic."""
+    lowered = text.lower()
+    simple = {"hi", "hey", "hello", "good morning", "good afternoon", "good evening"}
+    if any(lowered.startswith(g) for g in simple):
+        return True
+    cues = ["how are you", "how are things", "checking in", "how have you been", "how's it going", "you ok", "you okay"]
+    return any(cue in lowered for cue in cues)
+
+
+def detect_intent_topic(state):
+    """Infer the most likely topic via an LLM classifier that selects from the topic tree."""
+    logger.debug("🔍 Detecting topic with LLM classifier...")
 
     # Use ONLY actual content for detection (no previous-topic injection)
     # Keep your existing function but REMOVE the "(previous topic: ...)" part from _build_topic_text,
@@ -763,76 +867,48 @@ def detect_intent_topic(state, threshold: float = 0.3):
         }
         return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic.get("score", 0.0)}
 
-    text_emb = st_model.encode(text_input, convert_to_tensor=True)
+    try:
+        label = _llm_topic_classifier(text_input)
+    except Exception as exc:
+        logger.warning(f"⚠️ Topic classifier failed: {exc}. Marking as unknown.")
+        label = "unknown"
 
-    # --- 1) Find best candidate topic ---
-    scores = {
-        key: util.cos_sim(text_emb, emb).item()
-        for key, emb in TOPIC_EMBEDDINGS.items()
-    }
-    best_key, best_score = max(scores.items(), key=lambda x: x[1])
-    best_top, best_sub = best_key.split(" → ")
-
-    best_topic = {
-        "intent": "topic_detection",
-        "top": best_top,
-        "sub": best_sub if best_score >= threshold else "general",
-        "score": best_score,
-    }
-
-    # --- 2) Check whether we're still in the previous topic (directly) ---
-    prev_topic = state.last_topic
-    prev_score = 0.0
-    if prev_topic and prev_topic.get("top") and prev_topic.get("sub"):
-        prev_key = f"{prev_topic['top']} → {prev_topic['sub']}"
-        prev_emb = TOPIC_EMBEDDINGS.get(prev_key)
-        if prev_emb is not None:
-            prev_score = util.cos_sim(text_emb, prev_emb).item()
-
-    # --- 3) Decision rules (hysteresis) ---
-    # Tune these two numbers; they’re the whole game.
-    STAY_MIN = max(0.25, threshold - 0.05)   # "still plausibly on old topic"
-    SWITCH_MARGIN = 0.05                     # new must beat old by this much to switch
-
-    # If therapist is just nudging and previous topic is still plausible -> stay
+    greeting = _is_greeting_or_checkin(state.user_input or "")
     follow_up = _is_follow_up(state.safe_user_input or state.user_input)
-    if prev_topic and follow_up and prev_score >= STAY_MIN:
-        logger.info(f"↪️ Follow-up detected; staying on previous topic: {prev_topic['top']} → {prev_topic['sub']} (prev_score={prev_score:.3f})")
-        topic = dict(prev_topic)
-        topic["score"] = prev_score
-        return {"intent_topic": topic, "last_topic": topic, "topic_similarity": prev_score}
+    prev_topic = state.last_topic
 
-    # If we have a previous topic, prefer staying unless new clearly wins
-    if prev_topic:
-        # Stay if previous is still strong enough AND new doesn't clearly beat it
-        if prev_score >= STAY_MIN and (best_score - prev_score) < SWITCH_MARGIN:
-            logger.info(
-                f"↪️ Staying on previous topic: {prev_topic['top']} → {prev_topic['sub']} "
-                f"(prev_score={prev_score:.3f}, best={best_top}→{best_sub} {best_score:.3f})"
-            )
-            topic = dict(prev_topic)
-            topic["score"] = prev_score
-            return {"intent_topic": topic, "last_topic": topic, "topic_similarity": prev_score}
+    unknown_label = label.lower() == "unknown"
 
-    # Otherwise switch to best topic (if it’s at least confident-ish)
-    if best_score < threshold and prev_topic:
-        # If best isn't confident, fall back to previous (continuity)
-        logger.info(
-            f"↪️ Best score below threshold; keeping previous topic: {prev_topic['top']} → {prev_topic['sub']} "
-            f"(best_score={best_score:.3f})"
-        )
-        topic = dict(prev_topic)
-        topic["score"] = prev_score
-        return {"intent_topic": topic, "last_topic": topic, "topic_similarity": prev_score}
+    if unknown_label and prev_topic and (greeting or follow_up or state.history):
+        logger.debug("↪️ Low-confidence/brief turn; keeping previous topic for continuity.")
+        topic = prev_topic
+    elif unknown_label:
+        topic = {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0}
+    else:
+        if "→" in label:
+            parts = [p.strip() for p in label.split("→")]
+        elif ">" in label:
+            parts = [p.strip() for p in label.split(">")]
+        else:
+            parts = [label.strip(), "general"]
+        if len(parts) == 1:
+            parts.append("general")
+        topic = {
+            "intent": "topic_detection",
+            "top": parts[0],
+            "sub": parts[1],
+            "score": 1.0,
+        }
 
-    logger.info(f"🧠 Switching/detecting topic: {best_topic['top']} → {best_topic['sub']} (score={best_score:.3f}, prev_score={prev_score:.3f})")
-    return {"intent_topic": best_topic, "last_topic": best_topic, "topic_similarity": best_score}
+    logger.debug(f"📌 State update → intent_topic={topic}, last_topic={topic}")
+    return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic.get("score", 0.0)}
 
 def generate_response(state):
     """Call the configured LLM runner with retry/fallback logic."""
     logger.info("💬 Generating response to therapist input...")
     prompt = state.prompt or "Respond as the patient based on prior instructions."
     last_error = None
+    logging.info(prompt)
 
     for attempt in range(1, MAX_LLM_RETRIES + 1):
         try:
@@ -846,7 +922,7 @@ def generate_response(state):
             logger.warning(f"⚠️ LLM generation failed on attempt {attempt}: {exc}")
 
     logger.error(f"❌ LLM failed after {MAX_LLM_RETRIES} attempts: {last_error}")
-    return {"response": LLM_FALLBACK_RESPONSE}
+    return {"response":  "I'm trying to stay with what I'm feeling right now. Could we keep talking about that?"}
 
 
 def append_messages(state):
@@ -864,7 +940,7 @@ def append_messages(state):
 
 
 def trim_messages(state):
-    """Keep a bounded recency window and summarize overflow batches."""
+    """Keep a bounded recency window for messages."""
     messages = state.messages
     if len(messages) <= MAX_MESSAGE_WINDOW:
         return {}
@@ -873,15 +949,7 @@ def trim_messages(state):
     trimmed = messages[-MAX_MESSAGE_WINDOW:]
     turns = _messages_to_turns(overflow_msgs)
     leftover_turns = []
-
-    if state.patient_id and turns:
-        for chunk in _chunk_turns(turns, SUMMARY_BATCH_SIZE):
-            if len(chunk) == SUMMARY_BATCH_SIZE:
-                _schedule_summary_job(state.patient_id, chunk, state.intent_topic)
-            else:
-                leftover_turns.extend(chunk)
-    else:
-        leftover_turns = turns
+    leftover_turns = turns
 
     if leftover_turns:
         trimmed = _turns_to_messages(leftover_turns) + trimmed
@@ -892,24 +960,21 @@ def trim_messages(state):
 
 def hydrate_long_term_context(state):
     """Retrieve long-term memories relevant to the therapist input/topic for grounding."""
-    notes = fetch_relevant_long_term_memories(
+    notes = fetch_relevant_episodic_memories(
         patient_id=state.patient_id,
+        therapist_id=state.therapist_id,
         topic=state.intent_topic,
         query=state.safe_user_input or state.user_input,
     )
     if notes:
-        logger.info(f"🗂️ Retrieved {len(notes)} relevant long-term memories.")
+        logger.info(f"🗂️ Retrieved {len(notes)} relevant episodic memories.")
     else:
-        logger.info("🗂️ No matching long-term memories for this turn.")
-    return {"long_term_context": notes}
+        logger.info("🗂️ No matching episodic memories for this turn.")
+    return {"long_term_context": notes, "episodic_context": notes}
 
 
 def sanitize_user_input(state):
-    """
-    Detect prompt-injection attempts or command-like therapist inputs and log safety flags.
-    The original text is preserved for storage, but downstream nodes can reference
-    `safe_user_input` along with the captured flag list to enforce guardrails.
-    """
+    """Detect prompt-injection attempts and log safety flags."""
     original_text = (state.user_input or "").strip()
     lowered = original_text.lower()
     flags = [label for label, pattern in SAFETY_PATTERNS if pattern.search(lowered)]
@@ -941,8 +1006,8 @@ def update_memory(state):
     """
     logger.info("🧠 Entering update_memory()")
 
-    if state.patient_id:
-        _collect_completed_summaries(state.patient_id, state)
+    if state.patient_id and state.therapist_id:
+        _collect_completed_episodes(_memory_key(state.patient_id, state.therapist_id))
 
     # === 1. Append new turn ===
     new_turn = {
@@ -960,55 +1025,43 @@ def update_memory(state):
     if len(state.history) > MAX_SHORT_TERM_TURNS:
         state.history = state.history[-MAX_SHORT_TERM_TURNS:]
 
-    # === 3. Update emotional tone (prefer synthesized vector; fallback to LLM heuristic) ===
-    if state.emotion_state and state.emotion_salience >= 0.25:
-        dominant_emotion, dominant_value = max(state.emotion_state.items(), key=lambda item: item[1])
-        prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
-        state.patient_profile.current_emotional_state = dominant_emotion.lower()
-        state.patient_profile.emotion_state = state.emotion_state
-        # keep intensity computed by the emotion model
-        logger.info(
-            f"🫀 Emotional tone (model-driven): '{prev_tone}' → '{dominant_emotion.lower()}' "
-            f"(intensity={dominant_value:.2f}, event={state.emotion_event})"
-        )
-    else:
-        try:
-            tone_prompt = (
-                f"Based on the patient's latest reply below, describe their current emotional tone "
-                f"in one short, clinician-style phrase (e.g., 'anxious and defensive', 'sad but receptive', 'flat affect and withdrawn').\n\n"
-                f"Patient reply:\n{state.response}"
+    # === 2b. Summarize episodic batches ===
+    if state.patient_id and state.therapist_id:
+        last_episode_turn = state.last_episode_turn or 0
+        turns_since = state.total_turns - last_episode_turn
+        if turns_since >= EPISODE_BATCH_SIZE and len(state.history) >= EPISODE_BATCH_SIZE:
+            chunk = state.history[-EPISODE_BATCH_SIZE:]
+            turn_range = (state.total_turns - EPISODE_BATCH_SIZE + 1, state.total_turns)
+            _schedule_episode_job(
+                patient_id=state.patient_id,
+                therapist_id=state.therapist_id,
+                session_id=state.session_id or "unknown",
+                chunk=chunk,
+                topic=state.intent_topic,
+                turn_range=turn_range,
+                emotion_label=_normalize_emotion_key(state.core_emotion) or "SEEKING",
+                emotion_intensity=state.emotion_intensity or 0.5,
+                salience=state.emotion_salience or 0.2,
             )
-            tone_summary = llm_runner.generate(prompt=tone_prompt).strip()
-            proposed_emotion, _, emotion_scores = classify_emotion_by_similarity(tone_summary)
-            core_emotion = getattr(state.patient_profile, "core_emotion", None) or state.core_emotion or _infer_core_emotion(state.patient_profile)
-            intensity = getattr(state.patient_profile, "emotion_intensity", None)
-            if intensity is None:
-                intensity = state.emotion_intensity
-            if intensity is None:
-                intensity = 0.7
-            blended_scores = _blend_scores_with_baseline(emotion_scores, core_emotion, intensity)
-            proposed = max(blended_scores.items(), key=lambda item: item[1])[0]
+            state.last_episode_turn = state.total_turns
 
-            prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
-            smoothed = smooth_emotion_transition(prev_tone, proposed, blended_scores, intensity, core_emotion)
-            state.patient_profile.current_emotional_state = smoothed
-            new_intensity = _adjust_intensity(float(intensity), smoothed)
-            state.patient_profile.__dict__["emotion_intensity"] = new_intensity
-            state.core_emotion = core_emotion
-            state.emotion_intensity = new_intensity
+    # === 3. Update emotional tone with an LLM classifier ===
+    try:
+        tone_label = classify_emotion_by_llm(state.response or "")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not extract emotional tone: {e}")
+        tone_label = "SEEKING"
 
-            logger.info(
-                f"🫀 Emotional tone updated: '{prev_tone}' → '{smoothed}' "
-                f"(raw='{proposed_emotion}', intensity={new_intensity:.2f}, desc='{tone_summary}')"
-            )
-
-        except Exception as e:
-            logger.warning(f"⚠️ Could not extract emotional tone: {e}")
-            state.patient_profile.current_emotional_state = "base"
+    prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
+    state.patient_profile.current_emotional_state = tone_label.lower()
+    logger.info(
+        f"🫀 Emotional tone (LLM): '{prev_tone}' → '{tone_label.lower()}' "
+        f"(event={state.emotion_event})"
+    )
 
     # === 4. Inspect and return ===
-    logger.info(f"📊 Summary length: {len(state.summary)} chars")
-    logger.info(f"📈 History length: {len(state.history)} turns")
+    logger.debug(f"📊 Summary length: {len(state.summary)} chars")
+    logger.debug(f"📈 History length: {len(state.history)} turns")
     for i, h in enumerate(state.history, 1):
         logger.debug(f"   🗣️ Turn {i}: Therapist='{h['therapist'][:40]}...' | Patient='{h['patient'][:40]}...'")
 
@@ -1018,6 +1071,7 @@ def update_memory(state):
         "patient_profile": state.patient_profile,
         "total_turns": state.total_turns,
         "emotion_state": state.emotion_state,
+        "last_episode_turn": state.last_episode_turn,
     }
 
 def display_response(state):
@@ -1027,6 +1081,121 @@ def display_response(state):
     logger.info(f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}")
     logger.info(f"🕓 Turns so far: {len(state.history)} | Summary length: {len(state.summary)} chars\n")
 
+    return state
+
+
+def _drain_episode_futures(patient_id: str, therapist_id: str) -> None:
+    """Wait briefly for any pending episode summaries to finish."""
+    memory_key = _memory_key(patient_id, therapist_id)
+    futures = EPISODE_TASKS.get(memory_key, [])
+    if not futures:
+        return
+    done, not_done = wait(futures, timeout=SUMMARY_TIMEOUT_SECONDS, return_when=ALL_COMPLETED)
+    for fut in done:
+        try:
+            fut.result()
+        except Exception as exc:
+            logger.warning(f"⚠️ Episode future error during finalize ({memory_key}): {exc}")
+    for fut in not_done:
+        logger.warning(f"⚠️ Episode future still running for {memory_key}; cancelling.")
+        fut.cancel()
+    EPISODE_TASKS[memory_key] = []
+
+
+def _load_session_episode_texts(patient_id: str, therapist_id: str, session_id: str) -> list[str]:
+    texts = []
+    for record in MEMORY_STORE.iter_records(patient_id, therapist_id):
+        if record.get("type") != "episode_summary":
+            continue
+        if record.get("session_id") != session_id:
+            continue
+        text = record.get("text", "")
+        if text:
+            texts.append(text)
+    return texts
+
+
+def _generate_session_reflection(episode_texts: list[str], fallback_history: list[dict]) -> str:
+    if episode_texts:
+        bullets = "\n".join(f"- {text}" for text in episode_texts)
+        context = f"Episodes:\n{bullets}"
+    else:
+        turns = "\n".join(
+            f"Therapist: {h.get('therapist')}\nPatient: {h.get('patient')}"
+            for h in fallback_history[-EPISODE_BATCH_SIZE:]
+        )
+        context = f"Recent turns:\n{turns}"
+
+    prompt = (
+        "You are producing a session reflection for a therapy patient. "
+        "Write 4-6 sentences that the patient could have said about the session. "
+        "Use first person (I/me), highlight key themes, emotional shifts, "
+        "relational dynamics with the therapist, and any open questions. "
+        "Keep it concise, plain, and faithful to what was said.\n\n"
+        f"{context}"
+    )
+    try:
+        return llm_runner.generate(prompt=prompt).strip()
+    except Exception as exc:
+        logger.warning(f"⚠️ Session reflection generation failed: {exc}")
+        return ""
+
+
+def _update_long_term_summary_from_reflection(
+    patient_id: str,
+    therapist_id: str,
+    reflection_text: str,
+) -> str:
+    existing = load_long_term_summary(patient_id, therapist_id)
+    prompt = (
+        "You maintain a long-term therapy memory written in the patient's voice. "
+        "Update the memory using the new session reflection below. "
+        "Write 5-7 sentences in first person (I/me). Preserve stable facts and "
+        "incorporate new developments or shifts, staying close to what was said. "
+        "Keep it plain and informative for grounding future sessions.\n\n"
+        f"Existing summary:\n{existing or '[none]'}\n\n"
+        f"New session reflection:\n{reflection_text}"
+    )
+    try:
+        updated = llm_runner.generate(prompt=prompt).strip()
+    except Exception as exc:
+        logger.warning(f"⚠️ Long-term summary update failed: {exc}")
+        return existing
+    if updated:
+        persist_long_term_summary(
+            patient_id=patient_id,
+            therapist_id=therapist_id,
+            summary_text=updated,
+        )
+        return updated
+    return existing
+
+
+def finalize_session_memory(state: dict) -> dict:
+    """Finalize session-level reflection and long-term summary updates."""
+    patient_id = state.get("patient_id")
+    therapist_id = state.get("therapist_id") or "therapist0"
+    session_id = state.get("session_id") or "unknown"
+    if not patient_id:
+        return state
+
+    _drain_episode_futures(patient_id, therapist_id)
+    episode_texts = _load_session_episode_texts(patient_id, therapist_id, session_id)
+    reflection = _generate_session_reflection(episode_texts, state.get("history", []))
+    if reflection:
+        persist_session_reflection(
+            patient_id=patient_id,
+            therapist_id=therapist_id,
+            session_id=session_id,
+            reflection_text=reflection,
+        )
+        updated_summary = _update_long_term_summary_from_reflection(
+            patient_id=patient_id,
+            therapist_id=therapist_id,
+            reflection_text=reflection,
+        )
+        state["session_reflection"] = reflection
+        state["summary"] = updated_summary
     return state
 
 # === Build LangGraph ===

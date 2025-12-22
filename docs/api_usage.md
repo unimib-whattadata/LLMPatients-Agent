@@ -1,6 +1,6 @@
 # PsyLLM API Usage
 
-Minimal examples for authenticating, creating a patient record, and sending chat turns to the simulated patient agent.
+Minimal examples for creating a patient record, sending chat turns, and finalizing sessions.
 
 ## 1) Start the Service
 - Launch FastAPI: `uvicorn agent.api.app:app --reload --port 8000`
@@ -25,17 +25,6 @@ curl -X POST http://localhost:8000/patients \
         "session_id": "intake-session"
       }'
 ```
-Example response when the patient is created:
-```json
-{
-  "status": "success",
-  "code": "PATIENT_CREATED",
-  "external_patient_id": "alex_martinez_001",
-  "message": "Paziente inizializzato correttamente nel sistema esterno",
-  "timestamp": "2024-07-17T12:34:56.123456"
-}
-```
-If the patient already exists, `status` becomes `exists` and `code` becomes `PATIENT_EXISTS`.
 
 ## 3) Send a Chat Turn
 ```bash
@@ -49,18 +38,30 @@ curl -X POST http://localhost:8000/chat-response \
         "therapist_id": "therapist0"
       }'
 ```
+
 Example response:
 ```json
 {
   "message": "Honestly, sleep has been rough. I keep waking up worrying about deadlines.",
   "reasoning_time": 0.842,
-  "emotion": "base",
+  "emotion": "seeking",
   "topic": "general",
   "timestamp": "2024-07-17T12:35:02.789012"
 }
 ```
 
+## 4) End a Session (finalize reflection + long-term summary)
+```bash
+curl -X POST http://localhost:8000/session-end \
+  -H "Content-Type: application/json" \
+  -d '{
+        "external_patient_id": "alex_martinez_001",
+        "session_id": "intake-session",
+        "therapist_id": "therapist0"
+      }'
+```
+
 ## Notes
-- Patient files are stored under `data/patients/<patient_id>.json`; requests reuse existing files.
-- Use a consistent `session_id` to keep session context and summaries tied to the same conversation.
-- `difficulty_level` maps to an internal volatility preset (low/medium/high) for emotion dynamics.
+- Patient files are stored under `data/patients/<patient_id>.json`.
+- Use a consistent `session_id` to keep context and summaries tied to the same conversation.
+- `difficulty_level` maps to the internal volatility preset (low/medium/high) for emotion dynamics.

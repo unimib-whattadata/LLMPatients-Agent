@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from typing import Dict, Optional
 
-EMOTIONS = ["SEEKING", "RAGE", "FEAR", "CARE", "LUST", "SADNESS", "PLAY"]
+EMOTIONS = ["SEEKING", "FEAR", "RAGE", "LUST", "CARE", "PANIC_GRIEF", "PLAY"]
 
 VOLATILITY_SIGMA = {
     "low": 0.05,
@@ -13,10 +13,30 @@ VOLATILITY_SIGMA = {
     "high": 0.12,
 }
 
+EMOTION_LABELS = {
+    "SEEKING": "Seeking",
+    "FEAR": "Fear",
+    "RAGE": "Rage",
+    "LUST": "Lust",
+    "CARE": "Care",
+    "PANIC_GRIEF": "Panic/Grief",
+    "PLAY": "Play",
+}
+
+EMOTION_SYSTEM_HINTS = {
+    "SEEKING": "Curious, driven to explore, motivated to act.",
+    "FEAR": "Hypervigilant, anxious energy with protective scanning.",
+    "RAGE": "Irritable, confrontational edge with flashes of anger.",
+    "LUST": "Sensual undertones or flirtatious tension.",
+    "CARE": "Warmth and desire to nurture or be nurtured.",
+    "PANIC_GRIEF": "Separation distress, loss, or grief-heavy weight.",
+    "PLAY": "Light, joking, mischievous tone.",
+}
+
 CONTEXT_MODIFIERS = {
-    "empathy": {"SADNESS": -0.10, "CARE": 0.10},
+    "empathy": {"PANIC_GRIEF": -0.10, "CARE": 0.10},
     "boundary": {"RAGE": 0.15, "FEAR": 0.10},
-    "abandonment_cue": {"FEAR": 0.20, "SADNESS": 0.15},
+    "abandonment_cue": {"FEAR": 0.20, "PANIC_GRIEF": 0.15},
     "success_discussion": {"SEEKING": 0.10, "PLAY": 0.10},
     "neutral": {},
 }
@@ -122,6 +142,6 @@ def _apply_counterweights(vector: Dict[str, float]) -> Dict[str, float]:
         softened["RAGE"] = clamp(softened["RAGE"] - 0.03)
     if softened.get("RAGE", 0.0) > 0.6 and softened.get("PLAY", 0.0) > 0.25:
         softened["RAGE"] = clamp(softened["RAGE"] - 0.02)
-    if softened.get("SADNESS", 0.0) > 0.6 and softened.get("PLAY", 0.0) > 0.3:
-        softened["SADNESS"] = clamp(softened["SADNESS"] - 0.02)
+    if softened.get("PANIC_GRIEF", 0.0) > 0.6 and softened.get("PLAY", 0.0) > 0.3:
+        softened["PANIC_GRIEF"] = clamp(softened["PANIC_GRIEF"] - 0.02)
     return softened
