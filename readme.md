@@ -11,7 +11,6 @@
 6. [Configuration & Environment](#configuration--environment)
 7. [Running the Agent](#running-the-agent)
 8. [Logging & Memory](#logging--memory)
-9. [Evaluation Suite](#evaluation-suite)
 10. [Development Notes](#development-notes)
 11. [Troubleshooting & Next Steps](#troubleshooting--next-steps)
 12. [Emotion Dynamics Guide](#emotion-dynamics-guide)
@@ -69,7 +68,7 @@ data/
   topics_tree.json  Hierarchical topic metadata.
 notebooks/          Exploratory notebooks.
 scripts/            Utility CLIs.
-tests/              Run logs and evaluation artifacts.
+tests/              Run logs and artifacts.
 main.py             Full-featured CLI.
 Dockerfile          Container recipe.
 docs/               Additional markdown docs.
@@ -150,9 +149,6 @@ uvicorn agent.api.app:app --reload --port 8000
 - **Long-term summary**: updated from reflections at session end.
 - **Run logs**: `tests/runs/<therapist>.json` contains all turns and snapshots for resume.
 
-## Evaluation Suite
-- `agent/eval/suite.py` runs scripted scenarios and logs outcomes.
-- Results and run logs are saved under `tests/eval_runs/`.
 
 ## Development Notes
 - Keep new fields inside `PatientProfile` so prompt access is consistent.

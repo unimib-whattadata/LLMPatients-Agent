@@ -1,91 +1,130 @@
 {
   "Session Management": {
-    "metadata": { "profile_fields": [] },
-    "Greetings & SmallTalk": "This topic includes conversations at the start or end of the session, greetings, casual small talk, or polite exchanges. Example patient statements: 'Hi, how are you?', 'It’s good to see you again,' 'See you next week.'",
-    "CheckIn & WellbeingInquiry": "This topic includes conversations where the therapist or patient checks in on current wellbeing, general state, or mood."
+    "metadata": {
+      "profile_fields": []
+    },
+    "Greetings & SmallTalk": "at the start or end of the session, greetings, casual small talk, or polite exchanges",
+    "CheckIn & WellbeingInquiry": "the therapist or patient checks in on current wellbeing, general state, or mood"
   },
-
   "Personal Background & Identity": {
-    "metadata": { "profile_fields": ["demographicAndSocioculturalInformation", "familyHistory", "educationAndEmployment", "socialRelationshipsAndInteractions"] },
-    "ChildhoodFamilyDynamics & ChildhoodExperiences": "This topic includes conversations about family dynamics during childhood, early upbringing, supportive or neglectful parenting, positive memories, or difficult experiences such as abuse. Example patient statements: 'I had a happy childhood with my parents,' 'I grew up feeling unsupported,' 'My childhood shaped who I am today.'",
-    "CulturalBackground & ReligiousBeliefs": "This topic includes conversations about cultural identity, ethnic background, religious or spiritual beliefs, migration experiences, and how these shape a person positively or negatively. Example patient statements: 'I’m proud of my cultural heritage,' 'Religion gives me comfort,' 'I feel disconnected from my cultural roots.'",
-    "EducationLevel & WorkHistory": "This topic includes conversations about education, academic background, work history, job satisfaction, achievements, unemployment, or challenges in finding work. Example patient statements: 'I loved school and did well,' 'I’m proud of my degree,' 'I’ve struggled to hold a steady job.'",
-    "ValuesBeliefs & LongTermLifeGoals": "This topic includes conversations about personal values, guiding beliefs, life goals, dreams, and hopes for the future, whether clear or uncertain. Example patient statements: 'Family is the most important value in my life,' 'I have big dreams for the future,' 'I feel like I have no direction.'",
-    "StrengthsSkills & PersonalGrowth": "This topic includes conversations about personal strengths, skills, talents, growth, empowerment, or struggles with confidence. Example patient statements: 'I’m good at solving problems,' 'I’ve grown a lot in recent years,' 'I don’t feel like I have many strengths.'",
-    "SelfPerceptionIdentity & SelfEsteem": "This topic includes conversations about self-perception, identity, self-esteem, self-compassion, pride in oneself, or struggles with self-worth. Example patient statements: 'I’m proud of who I am,' 'I feel comfortable in my own skin,' 'I don’t know who I really am.'"
+    "metadata": {
+      "profile_fields": [
+        "demographicAndSocioculturalInformation",
+        "familyHistory",
+        "educationAndEmployment",
+        "socialRelationshipsAndInteractions"
+      ]
+    },
+    "ChildhoodFamilyDynamics & ChildhoodExperiences": "family dynamics during childhood, early upbringing, supportive or neglectful parenting, positive memories, or difficult experiences such as abuse",
+    "CulturalBackground & ReligiousBeliefs": "cultural identity, ethnic background, religious or spiritual beliefs, migration experiences, and how these shape a person positively or negatively",
+    "EducationLevel & WorkHistory": "education, academic background, work history, job satisfaction, achievements, unemployment, or challenges in finding work",
+    "ValuesBeliefs & LongTermLifeGoals": "personal values, guiding beliefs, life goals, dreams, and hopes for the future, whether clear or uncertain",
+    "StrengthsSkills & PersonalGrowth": "personal strengths, skills, talents, growth, empowerment, or struggles with confidence",
+    "SelfPerceptionIdentity & SelfEsteem": "self-perception, identity, self-esteem, self-compassion, pride in oneself, or struggles with self-worth"
   },
-
   "Relationships": {
-    "metadata": { "profile_fields": ["familyHistory", "socialRelationshipsAndInteractions"] },
-    "CurrentParentRelations & FamilyInteractions": "This topic includes conversations about current relationships with parents or family, whether supportive, close, estranged, or conflicted. Example patient statements: 'My father and I are very close,' 'I don’t talk to my family anymore,' 'Family gatherings make me happy.'",
-    "RomanticRelationships & SexualRelationships": "This topic includes conversations about romantic and sexual relationships, intimacy, dating, long-term partnerships, positive experiences, or difficulties such as breakups or trust issues. Example patient statements: 'My partner makes me feel safe,' 'My last relationship ended badly,' 'I enjoy dating.'",
-    "Friendships & SocialSupport": "This topic includes conversations about friendships, social connections, networks of support, loneliness, or isolation. Example patient statements: 'I have a few close friends I can rely on,' 'I feel lonely most of the time,' 'My friends support me when I need them.'",
-    "PeerColleagueRelations": "This topic includes conversations about relationships with peers, colleagues, supervisors, or academic connections, both positive and challenging. Example patient statements: 'I get along well with my coworkers,' 'I feel judged at work,' 'School friends were always supportive.'",
-    "ConflictLoss & AbuseHistory": "This topic includes conversations about interpersonal conflict, reconciliation, loss, grief, or experiences of abuse. Example patient statements: 'I had a fight with a friend but we made up,' 'Losing my grandmother was very hard,' 'I was emotionally abused growing up.'",
-    "BoundariesCommunication & RecurringDynamics": "This topic includes conversations about setting boundaries, communication styles, recurring dynamics in relationships, positive communication, or difficulties like idealization and devaluation. Example patient statements: 'I’ve learned to say no when needed,' 'I struggle with healthy boundaries,' 'I either idolize people or cut them off.'"
+    "metadata": {
+      "profile_fields": [
+        "familyHistory",
+        "socialRelationshipsAndInteractions"
+      ]
+    },
+    "CurrentParentRelations & FamilyInteractions": "current relationships with parents or family, whether supportive, close, estranged, or conflicted",
+    "RomanticRelationships & SexualRelationships": "romantic and sexual relationships, intimacy, dating, long-term partnerships, positive experiences, or difficulties such as breakups or trust issues",
+    "Friendships & SocialSupport": "friendships, social connections, networks of support, loneliness, or isolation",
+    "PeerColleagueRelations": "relationships with peers, colleagues, supervisors, or academic connections, both positive and challenging",
+    "ConflictLoss & AbuseHistory": "interpersonal conflict, reconciliation, loss, grief, or experiences of abuse",
+    "BoundariesCommunication & RecurringDynamics": "setting boundaries, communication styles, recurring dynamics in relationships, positive communication, or difficulties like idealization and devaluation"
   },
-
   "Mental & Emotional Life": {
-    "metadata": { "profile_fields": ["clinicalFunctioning", "behaviorDuringTestAdministration"] },
-    "MainSymptoms & EmotionalReactions": "This topic includes conversations about mood and emotions, such as joy, excitement, calmness, sadness, anger, or instability. Example patient statements: 'I’ve been feeling happy and balanced lately,' 'I get angry too easily,' 'My emotions change quickly.'",
-    "ThoughtsWorriesRumination & CognitiveStyle": "This topic includes conversations about thinking patterns, whether optimistic, rational, creative, or negative, anxious, or accusatory. Example patient statements: 'I tend to think positively,' 'I overthink everything,' 'I believe people are against me sometimes.'",
-    "CopingStrategies & DefenseMechanisms": "This topic includes conversations about coping strategies and defense mechanisms, whether adaptive (exercise, journaling, relaxation) or maladaptive (avoidance, projection, denial). Example patient statements: 'I cope well with stress by exercising,' 'I avoid problems until it’s too late.'",
-    "SelfPerceptionIdentity & IdentityStruggles": "This topic includes conversations about identity, self-image, self-esteem, and confidence, whether stable and positive or unstable and negative. Example patient statements: 'I feel comfortable with who I am,' 'My self-image changes constantly,' 'I often feel worthless.'",
-    "TraumaAdverseExperiences & AbuseHistory": "This topic includes conversations about past trauma, adversity, or abuse, as well as resilience, recovery, or positive reinterpretation of difficult events. Example patient statements: 'I was abused as a child,' 'I’ve learned to grow from past trauma,' 'Hardships made me stronger.'",
-    "GriefLoss & TerminatedRelationships": "This topic includes conversations about grief, mourning, and loss, or finding meaning after losing someone or something important. Example patient statements: 'I’m still grieving my loss,' 'I’ve found peace after my breakup,' 'Losing friends has made me appreciate the ones I still have.'"
+    "metadata": {
+      "profile_fields": [
+        "clinicalFunctioning",
+        "behaviorDuringTestAdministration"
+      ]
+    },
+    "MainSymptoms & EmotionalReactions": "mood and emotions, such as joy, excitement, calmness, sadness, anger, or instability",
+    "ThoughtsWorriesRumination & CognitiveStyle": "thinking patterns, whether optimistic, rational, creative, or negative, anxious, or accusatory",
+    "CopingStrategies & DefenseMechanisms": "coping strategies and defense mechanisms, whether adaptive (exercise, journaling, relaxation) or maladaptive (avoidance, projection, denial)",
+    "SelfPerceptionIdentity & IdentityStruggles": "identity, self-image, self-esteem, and confidence, whether stable and positive or unstable and negative",
+    "TraumaAdverseExperiences & AbuseHistory": "past trauma, adversity, or abuse, as well as resilience, recovery, or positive reinterpretation of difficult events",
+    "GriefLoss & TerminatedRelationships": "grief, mourning, and loss, or finding meaning after losing someone or something important"
   },
-
   "Behavior & Habits": {
-    "metadata": { "profile_fields": ["medicalAndPhysicalHistory", "educationAndEmployment"] },
-    "DailyRoutines & Lifestyle": "This topic includes conversations about daily routines, lifestyle choices, and structure, whether stable and healthy or chaotic and unstructured. Example patient statements: 'I follow a healthy daily routine,' 'My days have no structure,' 'I rarely leave the house.'",
-    "SleepPatterns & EatingHabits": "This topic includes conversations about sleep quality, rest, eating habits, appetite, and nutrition, whether balanced or problematic. Example patient statements: 'I sleep well most nights,' 'I can’t fall asleep easily,' 'I forget to eat when stressed.'",
-    "SubstanceAbuse": "This topic includes conversations about alcohol, drugs, or other substances, whether absent, moderate, or problematic. Example patient statements: 'I don’t drink or use drugs,' 'I enjoy wine with dinner,' 'I rely on substances when stressed.'",
-    "SelfHarmSuicidality & ImpulsiveRiskBehaviors": "This topic includes conversations about self-harm, suicidality, or impulsive and risky behaviors, as well as discussions of safety, resilience, and recovery. Example patient statements: 'I’ve never harmed myself,' 'Sometimes I cut when I feel overwhelmed,' 'I take risks without thinking.'",
-    "ExerciseHealthBehaviors": "This topic includes conversations about exercise, health habits, and physical activity, whether absent, occasional, or regular. Example patient statements: 'I exercise every day,' 'I don’t work out much,' 'My lifestyle is sedentary.'",
-    "ProductivityProcrastination": "This topic includes conversations about productivity, procrastination, motivation, and time management, whether effective or impaired. Example patient statements: 'I manage my time well,' 'I procrastinate on everything,' 'I’m motivated to complete tasks.'"
+    "metadata": {
+      "profile_fields": [
+        "medicalAndPhysicalHistory",
+        "educationAndEmployment"
+      ]
+    },
+    "DailyRoutines & Lifestyle": "daily routines, lifestyle choices, and structure, whether stable and healthy or chaotic and unstructured",
+    "SleepPatterns & EatingHabits": "sleep quality, rest, eating habits, appetite, and nutrition, whether balanced or problematic",
+    "SubstanceAbuse": "alcohol, drugs, or other substances, whether absent, moderate, or problematic",
+    "SelfHarmSuicidality & ImpulsiveRiskBehaviors": "self-harm, suicidality, or impulsive and risky behaviors, as well as discussions of safety, resilience, and recovery",
+    "ExerciseHealthBehaviors": "exercise, health habits, and physical activity, whether absent, occasional, or regular",
+    "ProductivityProcrastination": "productivity, procrastination, motivation, and time management, whether effective or impaired"
   },
-
   "WorkStudyFinances": {
-    "metadata": { "profile_fields": ["educationAndEmployment"] },
-    "WorkHistory & JobSatisfaction": "This topic includes conversations about work history, employment, unemployment, job satisfaction, achievements, or burnout. Example patient statements: 'I’m proud of my career,' 'I’ve been unemployed for months,' 'I love my job.'",
-    "AcademicChallenges": "This topic includes conversations about academic performance, studies, and education, whether positive or negative. Example patient statements: 'I did well in school,' 'I struggled academically,' 'I enjoy studying new things.'",
-    "CareerChoicesTransitions": "This topic includes conversations about career choices, transitions, and professional growth, whether smooth or stressful. Example patient statements: 'I’m excited about my career change,' 'I don’t know what path to take,' 'My career transition was difficult.'",
-    "FinancialSituation": "This topic includes conversations about finances, money management, financial stability, or stress. Example patient statements: 'I’m financially stable,' 'I live paycheck to paycheck,' 'I’m worried about money.'"
+    "metadata": {
+      "profile_fields": [
+        "educationAndEmployment"
+      ]
+    },
+    "WorkHistory & JobSatisfaction": "work history, employment, unemployment, job satisfaction, achievements, or burnout",
+    "AcademicChallenges": "academic performance, studies, and education, whether positive or negative",
+    "CareerChoicesTransitions": "career choices, transitions, and professional growth, whether smooth or stressful",
+    "FinancialSituation": "finances, money management, financial stability, or stress"
   },
-
   "HealthBody": {
-    "metadata": { "profile_fields": ["medicalAndPhysicalHistory", "treatmentsAndInterventions"] },
-    "PreexistingConditions & CurrentMedications": "This topic includes conversations about physical health conditions, medical history, and medication use, whether stable, absent, or challenging. Example patient statements: 'I have no major health problems,' 'I take antidepressants,' 'My medication helps sometimes.'",
-    "PainChronicConditions": "This topic includes conversations about chronic pain or ongoing physical health conditions, whether well-managed or disruptive. Example patient statements: 'I don’t have chronic pain,' 'My pain is manageable,' 'I’ve suffered from back pain for years.'",
-    "BodyImageEatingHabits": "This topic includes conversations about body image, appearance, eating habits, and nutrition, whether healthy or troubled. Example patient statements: 'I’m happy with how I look,' 'I don’t like my body,' 'I sometimes restrict my eating.'",
-    "SexualHealth": "This topic includes conversations about sexual health, functioning, and wellbeing, whether satisfying or problematic. Example patient statements: 'I’m comfortable with my sexuality,' 'Sex makes me anxious,' 'I struggle with sexual health issues.'",
-    "MedicalAdherence & MedicationResponse": "This topic includes conversations about adherence to medical treatments, following prescriptions, and responses to medication, whether positive or negative. Example patient statements: 'I always take my meds as prescribed,' 'I forget sometimes,' 'The medication only helps partially.'"
+    "metadata": {
+      "profile_fields": [
+        "medicalAndPhysicalHistory",
+        "treatmentsAndInterventions"
+      ]
+    },
+    "PreexistingConditions & CurrentMedications": "physical health conditions, medical history, and medication use, whether stable, absent, or challenging",
+    "PainChronicConditions": "chronic pain or ongoing physical health conditions, whether well-managed or disruptive",
+    "BodyImageEatingHabits": "body image, appearance, eating habits, and nutrition, whether healthy or troubled",
+    "SexualHealth": "sexual health, functioning, and wellbeing, whether satisfying or problematic",
+    "MedicalAdherence & MedicationResponse": "adherence to medical treatments, following prescriptions, and responses to medication, whether positive or negative"
   },
-
   "SocialEnvironmentalContext": {
-    "metadata": { "profile_fields": ["familyHistory", "educationAndEmployment"] },
-    "HousingStability & HousingConditions": "This topic includes conversations about housing, living arrangements, stability, and conditions, whether positive or insecure. Example patient statements: 'I love my home,' 'I live alone and feel isolated,' 'I’m worried about losing my apartment.'",
-    "CommunityPolitics & SocialCohesion": "This topic includes conversations about community ties, political environment, social cohesion, and belonging, whether supportive or lacking. Example patient statements: 'I feel supported by my community,' 'My neighborhood is unsafe,' 'I don’t trust politics here.'",
-    "SocialSupportNetwork": "This topic includes conversations about social support, friendships, and networks, whether strong or minimal. Example patient statements: 'I have people I can rely on,' 'I don’t have anyone to turn to,' 'My support system is solid.'",
-    "LifeTransitions & Hospitalizations": "This topic includes conversations about life transitions (moving, retirement, immigration) and hospitalizations, whether positive, neutral, or difficult. Example patient statements: 'Moving was a great change,' 'Retirement has been hard,' 'I’ve been hospitalized three times.'"
+    "metadata": {
+      "profile_fields": [
+        "familyHistory",
+        "educationAndEmployment"
+      ]
+    },
+    "HousingStability & HousingConditions": "housing, living arrangements, stability, and conditions, whether positive or insecure",
+    "CommunityPolitics & SocialCohesion": "community ties, political environment, social cohesion, and belonging, whether supportive or lacking",
+    "SocialSupportNetwork": "social support, friendships, and networks, whether strong or minimal",
+    "LifeTransitions & Hospitalizations": "life transitions (moving, retirement, immigration) and hospitalizations, whether positive, neutral, or difficult"
   },
-
   "CopingGrowth": {
-    "metadata": { "profile_fields": ["clinicalFunctioning", "treatmentsAndInterventions"] },
-    "CopingStrategies & StressManagement": "This topic includes conversations about coping and stress management, whether adaptive (exercise, mindfulness) or maladaptive (avoidance, denial). Example patient statements: 'I handle stress by journaling,' 'I avoid problems until they explode,' 'I cope well with challenges.'",
-    "MindfulnessRelaxation": "This topic includes conversations about mindfulness, relaxation, meditation, or other practices, whether practiced regularly or absent. Example patient statements: 'I meditate daily,' 'Relaxation is hard for me,' 'I’ve never tried mindfulness.'",
-    "MeaningPurpose & HopeForFuture": "This topic includes conversations about meaning, life purpose, and hope, whether strong or absent. Example patient statements: 'I feel hopeful about the future,' 'Life feels meaningless,' 'I’ve found purpose in helping others.'",
-    "SpiritualExistentialConcerns": "This topic includes conversations about spiritual beliefs or existential concerns, whether grounding or distressing. Example patient statements: 'Spirituality guides me,' 'I feel disconnected from faith,' 'I question the meaning of life.'",
-    "CreativityHobbies": "This topic includes conversations about creativity, hobbies, and interests, whether fulfilling or lacking. Example patient statements: 'I love painting,' 'I don’t have hobbies,' 'Music brings me joy.'",
-    "ResiliencePostTraumaticGrowth": "This topic includes conversations about resilience and growth after adversity, whether present or lacking. Example patient statements: 'Hard times have made me stronger,' 'I’m resilient in the face of challenges,' 'I don’t feel like I recover from setbacks.'"
+    "metadata": {
+      "profile_fields": [
+        "clinicalFunctioning",
+        "treatmentsAndInterventions"
+      ]
+    },
+    "CopingStrategies & StressManagement": "coping and stress management, whether adaptive (exercise, mindfulness) or maladaptive (avoidance, denial)",
+    "MindfulnessRelaxation": "mindfulness, relaxation, meditation, or other practices, whether practiced regularly or absent",
+    "MeaningPurpose & HopeForFuture": "meaning, life purpose, and hope, whether strong or absent",
+    "SpiritualExistentialConcerns": "spiritual beliefs or existential concerns, whether grounding or distressing",
+    "CreativityHobbies": "creativity, hobbies, and interests, whether fulfilling or lacking",
+    "ResiliencePostTraumaticGrowth": "resilience and growth after adversity, whether present or lacking"
   },
-
   "TherapyProcess": {
-    "metadata": { "profile_fields": ["treatmentsAndInterventions", "clinicalFunctioning"] },
-    "TherapeuticGoals": "This topic includes conversations about therapy goals and expectations, whether clear or undefined. Example patient statements: 'I want to feel more stable,' 'I don’t know what I want from therapy.'",
-    "TherapeuticAlliance & ProgressResistance": "This topic includes conversations about the therapeutic relationship, trust, collaboration, or resistance. Example patient statements: 'I trust my therapist,' 'I resist opening up,' 'The alliance feels strong.'",
-    "ProgressSetbacks": "This topic includes conversations about progress in therapy, improvements, or setbacks. Example patient statements: 'I’ve been making progress,' 'Sometimes I regress,' 'Therapy feels like a rollercoaster.'",
-    "SessionInsights": "This topic includes conversations about insights and realizations gained in therapy, whether positive or confusing. Example patient statements: 'I realized something important today,' 'I didn’t understand the exercise,' 'This session helped me see a pattern.'",
-    "HomeworkPractice": "This topic includes conversations about therapy homework, exercises, or practices outside sessions, whether completed or avoided. Example patient statements: 'I did my homework,' 'I skipped the exercise,' 'The practice helped me.'"
+    "metadata": {
+      "profile_fields": [
+        "treatmentsAndInterventions",
+        "clinicalFunctioning"
+      ]
+    },
+    "TherapeuticGoals": "therapy goals and expectations, whether clear or undefined",
+    "TherapeuticAlliance & ProgressResistance": "the therapeutic relationship, trust, collaboration, or resistance",
+    "ProgressSetbacks": "progress in therapy, improvements, or setbacks",
+    "SessionInsights": "insights and realizations gained in therapy, whether positive or confusing",
+    "HomeworkPractice": "therapy homework, exercises, or practices outside sessions, whether completed or avoided"
   }
 }

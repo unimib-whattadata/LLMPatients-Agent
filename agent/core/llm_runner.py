@@ -148,7 +148,7 @@ def create_llm_runner() -> LLMRunnerBase:
     provider = os.getenv("model_provider", "local").lower()
     model_id = os.getenv("model_id")
     temperature = float(os.getenv("temperature", 0.7))
-    max_tokens = int(os.getenv("max_tokens", 2048))
+    max_tokens = int(os.getenv("max_tokens", 512))
     cache_path = os.getenv("cache_path")
 
     if provider == "local":
