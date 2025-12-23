@@ -76,8 +76,11 @@ Parenthetical asides are stripped before prompting; memory/summary lengths are c
 
 - Panksepp systems: SEEKING, FEAR, RAGE, LUST, CARE, PANIC_GRIEF, PLAY.
 - `update_emotional_state()` combines baseline + noise + context modifiers and smooths by salience.
-- Dominant systems (top 1–3) and intensity are injected into the prompt.
-- `current_emotional_state` is set via an LLM classifier using the patient reply; this is used for telemetry (API/logs) rather than driving the prompt.
+- Baseline trait intensities + volatility stay fixed and anchor all updates.
+- A single LLM classifier produces the prior-turn emotion label (strictly normalized to the Panksepp set) and topic label before response generation.
+- The prior emotion label seeds a gentle bias toward continuity, then `update_emotional_state()` reacts to the therapist input (event + salience + volatility).
+- Dominant systems (top 1–3) from the updated state are injected into the prompt, while the prior tone is referenced explicitly.
+- `current_emotional_state` is updated from the classifier output and used for telemetry (API/logs).
 
 ## 8. Entry Points
 
@@ -93,4 +96,3 @@ API | `agent/api/app.py` | `POST /chat-response` for turns; `POST /session-end` 
 2) Surface new data in `prompt_builder.py` if needed.
 3) Persist new fields in `RunLogger` if they must survive sessions.
 4) Update docs.
-

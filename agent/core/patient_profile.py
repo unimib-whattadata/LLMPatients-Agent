@@ -512,6 +512,12 @@ class PatientProfile(BaseModel):
     def cognitive_style_prompt(self, max_bullets: int = 6) -> Optional[str]:
         """Derive a compact cognitive style guide from clinical functioning fields."""
         details = self.details
+        if isinstance(details, dict):
+            try:
+                details = PatientDetails(**details)
+                self.details = details
+            except Exception:
+                return None
         if not details or not details.clinicalFunctioning:
             return None
         cf = details.clinicalFunctioning

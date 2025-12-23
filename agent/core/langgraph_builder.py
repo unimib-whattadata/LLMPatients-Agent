@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import re
 from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor, wait, ALL_COMPLETED
 from datetime import datetime, timezone
@@ -393,26 +394,41 @@ def _build_topic_text(state) -> str:
     Assemble the text snippet used for topic detection.
     Combines recent therapist inputs with the latest patient reply for more signal.
     """
+    def _clean_topic_text(text: str) -> str:
+        if not text:
+            return ""
+        cleaned = text.lower().strip()
+        cleaned = re.sub(r"[^\w\s'-]+", " ", cleaned)
+        filler = [
+            "hi", "hey", "hello", "good morning", "good afternoon", "good evening",
+            "how are you", "how are things", "checking in", "how have you been",
+            "how's it going", "you ok", "you okay", "thanks", "thank you"
+        ]
+        for phrase in filler:
+            cleaned = cleaned.replace(phrase, " ")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
+
     pieces = []
 
     # Last 2 therapist inputs (including current)
     therapist_texts = []
     current = (state.safe_user_input or state.user_input or "").strip()
     if current:
-        therapist_texts.append(current)
+        therapist_texts.append(_clean_topic_text(current))
     if state.history:
         prev = [turn.get("therapist", "") for turn in state.history[-2:]]
-        therapist_texts.extend([t for t in prev if t])
+        therapist_texts.extend([_clean_topic_text(t) for t in prev if t])
     if therapist_texts:
-        pieces.append(" | ".join(therapist_texts))
+        pieces.append(" | ".join(t for t in therapist_texts if t))
 
     # Latest patient reply for context
     if state.history:
         last_patient = state.history[-1].get("patient")
         if last_patient:
-            pieces.append(last_patient)
+            pieces.append(_clean_topic_text(last_patient))
 
-    return " ".join(pieces).strip()
+    return " ".join(piece for piece in pieces if piece).strip()
 
 
 PANKSEPP_LABELS = ["SEEKING", "FEAR", "RAGE", "LUST", "CARE", "PANIC_GRIEF", "PLAY"]
@@ -608,25 +624,6 @@ def fetch_relevant_episodic_memories(
         if item and item.value.get("text")
     ]
 
-def classify_emotion_by_llm(text: str) -> str:
-    """Ask the LLM to classify the patient's tone into a Panksepp system label."""
-    if not text or not text.strip():
-        return "SEEKING"
-    labels = ", ".join(PANKSEPP_LABELS)
-    prompt = (
-        "You are a classifier. Given the patient's reply, choose the single best "
-        f"emotion system label from: {labels}. Respond with exactly one label.\n\n"
-        f"Patient reply:\n{text.strip()}\n\n"
-        "Label:"
-    )
-    try:
-        result = llm_runner.generate(prompt=prompt).strip()
-    except Exception as exc:
-        logger.warning(f"⚠️ Tone classification failed: {exc}")
-        return "SEEKING"
-    normalized = _normalize_emotion_key(result)
-    return normalized if normalized in PANKSEPP_LABELS else "SEEKING"
-
 # === Load Topic Tree JSON ===
 TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
 with open(TOPIC_PATH, "r") as f:
@@ -648,27 +645,93 @@ def flatten_topics(topics_json):
     return flat
 
 # === Build embeddings ===
-TOPIC_EMBEDDINGS = {
-    f"{t['top']} → {t['sub']}": st_model.encode([t["desc"]], convert_to_tensor=True)[0]
-    for t in flatten_topics(TOPIC_TREE)
-}
-TOPIC_LABELS = [f"{t['top']} → {t['sub']}" for t in flatten_topics(TOPIC_TREE)]
+TOPIC_RECORDS = flatten_topics(TOPIC_TREE)
+TOPIC_LABELS = [f"{t['top']} → {t['sub']}" for t in TOPIC_RECORDS]
 
 
-def _llm_topic_classifier(text_input: str) -> str:
-    """Ask the LLM (out of character) to pick a topic label from the tree."""
+def _coerce_topic_label(label: str) -> str:
+    if not label:
+        return "unknown"
+    cleaned = label.strip()
+    if cleaned.lower() == "unknown":
+        return "unknown"
+    if cleaned in TOPIC_LABELS:
+        return cleaned
+    normalized = " → ".join(p.strip() for p in re.split(r"[→>]", cleaned) if p.strip())
+    return normalized if normalized in TOPIC_LABELS else "unknown"
+
+
+def _label_to_topic(label: str, fallback: Optional[dict]) -> dict:
+    if not label or label.lower() == "unknown":
+        return fallback or {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0}
+    if "→" in label:
+        parts = [p.strip() for p in label.split("→")]
+    elif ">" in label:
+        parts = [p.strip() for p in label.split(">")]
+    else:
+        parts = [label.strip(), "general"]
+    if len(parts) == 1:
+        parts.append("general")
+    return {
+        "intent": "topic_detection",
+        "top": parts[0],
+        "sub": parts[1],
+        "score": 1.0,
+    }
+
+
+def classify_topic_and_emotion(
+    therapist_text: str,
+    patient_text: str,
+    context_text: str = "",
+) -> tuple[str, str]:
+    """Single LLM call to classify topic label + patient emotion label."""
+    if not therapist_text and not patient_text:
+        return "unknown", "SEEKING"
     labels_text = "\n".join(f"- {label}" for label in TOPIC_LABELS)
+    emotion_labels = ", ".join(PANKSEPP_LABELS)
     prompt = (
-        "You are a classifier. Given the therapist/patient exchange, "
-        "choose the most relevant topic label from the list or reply with 'unknown'. "
-        "Respond with exactly one label string or 'unknown'.\n\n"
-        f"Text:\n{text_input}\n\n"
-        "Available topic labels:\n"
+        "You are a classifier. Given the therapist message and context, "
+        "return the best topic label from the list or 'unknown', and the patient's "
+        f"likely emotion label from: {emotion_labels}. Respond ONLY with JSON in the form "
+        '{"topic_label": "...", "emotion_label": "..."}.\n\n'
+        f"Therapist message:\n{therapist_text.strip() or '[none]'}\n\n"
+        f"Recent patient context:\n{patient_text.strip() or '[none]'}\n\n"
+        f"Topic context:\n{context_text.strip() or '[none]'}\n\n"
+        "Topic labels:\n"
         f"{labels_text}\n"
-        "Answer:"
     )
-    result = llm_runner.generate(prompt=prompt)
-    return result.strip()
+    try:
+        raw = llm_runner.generate(prompt=prompt).strip()
+    except Exception as exc:
+        logger.warning(f"⚠️ Joint classification failed: {exc}")
+        return "unknown", "SEEKING"
+
+    payload = {}
+    try:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            payload = json.loads(raw[start : end + 1])
+    except Exception:
+        payload = {}
+
+    topic_label = payload.get("topic_label") if isinstance(payload, dict) else None
+    emotion_label = payload.get("emotion_label") if isinstance(payload, dict) else None
+
+    if not topic_label:
+        match = re.search(r"topic_label\\s*[:=]\\s*([\\w\\s→>-]+)", raw, flags=re.IGNORECASE)
+        if match:
+            topic_label = match.group(1).strip()
+    if not emotion_label:
+        match = re.search(r"emotion_label\\s*[:=]\\s*([A-Za-z_/-]+)", raw, flags=re.IGNORECASE)
+        if match:
+            emotion_label = match.group(1).strip()
+
+    topic_label = _coerce_topic_label(topic_label or "unknown")
+    normalized = _normalize_emotion_key(emotion_label or "")
+    emotion_label = normalized if normalized in PANKSEPP_LABELS else "SEEKING"
+    return topic_label, emotion_label
 
 # === LangGraph State ===
 class State(BaseModel):
@@ -699,6 +762,7 @@ class State(BaseModel):
     emotion_event: str = "neutral"
     emotion_salience: float = 0.2
     low_salience_streak: int = 0
+    classified_emotion: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -716,6 +780,11 @@ def load_profile(state):
     if state.patient_profile is not None:
         logger.info("ℹ️ Patient profile already loaded; refreshing long-term summary if needed.")
         updates = {}
+        if isinstance(state.patient_profile.details, dict):
+            try:
+                state.patient_profile.details = PatientDetails(**state.patient_profile.details)
+            except Exception:
+                state.patient_profile.details = PatientDetails()
         if not state.summary:
             stored_summary = load_long_term_summary(patient_id, therapist_id)
             if stored_summary:
@@ -785,13 +854,30 @@ def update_emotional_state(state):
     event, salience = _detect_context_event(therapist_text, state.safety_flags, topic_changed)
     baseline = _trait_baseline_from_profile(profile)
     volatility = _volatility_from_profile(profile)
+    def _prior_bias_vector(label: Optional[str], baseline_vec: Dict[str, float]) -> Optional[Dict[str, float]]:
+        if not label:
+            return None
+        key = _normalize_emotion_key(label)
+        if key not in EMOTIONS:
+            return None
+        biased = dict(baseline_vec)
+        biased[key] = max(baseline_vec.get(key, 0.5), 0.7)
+        return biased
+
     previous = state.emotion_state or getattr(profile, "emotion_state", None)
+    prior_bias = _prior_bias_vector(getattr(state, "classified_emotion", None), baseline)
+    previous_state = prior_bias or previous
     snapshot = compute_emotional_state(
         baseline,
         volatility_level=volatility,
         event=event,
-        previous_state=previous,
+        previous_state=previous_state,
     )
+    if prior_bias:
+        blend_weight = 0.15
+        for emotion in snapshot:
+            blended = (1 - blend_weight) * snapshot[emotion] + blend_weight * prior_bias.get(emotion, baseline.get(emotion, 0.5))
+            snapshot[emotion] = max(0.0, min(1.0, blended))
 
     # Gentle decay toward baseline when multiple low-salience turns occur.
     if salience < 0.3:
@@ -844,78 +930,101 @@ def _is_greeting_or_checkin(text: str) -> bool:
     return any(cue in lowered for cue in cues)
 
 
-def detect_intent_topic(state):
-    """Infer the most likely topic via an LLM classifier that selects from the topic tree."""
-    logger.debug("🔍 Detecting topic with LLM classifier...")
 
-    # Use ONLY actual content for detection (no previous-topic injection)
-    # Keep your existing function but REMOVE the "(previous topic: ...)" part from _build_topic_text,
-    # or just build the input here explicitly:
-    text_input = (state.safe_user_input or state.user_input or "").strip()
 
-    if state.history and len(text_input) < 25:
-        last_patient = state.history[-1].get("patient", "")
-        if last_patient:
-            text_input = f"{text_input} {last_patient}"
-
+def classify_topic_and_emotion_pre(state):
+    """Use a single LLM call to classify topic + likely patient emotion before generation."""
+    text_input = _build_topic_text(state)
     if not text_input:
-        topic = state.last_topic or {
-            "intent": "unknown",
-            "top": "unknown",
-            "sub": "unknown",
-            "score": 0.0
+        return {
+            "intent_topic": {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0},
+            "last_topic": state.last_topic,
+            "topic_similarity": 0.0,
+            "classified_emotion": None,
         }
-        return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic.get("score", 0.0)}
+
+    therapist_text = (state.safe_user_input or state.user_input or "").strip()
+    last_patient = ""
+    if state.history:
+        last_patient = state.history[-1].get("patient") or ""
 
     try:
-        label = _llm_topic_classifier(text_input)
+        topic_label, emotion_label = classify_topic_and_emotion(
+            therapist_text=therapist_text,
+            patient_text=last_patient,
+            context_text=text_input,
+        )
     except Exception as exc:
-        logger.warning(f"⚠️ Topic classifier failed: {exc}. Marking as unknown.")
-        label = "unknown"
+        logger.warning(f"⚠️ Joint classification failed: {exc}")
+        topic_label, emotion_label = "unknown", "SEEKING"
 
     greeting = _is_greeting_or_checkin(state.user_input or "")
     follow_up = _is_follow_up(state.safe_user_input or state.user_input)
+    short_turn = len((therapist_text or "").split()) <= 3
+    low_signal = greeting or follow_up or short_turn
     prev_topic = state.last_topic
 
-    unknown_label = label.lower() == "unknown"
-
-    if unknown_label and prev_topic and (greeting or follow_up or state.history):
-        logger.debug("↪️ Low-confidence/brief turn; keeping previous topic for continuity.")
-        topic = prev_topic
-    elif unknown_label:
-        topic = {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0}
-    else:
-        if "→" in label:
-            parts = [p.strip() for p in label.split("→")]
-        elif ">" in label:
-            parts = [p.strip() for p in label.split(">")]
+    unknown_label = topic_label.lower() == "unknown"
+    if unknown_label:
+        if low_signal and prev_topic:
+            topic = prev_topic
         else:
-            parts = [label.strip(), "general"]
-        if len(parts) == 1:
-            parts.append("general")
-        topic = {
-            "intent": "topic_detection",
-            "top": parts[0],
-            "sub": parts[1],
-            "score": 1.0,
-        }
+            topic = {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0}
+    else:
+        topic = _label_to_topic(topic_label, None)
 
-    logger.debug(f"📌 State update → intent_topic={topic}, last_topic={topic}")
-    return {"intent_topic": topic, "last_topic": topic, "topic_similarity": topic.get("score", 0.0)}
+    if state.patient_profile and emotion_label:
+        state.patient_profile.current_emotional_state = emotion_label.lower()
+
+    return {
+        "intent_topic": topic,
+        "last_topic": topic,
+        "topic_similarity": topic.get("score", 0.0),
+        "classified_emotion": emotion_label,
+    }
 
 def generate_response(state):
     """Call the configured LLM runner with retry/fallback logic."""
     logger.info("💬 Generating response to therapist input...")
     prompt = state.prompt or "Respond as the patient based on prior instructions."
     last_error = None
-    logging.info(prompt)
+
+    def _enforce_response_format(text: str) -> str:
+        """Ensure non-spoken content is in (), spoken text otherwise."""
+        if not text:
+            return text
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if not lines:
+            return text.strip()
+
+        thought_re = re.compile(r"^(thoughts?|thinking|internal|inner)\s*:\s*(.+)", re.IGNORECASE)
+        desc_re = re.compile(r"^(description|narration|scene|action|setting)\s*:\s*(.+)", re.IGNORECASE)
+        formatted = []
+        for line in lines:
+            line = re.sub(r"\*([^*]+)\*", r"(\1)", line)
+            if re.match(r"^\*.*\*$", line):
+                formatted.append(f"({line.strip('*').strip()})")
+                continue
+            if re.match(r"^\(.*\)$", line):
+                formatted.append(line)
+                continue
+            match = thought_re.match(line)
+            if match:
+                formatted.append(f"({match.group(2).strip()})")
+                continue
+            match = desc_re.match(line)
+            if match:
+                formatted.append(f"({match.group(2).strip()})")
+                continue
+            formatted.append(line)
+        return " ".join(formatted).strip()
 
     for attempt in range(1, MAX_LLM_RETRIES + 1):
         try:
             result = llm_runner.generate(prompt=prompt)
             if result and result.strip():
                 logger.info(f"✅ Response generated on attempt {attempt}")
-                return {"response": result.strip()}
+                return {"response": _enforce_response_format(result.strip())}
             logger.warning(f"⚠️ Empty response on attempt {attempt}")
         except Exception as exc:
             last_error = exc
@@ -1045,19 +1154,7 @@ def update_memory(state):
             )
             state.last_episode_turn = state.total_turns
 
-    # === 3. Update emotional tone with an LLM classifier ===
-    try:
-        tone_label = classify_emotion_by_llm(state.response or "")
-    except Exception as e:
-        logger.warning(f"⚠️ Could not extract emotional tone: {e}")
-        tone_label = "SEEKING"
-
-    prev_tone = getattr(state.patient_profile, "current_emotional_state", "unknown")
-    state.patient_profile.current_emotional_state = tone_label.lower()
-    logger.info(
-        f"🫀 Emotional tone (LLM): '{prev_tone}' → '{tone_label.lower()}' "
-        f"(event={state.emotion_event})"
-    )
+    # === 3. No LLM calls here; topic/tone handled before generation. ===
 
     # === 4. Inspect and return ===
     logger.debug(f"📊 Summary length: {len(state.summary)} chars")
@@ -1206,7 +1303,7 @@ def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
     # Nodes
     builder.add_node("load_profile", RunnableLambda(load_profile))
     builder.add_node("sanitize_input", RunnableLambda(sanitize_user_input))
-    builder.add_node("detect_intent_topic", RunnableLambda(detect_intent_topic))
+    builder.add_node("classify_topic_and_emotion", RunnableLambda(classify_topic_and_emotion_pre))
     builder.add_node("hydrate_memory", RunnableLambda(hydrate_long_term_context))
     builder.add_node("update_emotions", RunnableLambda(update_emotional_state))
     builder.add_node("build_prompt", RunnableLambda(build_prompt))
@@ -1218,8 +1315,8 @@ def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
 
     builder.set_entry_point("load_profile")
     builder.add_edge("load_profile", "sanitize_input")
-    builder.add_edge("sanitize_input", "detect_intent_topic")
-    builder.add_edge("detect_intent_topic", "hydrate_memory")
+    builder.add_edge("sanitize_input", "classify_topic_and_emotion")
+    builder.add_edge("classify_topic_and_emotion", "hydrate_memory")
     builder.add_edge("hydrate_memory", "update_emotions")
     builder.add_edge("update_emotions", "build_prompt")
     builder.add_edge("build_prompt", "generate")
