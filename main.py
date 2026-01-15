@@ -12,7 +12,7 @@ from typing import Optional
 from agent.core.langgraph_builder import build_graph, finalize_session_memory, llm_runner
 from agent.core.patient_profile import PatientProfile
 from agent.utils.run_logger import RunLogger
-from agent.utils.session_opening import build_session_opening
+from agent.utils.session_opening import build_session_opening, default_welcome, load_patient_profile
 
 logger = logging.getLogger(__name__)
 ROOT_DIR = Path(__file__).resolve().parent

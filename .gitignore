@@ -12,3 +12,4 @@ vertex-ai-api-key.json
 .cache/
 scripts/run_eval_suite.py
 scripts/eval_report.py
+data/memory/

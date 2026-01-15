@@ -17,7 +17,7 @@ from agent.core.prompt_builder import build_prompt
 from agent.core.memory_store import JsonlMemoryStore
 from agent.core.llm_runner import create_llm_runner
 from agent.core.emotion_model import EMOTIONS, EVENT_SALIENCE, compute_emotional_state
-from agent.core.patient_profile import PatientProfile, PatientDetails
+from agent.core.patient_profile import EmotionTraits, PatientProfile, PatientDetails
 from agent.core.safety import SAFETY_PATTERNS, FOLLOW_UP_CUES, CONTEXT_EVENT_KEYWORDS
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
@@ -59,6 +59,8 @@ LATEST_SUMMARY_CACHE: Dict[tuple[str, str], str] = {}
 LATEST_REFLECTION_CACHE: Dict[tuple[str, str], str] = {}
 
 DEFAULT_TRAIT_BASELINE = {emotion: 0.5 for emotion in EMOTIONS}
+PANKSEPP_LABELS = EMOTIONS
+
 
 
 
@@ -430,10 +432,6 @@ def _build_topic_text(state) -> str:
 
     return " ".join(piece for piece in pieces if piece).strip()
 
-
-PANKSEPP_LABELS = ["SEEKING", "FEAR", "RAGE", "LUST", "CARE", "PANIC_GRIEF", "PLAY"]
-
-
 def _embed_texts(texts):
     """Vectorize arbitrary strings for use inside the in-memory similarity index."""
     vectors = st_model.encode(texts, convert_to_tensor=False)
@@ -767,6 +765,7 @@ class State(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+
 # === Build Nodes ===
 def load_profile(state):
     """Ensure the patient profile and long-term summary are attached to the state."""
@@ -780,11 +779,23 @@ def load_profile(state):
     if state.patient_profile is not None:
         logger.info("ℹ️ Patient profile already loaded; refreshing long-term summary if needed.")
         updates = {}
+        if isinstance(state.patient_profile, dict):
+            try:
+                state.patient_profile = PatientProfile(**state.patient_profile)
+            except Exception:
+                state.patient_profile = PatientProfile(patientId=patient_id, name=patient_id)
         if isinstance(state.patient_profile.details, dict):
             try:
                 state.patient_profile.details = PatientDetails(**state.patient_profile.details)
             except Exception:
                 state.patient_profile.details = PatientDetails()
+        if isinstance(getattr(state.patient_profile, "emotionTraits", None), dict):
+            try:
+                state.patient_profile.emotionTraits = EmotionTraits(
+                    **state.patient_profile.emotionTraits
+                )
+            except Exception:
+                state.patient_profile.emotionTraits = EmotionTraits()
         if not state.summary:
             stored_summary = load_long_term_summary(patient_id, therapist_id)
             if stored_summary:
@@ -1303,7 +1314,10 @@ def build_graph(checkpointer: Optional[MemorySaver] = CHECKPOINTER):
     # Nodes
     builder.add_node("load_profile", RunnableLambda(load_profile))
     builder.add_node("sanitize_input", RunnableLambda(sanitize_user_input))
-    builder.add_node("classify_topic_and_emotion", RunnableLambda(classify_topic_and_emotion_pre))
+    builder.add_node(
+        "classify_topic_and_emotion",
+        RunnableLambda(classify_topic_and_emotion_pre),
+    )
     builder.add_node("hydrate_memory", RunnableLambda(hydrate_long_term_context))
     builder.add_node("update_emotions", RunnableLambda(update_emotional_state))
     builder.add_node("build_prompt", RunnableLambda(build_prompt))

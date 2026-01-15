@@ -2,6 +2,7 @@
 
 import copy
 import json
+import os
 from datetime import datetime
 from itertools import count
 from pathlib import Path
@@ -78,6 +79,23 @@ def _hydrate_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     return hydrated
 
 
+def _env_flag(name: str) -> bool:
+    """Return True if the env var looks truthy."""
+    value = os.getenv(name, "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _sanitize_identifier(value: str) -> str:
+    return value.replace("/", "_").replace("\\", "_")
+
+
+def _append_jsonl(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(payload, ensure_ascii=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
 def migrate_legacy_runs(base_dir: Path) -> None:
     """Coalesce older single-run files into therapist-scoped session logs."""
     for legacy_path in list(base_dir.glob("*.json")):
@@ -126,6 +144,10 @@ class RunLogger:
         self.therapist_id = therapist_id or "therapist0"
         self.base_dir = Path(base_dir or RUNS_BASE_DIR)
         self.file_path = self.base_dir / f"{self.therapist_id}.json"
+        self.transcript_enabled = True
+        self._transcript_dir = self.base_dir / "transcripts"
+        self._transcript_path: Optional[Path] = None
+        self._current_session_id: Optional[str] = None
         self.data = self._load()
         self.current_session_index: Optional[int] = None
 
@@ -149,6 +171,10 @@ class RunLogger:
     ) -> str:
         """Open a new session record and return its run identifier."""
         run_id = self._generate_run_id()
+        safe_session = _sanitize_identifier(session_id)
+        self._current_session_id = session_id
+        if self.transcript_enabled:
+            self._transcript_path = self._transcript_dir / f"{self.therapist_id}__{safe_session}.jsonl"
         session = {
             "session_id": session_id,
             "run_id": run_id,
@@ -192,6 +218,18 @@ class RunLogger:
         session["last_updated_at"] = datetime.utcnow().isoformat()
         session["final_state"] = _state_snapshot(state)
         self._persist()
+        if self.transcript_enabled and self._transcript_path:
+            transcript_entry = {
+                "turn_index": turn_entry["turn_index"],
+                "timestamp": turn_entry["timestamp"],
+                "session_id": session.get("session_id"),
+                "patient_id": session.get("patient_id"),
+                "therapist_id": self.therapist_id,
+                "therapist_input_raw": therapist_input,
+                "therapist_input_safe": state.get("safe_user_input"),
+                "patient_response": state.get("response"),
+            }
+            _append_jsonl(self._transcript_path, transcript_entry)
 
     def finalize(self, state: Optional[Dict[str, Any]] = None, extra: Optional[Dict[str, Any]] = None) -> None:
         """Seal the current session and optionally attach final metadata."""
@@ -206,6 +244,8 @@ class RunLogger:
             session.setdefault("extra", {}).update(extra)
         self._persist()
         self.current_session_index = None
+        self._current_session_id = None
+        self._transcript_path = None
 
     def restore_state(self, patient_id: str) -> Dict[str, Any]:
         """Return the last saved snapshot for the specified patient, if any."""

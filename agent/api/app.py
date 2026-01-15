@@ -1,19 +1,26 @@
 """FastAPI entrypoint that exposes the simulated patient via /api/message."""
 
-import re
 import json
+import os
+import re
+import tarfile
 import time
+import tempfile
 
 from pathlib import Path
 from typing import Literal
 from datetime import datetime
 from pydantic import BaseModel, Field
 from agent.utils.run_logger import RunLogger
-from fastapi import FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, status
+from fastapi.responses import StreamingResponse
 from agent.core.langgraph_builder import build_graph, finalize_session_memory
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
+RUNS_DIR = ROOT_DIR / "tests" / "runs"
+MEMORY_DIR = ROOT_DIR / "data" / "memory"
+EXPORT_TOKEN = os.getenv("PSYLLM_EXPORT_TOKEN")
 
 app = FastAPI(title="PsyLLM Patient Agent API")
 
@@ -159,6 +166,42 @@ def _serialize_patient(req: PatientInitRequest, patient_id: str) -> dict:
     }
 
 
+def _export_archive_path() -> Path:
+    """Create a tar.gz with run logs and therapist/patient memory pairs."""
+    run_files = sorted(path for path in RUNS_DIR.glob("*.json") if path.is_file())
+    memory_files = set()
+    for run_file in run_files:
+        try:
+            run_payload = json.loads(run_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        therapist_id = run_payload.get("therapist_id")
+        sessions = run_payload.get("sessions", []) if isinstance(run_payload, dict) else []
+        patient_ids = {session.get("patient_id") for session in sessions if session.get("patient_id")}
+        for patient_id in patient_ids:
+            if therapist_id and patient_id:
+                memory_path = MEMORY_DIR / f"{therapist_id}__{patient_id}.jsonl"
+                if memory_path.exists():
+                    memory_files.add(memory_path)
+    files = run_files + sorted(memory_files)
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".tar.gz")
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    with tarfile.open(tmp_path, mode="w:gz") as tar:
+        for path in files:
+            arcname = path.relative_to(ROOT_DIR)
+            tar.add(path, arcname=str(arcname))
+    return tmp_path
+
+
+def _cleanup_path(path: Path) -> None:
+    if path.exists():
+        try:
+            path.unlink()
+        except Exception:
+            pass
+
+
 @app.post("/chat-response", response_model=MessageResponse)
 async def send_message(req: MessageRequest):
     """Main conversational endpoint."""
@@ -292,4 +335,22 @@ async def create_patient(req: PatientInitRequest):
         external_patient_id=patient_id,
         message="Paziente inizializzato correttamente nel sistema esterno",
         timestamp=datetime.utcnow().isoformat(),
+    )
+
+
+@app.get("/export-logs")
+async def export_logs(
+    background_tasks: BackgroundTasks,
+    export_token: str | None = Header(default=None, alias="X-Export-Token"),
+):
+    """Download run logs and therapist/patient memory pairs."""
+    if EXPORT_TOKEN and export_token != EXPORT_TOKEN:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid export token.")
+    archive_path = _export_archive_path()
+    background_tasks.add_task(_cleanup_path, archive_path)
+    filename = f"psyllm_export_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.tar.gz"
+    return StreamingResponse(
+        archive_path.open("rb"),
+        media_type="application/gzip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

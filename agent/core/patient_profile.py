@@ -595,7 +595,7 @@ def _prepare_payload(raw: dict, path: str) -> dict:
     return payload
 
 
-def _build_emotion_traits(raw: dict) -> dict:
+def _build_emotion_traits(raw: dict) -> EmotionTraits:
     """Normalize any provided emotion trait metadata into the expected structure."""
     container = (
         raw.get("emotionTraits")
@@ -621,7 +621,7 @@ def _build_emotion_traits(raw: dict) -> dict:
             or 0.5
         )
         normalized[key] = _clamp_emotion_value(raw_value)
-    return {"trait_baseline": normalized, "volatility_level": str(volatility).lower()}
+    return EmotionTraits(trait_baseline=normalized, volatility_level=str(volatility).lower())
 
 
 def _normalize_clinical_functioning(raw: dict) -> dict:

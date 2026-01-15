@@ -142,12 +142,23 @@ PYTHONPATH=. python scripts/chat_cli.py --patient juanita_delgado_001
 uvicorn agent.api.app:app --reload --port 8000
 ```
 
+#### Export logs and memory
+```bash
+curl -o psyllm_export.tar.gz http://localhost:8000/export-logs
+```
+The archive includes run logs plus therapist/patient memory pair files.
+If `PSYLLM_EXPORT_TOKEN` is set on the server, include the header:
+```bash
+curl -H "X-Export-Token: <token>" -o psyllm_export.tar.gz http://localhost:8000/export-logs
+```
+
 ## Logging & Memory
 - **Short-term**: last `MAX_SHORT_TERM_TURNS` kept in `state.history`.
 - **Episodic memory**: every `EPISODE_BATCH_SIZE` turns are summarized asynchronously and stored in `data/memory/<therapist>__<patient>.jsonl`.
 - **Session reflection**: generated at session end and persisted.
 - **Long-term summary**: updated from reflections at session end.
 - **Run logs**: `tests/runs/<therapist>.json` contains all turns and snapshots for resume.
+- **Transcripts**: full turn-by-turn transcripts in `tests/runs/transcripts/<therapist>__<session>.jsonl`.
 
 
 ## Development Notes

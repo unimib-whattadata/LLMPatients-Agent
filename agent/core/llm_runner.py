@@ -23,7 +23,7 @@ abs_path = os.path.join(PROJECT_ROOT, rel_path)
 # Set the final environment variable for GCP auth
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = abs_path
 
-# === Base LLM Runner ===
+# === Base LLM Runner ===SADNESS
 class LLMRunnerBase(ABC):
     """Minimal interface all backing LLM providers must implement."""
     def __init__(self, temperature: float, max_tokens: int):
