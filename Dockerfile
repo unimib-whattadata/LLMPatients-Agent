@@ -1,8 +1,11 @@
-FROM yanwk/comfyui-boot:xpu
+FROM intel/vllm
 
 WORKDIR /app
 
 COPY ./agent/requirements.txt ./requirements.txt
+# Note: vllm is excluded from requirements.txt to avoid conflict with XPU torch.
+# Please install XPU-compatible vllm separately if needed, e.g.:
+# RUN pip install --pre --upgrade ipex-llm[xpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
