@@ -1,6 +1,7 @@
 import os
 import logging
 import vertexai
+import torch
 
 from typing import Optional
 from dotenv import load_dotenv
@@ -58,9 +59,19 @@ class LocalLLMRunner(LLMRunnerBase):
             )
             os.makedirs(download_dir, exist_ok=True)
 
-            cuda_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "")
-            n_gpus = 1 if not cuda_devices else cuda_devices.count(",") + 1
-            logger.info(f"Using {n_gpus} GPU(s) (CUDA_VISIBLE_DEVICES={cuda_devices})")
+            # Check for XPU (Intel GPU) availability
+            is_xpu = hasattr(torch, "xpu") and torch.xpu.is_available()
+            
+            if is_xpu:
+                n_gpus = torch.xpu.device_count()
+                device = "xpu"
+                logger.info(f"Intel XPU detected. Using {n_gpus} XPU(s).")
+            else:
+                cuda_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+                n_gpus = 1 if not cuda_devices else cuda_devices.count(",") + 1
+                device = "auto"
+                logger.info(f"Using {n_gpus} GPU(s) (CUDA_VISIBLE_DEVICES={cuda_devices})")
+            
             logger.info(f"Download dir: {download_dir}")
             logger.info(f"Loading model: {self.model_id}")
 
@@ -71,7 +82,8 @@ class LocalLLMRunner(LLMRunnerBase):
                 enable_prefix_caching=True,
                 max_model_len=self.max_tokens,
                 download_dir=download_dir,
-                tensor_parallel_size=n_gpus
+                tensor_parallel_size=n_gpus,
+                device=device
             )
         except Exception as e:
             logger.error(f"Failed to load local model: {e}")
