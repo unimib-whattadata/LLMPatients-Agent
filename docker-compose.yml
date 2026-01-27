@@ -1,0 +1,21 @@
+services:
+  psyllm-api:
+    init: true
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - CLI_ARGS=
+      - PYTORCH_XPU_ALLOC_CONF=max_split_size_mb:512
+      - NEO_READ_XPU_MEM=1
+      - ONEAPI_DEVICE_SELECTOR=level_zero:0
+      - DONT_SET_DEVICE_MAP=1
+      - PYTORCH_TRITON_XPU_CACHE_DIR=/tmp/triton_cache
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    ipc: host
+    group_add:
+      - 109
+    security_opt:
+      - label:disable
