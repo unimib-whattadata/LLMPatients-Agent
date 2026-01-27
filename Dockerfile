@@ -3,10 +3,14 @@ FROM intel/vllm
 WORKDIR /app
 
 COPY ./agent/requirements.txt ./requirements.txt
+COPY ./filter_reqs.py ./filter_reqs.py
+
 # Note: vllm is excluded from requirements.txt to avoid conflict with XPU torch.
-# Please install XPU-compatible vllm separately if needed, e.g.:
-# RUN pip install --pre --upgrade ipex-llm[xpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
-RUN pip install --no-cache-dir -r requirements.txt
+# Please install XPU-compatible vllm separately if needed.
+
+# Filter requirements to skip packages that are already installed in the image
+RUN python3 filter_reqs.py requirements.txt requirements.filtered.txt && \
+    pip install --no-cache-dir -r requirements.filtered.txt
 
 COPY . .
 
