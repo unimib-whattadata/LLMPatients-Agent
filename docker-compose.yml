@@ -21,3 +21,4 @@ services:
       - label:disable
     volumes:
       - ./data/patients/juanita_delgado_001.json:/app/data/patients/6e2d7455-e52d-4e2f-93f6-e8a1c260ea72.json
+      - /data/psyllm/vertex-ai-api-key.json:/app/config/vertex-ai-api-key.json
