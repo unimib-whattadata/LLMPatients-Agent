@@ -1,6 +1,6 @@
 # Prompt Building
 
-This document explains how PsyLLM constructs the final prompt shown to the LLM
+This document explains how LLMPatients-Agent constructs the final prompt shown to the LLM
 when generating a patient response. The implementation lives in
 `agent/core/prompt_builder.py` and is called from the LangGraph pipeline.
 

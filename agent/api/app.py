@@ -15,7 +15,7 @@ from agent.core.langgraph_builder import build_graph, finalize_session_memory
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 
-app = FastAPI(title="PsyLLM Patient Agent API")
+app = FastAPI(title="LLMPatients-Agent API")
 
 graph = build_graph()
 session_loggers: dict[tuple[str, str], dict] = {}

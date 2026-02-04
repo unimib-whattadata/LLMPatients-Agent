@@ -1,6 +1,6 @@
-# PsyLLM Architecture & Contributor Guide
+# LLMPatients-Agent Architecture & Contributor Guide
 
-This document explains how the PsyLLM patient agent works under the hood so that contributors can extend or debug the system.
+This document explains how the LLMPatients-Agent patient agent works under the hood so that contributors can extend or debug the system.
 
 ## 1. High-Level Flow
 

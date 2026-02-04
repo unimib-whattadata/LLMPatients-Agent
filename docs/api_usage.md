@@ -1,4 +1,4 @@
-# PsyLLM API Usage
+# LLMPatients-Agent API Usage
 
 Minimal examples for creating a patient record, sending chat turns, and finalizing sessions.
 

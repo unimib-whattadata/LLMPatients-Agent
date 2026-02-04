@@ -1,6 +1,6 @@
 # Emotion Dynamics Walkthrough
 
-This document explains how PsyLLM models a patient's momentary emotional state and how that affects the prompt.
+This document explains how LLMPatients-Agent models a patient's momentary emotional state and how that affects the prompt.
 
 ## 1. Inputs from the Patient JSON
 

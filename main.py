@@ -1,4 +1,4 @@
-"""CLI utility to run the PsyLLM patient agent in interactive or scripted modes."""
+"""CLI utility to run the LLMPatients-Agent patient agent in interactive or scripted modes."""
 
 import argparse
 import json
@@ -21,7 +21,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 def parse_args() -> argparse.Namespace:
     """Configure and parse CLI arguments."""
     parser = argparse.ArgumentParser(
-        description="Run a PsyLLM patient conversation using LangGraph memory."
+        description="Run a LLMPatients-Agent patient conversation using LangGraph memory."
     )
     parser.add_argument(
         "--patient",

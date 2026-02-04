@@ -25,7 +25,7 @@ LOWER_IS_BETTER = {"mean_latency_ms", "p95_latency_ms", "emotion_drift"}
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Report on PsyLLM evaluation outputs.")
+    parser = argparse.ArgumentParser(description="Report on LLMPatients-Agent evaluation outputs.")
     parser.add_argument(
         "--current",
         default="tests/eval_runs/latest_summary.json",

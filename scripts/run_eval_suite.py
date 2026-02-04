@@ -13,7 +13,7 @@ from agent.eval import load_scenarios, run_suite  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Execute PsyLLM evaluation scenarios.")
+    parser = argparse.ArgumentParser(description="Execute LLMPatients-Agent evaluation scenarios.")
     parser.add_argument(
         "--scenario-file",
         default="data/eval/scenarios.json",

@@ -1,4 +1,4 @@
-"""Small REPL for chatting with a PsyLLM patient from the command line."""
+"""Small REPL for chatting with a LLMPatients-Agent patient from the command line."""
 
 import argparse
 import logging
@@ -22,7 +22,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 def parse_args() -> argparse.Namespace:
     """Collect CLI arguments for selecting patients, sessions, and logging."""
     parser = argparse.ArgumentParser(
-        description="Interactive shell for chatting with a PsyLLM patient agent."
+        description="Interactive shell for chatting with a LLMPatients-Agent patient agent."
     )
     parser.add_argument(
         "--patient",

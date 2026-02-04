@@ -1,189 +1,210 @@
-# PsyLLM Patient Agent
+# LLMPatients-Agent
 
-> A LangGraph-based simulator of psychotherapy patients that clinicians can converse with across multiple sessions while the agent maintains persona, emotional continuity, and long-term memories.
+> **A modular, stateful simulated patient agent for psychotherapy training grounded in clinical psychology and affective neuroscience.**
 
 ## Table of Contents
-1. [Project Overview](#project-overview)
-2. [Architecture in Brief](#architecture-in-brief)
-3. [Repository Layout](#repository-layout)
-4. [Core Components](#core-components)
-5. [Patient Data & Knowledge Sources](#patient-data--knowledge-sources)
-6. [Configuration & Environment](#configuration--environment)
-7. [Running the Agent](#running-the-agent)
-8. [Logging & Memory](#logging--memory)
-10. [Development Notes](#development-notes)
-11. [Troubleshooting & Next Steps](#troubleshooting--next-steps)
-12. [Emotion Dynamics Guide](#emotion-dynamics-guide)
-13. [Further Reading](#further-reading)
+- [Overview](#overview)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [Roadmap & Status](#roadmap--status)
+- [Troubleshooting](#troubleshooting)
+- [Security](#security)
+- [License](#license)
+- [Credits](#credits)
+- [Citation](#citation)
 
-## Project Overview
-- **Goal**: provide psychologists with a safe training ground where a local or cloud LLM impersonates a richly described patient.
-- **Continuity**: each therapist input flows through LangGraph state, keeps a short-term window, writes episodic memory, and consolidates reflections into long-term memory.
-- **Safety**: therapist injections are sanitized before prompting the patient, and the LLM is reminded to ignore role changes or commands.
-- **Modularity**: LLM providers, profile schemas, prompt templates, and entrypoints (CLI/API) live in separate modules.
+## Overview
+Psychotherapy training relies heavily on repeated exposure to complex, emotionally charged clinical interactions. Traditional methods like roleplay or standardized patients are costly and difficult to scale. **LLMPatients-Agent** (introduced as **EPatient** in research) addresses this by providing a safe, repeatable, and clinically realistic training ground.
 
-## Architecture in Brief
+Unlike generic LLM chatbots that suffer from persona drift or emotional flatness, this agent treats patient simulation as a **constrained dynamical system**. It embeds a Large Language Model within explicit models of:
+- **Persona**: Grounded in the *Psychodynamic Diagnostic Manual (PDM-2)*.
+- **Affect**: A symbolic emotion engine based on *Panksepp’s affective neuroscience*.
+- **Memory**: A layered system for longitudinal continuity across sessions.
+
+This allows clinicians to practice dealing with resistance, emotional volatility, and ruptures in therapeutic alliance in a way that remains coherent over time.
+
+## Features
+- **Clinically Grounded Personas**: Patients are modeled not just by text prompts but by structured psychological profiles (Identity, Mental Functioning, Symptoms) inspired by PDM-2.
+- **Symbolic Emotion Dynamics**: Uses Panksepp’s primary emotional systems (e.g., FEAR, RAGE, SEEKING) to drive behavior and tone, ensuring consistent affective reactivity.
+- **Longitudinal Continuity**: Supports multi-session interactions. The agent "remembers" past sessions, maintains a rolling summary, and evolves its relationship with the therapist.
+- **Deterministic Orchestration**: Prompt construction is layered and rule-based, minimizing hallucinations and persona drift.
+- **Topic-Gated Memory**:Retrieves only clinically relevant episodic memories based on the conversation topic to maintain focus.
+- **Safety Guardrails**: Input sanitization prevents prompt injections, and the agent is constrained to remain in character even under adversarial pressure.
+- **Modular Design**: specific components (LLM provider, Emotion Model, Memory Store) can be swapped or upgraded independently.
+
+## Requirements
+- **Python**: 3.9+
+- **Virtual Environment**: Recommended (venv, conda, or uv).
+- **API Keys**:
+  - `GOOGLE_APPLICATION_CREDENTIALS` (if using Vertex AI).
+  - Appropriate GPU resources if running local LLMs (vLLM).
+- **Dependencies**: Listed in `agent/requirements.txt`.
+
+## Installation
+Clone the repository and set up the environment:
+
+```bash
+git clone https://github.com/your-org/LLMPatients-Agent.git
+cd LLMPatients-Agent
+
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r agent/requirements.txt
+```
+
+## Quickstart
+To start a session with a pre-configured patient (e.g., `juanita_delgado_001`) using the interactive CLI:
+
+```bash
+PYTHONPATH=. python main.py --patient juanita_delgado_001
+```
+*Type `exit` or `quit` to end the session. The agent will generate a session reflection and save memory state.*
+
+## Configuration
+Configuration is managed via environment variables (can be set in a `.env` file in `config/` or exported in the shell).
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `model_provider` | `local` | `vertex_ai` or `local` |
+| `model_id` | Model name/path | e.g. `gemini-pro`, `meta-llama/Llama-2-70b-chat-hf` |
+| `temperature` | Generation randomness | `0.7` |
+| `cache_path` | Path for HF models | `~/.cache/huggingface` |
+| `GCP_PROJECT` | Google Cloud Project ID | Required for Vertex AI |
+| `GCP_LOCATION` | Region | e.g. `us-central1` |
+
+## Usage
+
+### Interactive CLI
+The main entry point for full simulation sessions:
+```bash
+python main.py --patient <patient_id>
+```
+
+### Minimal Chat Shell
+For testing simple dialogue loops without full session overhead:
+```bash
+python scripts/chat_cli.py --patient <patient_id>
+```
+
+### API Server
+To run the agent as a backend service (FastAPI):
+```bash
+uvicorn agent.api.app:app --reload --port 8000
+```
+- **Endpoints**:
+  - `POST /chat-response`: Send a therapist turn, receive patient response.
+  - `POST /session-end`: Finalize session, write reflections, consolidate memory.
+
+## Architecture
+The system follows a cyclic, stateful pipeline for every conversational turn:
+
 ```
 Therapist Input
    │
    ▼
-[ sanitize_user_input ] → guards against prompt injection
+[ Input Sanitization ] ──→ Safety Flags
    │
    ▼
-[ detect_intent_topic ] → LLM-based topic classifier
+[ Topic Detection ] ──→ Hierarchical Topic Tree
    │
    ▼
-[ hydrate_long_term_context ] → episodic memory retrieval
+[ Memory Retrieval ] ──→ Episodic & Long-term Summaries
    │
    ▼
-[ update_emotions ] → Panksepp emotion vector
+[ Emotion Update ] ──→ Panksepp Vector (Trait + Context)
    │
    ▼
-[ build_prompt ] → persona + memory + guardrails
+[ Prompt Construction ] ──→ (Identity + Affect + Memory + Safety)
    │
    ▼
-[ generate ] → LLM runner
+[ LLM Generation ]
    │
    ▼
-[ append_messages → trim_messages ] → bounded message window
-   │
-   ▼
-[ update_memory ] → write episodic memory, classify tone
-   │
-   ▼
-[ display ] → logging hook (CLI/API decide how to surface response)
+[ State Persistence ] ──→ JSONL / Session Snapshots
 ```
 
-## Repository Layout
-```
-agent/
-  api/              FastAPI surface (agent/api/app.py).
-  core/             Business logic (LangGraph, prompts, patient schema, safety, LLM runners).
-  utils/            Shared helpers (RunLogger, session opening helpers).
-config/             .env and model credentials.
-data/
-  patients/         JSON records describing each simulated patient.
-  icd11_templates/  ICD-11 templates (optional reference).
-  memory/           JSONL episodic/summary storage per therapist/patient.
-  topics_tree.json  Hierarchical topic metadata.
-notebooks/          Exploratory notebooks.
-scripts/            Utility CLIs.
-tests/              Run logs and artifacts.
-main.py             Full-featured CLI.
-Dockerfile          Container recipe.
-docs/               Additional markdown docs.
-```
+**Key Components:**
+- **`agent/core/langgraph_builder.py`**: Manages the state machine (LangGraph).
+- **`agent/core/emotion_model.py`**: Calculates affective updates based on volatility and events.
+- **`agent/core/prompt_builder.py`**: Assembles the deterministic prompt layers.
+- **`data/patients/`**: JSON definitions of patient personas.
 
-## Core Components
-### LangGraph Builder (`agent/core/langgraph_builder.py`)
-- Defines the `State` (patient id, sanitized input, topic, prompt, response, message history, memory summary, etc.).
-- Loads/caches patient profiles and their trait baselines.
-- Topic detection is LLM-based (classifier prompt over the topic tree).
-- Emotion synthesis uses Panksepp systems with volatility, context modifiers, salience-based smoothing, and a weighted top-two intensity.
-- Episodic memory is summarized asynchronously and stored in JSONL per therapist/patient; session reflections and long-term summaries are written on session end.
-- A lightweight LLM classifier assigns `current_emotional_state` for telemetry (the emotion vector still drives prompt tone).
-
-### Prompt Builder (`agent/core/prompt_builder.py`)
-- Builds a layered prompt:
-  - **Primary guidance**: Identity → Cognitive Style → Observed Interaction Style → Dominant Affective Systems.
-  - **Memory**: rolling summary, last reflection, last few turns, episodic snippets (topic-gated).
-  - **Reference and topical sections**: topic-dependent profile sections (truncated for length stability).
-- Uses size limits and summary compression to keep prompt length stable over time.
-- Strips parenthetical asides before sending history/memory to the model.
-
-### Patient Profile Schema (`agent/core/patient_profile.py`)
-- Pydantic models for demographics, social history, clinical functioning, treatment, and observed behavior.
-- Adds `cognitive_style_prompt()` to compress clinical functioning into actionable prompt guidance.
-
-### LLM Runner (`agent/core/llm_runner.py`)
-- `LocalLLMRunner` (vLLM) or `VertexLLMRunner` (Vertex AI), selected via env vars.
-
-### Safety Module (`agent/core/safety.py`)
-- Defines guardrails and regex patterns for prompt-injection detection.
-
-### Emotion Model (`agent/core/emotion_model.py`)
-- Panksepp systems: SEEKING, FEAR, RAGE, LUST, CARE, PANIC_GRIEF, PLAY.
-- Combines baseline + noise + context modifiers, clamping and smoothing into `emotion_state`.
-
-### FastAPI Surface (`agent/api/app.py`)
-- `POST /chat-response` for turns.
-- `POST /session-end` to finalize reflection + long-term summary and close logs.
-
-## Patient Data & Knowledge Sources
-- **Patient JSON** (`data/patients/*.json`): structured persona data used by `PatientProfile`.
-- **Emotion Traits**: `trait_baseline` uses the Panksepp keys and `volatility_level`.
-- **Topics Tree** (`data/topics_tree.json`): topic metadata used by LLM-based topic selection.
-
-## Configuration & Environment
-1. Install dependencies:
-   ```bash
-   pip install -r agent/requirements.txt
-   ```
-2. Environment variables (set in `config/.env` or shell):
-   - `model_provider`: `local` or `vertex_ai`.
-   - `model_id`, `temperature`, `max_tokens`, `cache_path`.
-   - `GCP_PROJECT`, `GCP_LOCATION`, `GOOGLE_APPLICATION_CREDENTIALS` (Vertex AI).
-3. SentenceTransformer: `all-MiniLM-L6-v2` is downloaded on first run (CPU by default).
-
-## Running the Agent
-### 1) Interactive CLI (`main.py`)
+## Testing
+Run the test suite to verify core logic:
 ```bash
-PYTHONPATH=. python main.py --patient juanita_delgado_001
+pytest tests/
 ```
-- Type `exit`/`quit` to end a session (finalizes reflection + long-term summary).
+*Note: Some tests may require API keys if they hit live LLM endpoints.*
 
-### 2) Minimal Chat Shell (`scripts/chat_cli.py`)
+**Coverage**:
+- Unit tests for emotion dynamics and memory utilities.
+- Integration/End-to-End tests for full conversation flows.
+
+## Deployment
+### Docker
+A `Dockerfile` is provided for containerized deployment.
 ```bash
-PYTHONPATH=. python scripts/chat_cli.py --patient juanita_delgado_001
+docker build -t llmpatients-agent .
+docker run -p 8000:8000 --env-file config/.env llmpatients-agent
 ```
 
-### 3) FastAPI Service
-```bash
-uvicorn agent.api.app:app --reload --port 8000
+**Release Checklist**:
+- [ ] Verify `requirements.txt` is frozen and up to date.
+- [ ] Run full test suite.
+- [ ] Ensure `.env` is not included in the image.
+
+## Contributing
+We welcome contributions! Please follow these steps:
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes.
+4. Open a Pull Request.
+
+**Bug Reports**: Please use the GitHub Issues tab and describe the steps to reproduce the issue.
+
+## Roadmap & Status
+**Status**: Beta / Research Prototype.
+
+**Upcoming**:
+- [ ] Migration from JSONL memory to Vector DB (e.g., Chroma/Pinecone).
+- [ ] Enhanced evaluation metrics for "Clinical Validity".
+- [ ] Multi-party therapy simulation support.
+
+## Troubleshooting
+- **LLM Initialization Error**: Check your `GCP_APPLICATION_CREDENTIALS` or ensure your local GPU has enough VRAM.
+- **Slow First Run**: The `SentenceTransformer` model (`all-MiniLM-L6-v2`) downloads on the first execution. This is normal.
+- **Memory Errors**: If the context window is exceeded, check `MAX_SHORT_TERM_TURNS` in config.
+
+## Security
+- **Input Sanitization**: All inputs are scanned for prompt injection attacks before processing.
+- **Role Integrity**: The system uses system-prompt reinforcement to prevent the LLM from breaking character or leaking instructions.
+- **Vulnerability Reporting**: Please define how to report vulnerabilities here (e.g., email or private issue).
+
+## License
+[License Name] - See `LICENSE` file for details.
+
+## Credits
+Based on the research paper **"EPatient: A Modular, Stateful Simulated Patient Agent for Psychotherapy Training"**.
+Authors & Contributors: [Author List Placeholder]
+
+## Citation
+If you use this software in your research, please cite:
+```bibtex
+@article{llmpatients2025,
+  title={EPatient: A Modular, Stateful Simulated Patient Agent for Psychotherapy Training},
+  author={Unknown},
+  journal={arXiv preprint},
+  year={2025}
+}
 ```
-
-## Logging & Memory
-- **Short-term**: last `MAX_SHORT_TERM_TURNS` kept in `state.history`.
-- **Episodic memory**: every `EPISODE_BATCH_SIZE` turns are summarized asynchronously and stored in `data/memory/<therapist>__<patient>.jsonl`.
-- **Session reflection**: generated at session end and persisted.
-- **Long-term summary**: updated from reflections at session end.
-- **Run logs**: `tests/runs/<therapist>.json` contains all turns and snapshots for resume.
-
-
-## Development Notes
-- Keep new fields inside `PatientProfile` so prompt access is consistent.
-- The async episode executor is drained on shutdown; session end explicitly calls `finalize_session_memory()` in CLI and API.
-
-## Troubleshooting & Next Steps
-- **LLM initialization failures**: verify `model_id` and GPU availability (vLLM) or GCP credentials (Vertex).
-- **First run slow**: SentenceTransformer downloads on first use.
-- **Persistence**: JSONL is used for now; swap the `JsonlMemoryStore` implementation to migrate to a DB later.
-
-## Prompt Anatomy
-The prompt is layered so the most actionable guidance appears closest to the model’s response instruction:
-
-```
-🧍 Identity
-🧠 Cognitive Style
-🎭 Observed Interaction Style
-🎚️ Dominant Affective Systems
-
-Summary of previous sessions
-Last session reflection
-Recent conversation (last 3 turns)
-Relevant episodic memories (topic-gated)
-
-📂 Topic-conditioned sections (truncated)
-
-🛡️ Safety & Character Guardrails
-🧩 Context for This Turn (topic, affect, therapist message)
-✳️ Instruction (response rules)
-```
-
-## Emotion Dynamics Guide
-- `docs/emotion_dynamics_walkthrough.md`: detailed walkthrough of emotion synthesis and prompt surfacing.
-
-## Further Reading
-- `docs/architecture.md`: detailed LangGraph state and memory flow.
-- `docs/api_usage.md`: API usage examples.
-- `docs/prompt_building.md`: how prompt layers are assembled and constrained.
