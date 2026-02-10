@@ -5,17 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from agent.core.patient_profile import PatientProfile
+from agent.core.patient_profile import PatientProfile, resolve_patient_profile_path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 
 
 def load_patient_profile(patient_id: str) -> PatientProfile:
-    """Load the requested patient JSON file and convert it into a profile instance."""
-    patient_path = PATIENTS_DIR / f"{patient_id}.json"
-    if not patient_path.exists():
-        raise FileNotFoundError(f"Patient file not found: {patient_path}")
+    """Load the requested patient profile file and convert it into a profile instance."""
+    patient_path = resolve_patient_profile_path(patient_id, PATIENTS_DIR)
     return PatientProfile.from_file(str(patient_path))
 
 

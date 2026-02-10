@@ -1,6 +1,6 @@
 identifiers:
-  patientId: normal_user_001
-  externalPatientId: normal_user_001
+  patientId: alex_carter_001
+  externalPatientId: alex_carter_001
   disorderId: NONE
 profile:
   name: Alex Carter
@@ -13,8 +13,8 @@ profile:
 voice:
   voiceId: TxGEqnHWrfWFTfGW9XjX
   elevenlabsVoiceId: TxGEqnHWrfWFTfGW9XjX
-  vibevoiceVoiceId: Alex
-  chatterboxVoiceId: neutral_01
+  vibevoiceVoiceId: it-Spk1_man
+  chatterboxVoiceId: male_neutral_01
 chat:
   welcomeMessage: Hi, I am Alex. I do not have a clinical condition; I am here to practice constructive dialogue and emotional awareness.
 therapy:

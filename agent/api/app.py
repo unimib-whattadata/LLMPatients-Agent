@@ -1,13 +1,14 @@
 """FastAPI entrypoint that exposes the simulated patient via /api/message."""
 
 import re
-import json
 import time
+import yaml
 
 from pathlib import Path
 from typing import Literal
 from datetime import datetime
 from pydantic import BaseModel, Field
+from agent.core.patient_profile import resolve_patient_profile_path
 from agent.utils.run_logger import RunLogger
 from fastapi import FastAPI, HTTPException, status
 from agent.core.langgraph_builder import build_graph, finalize_session_memory
@@ -92,8 +93,8 @@ def _sanitize_patient_id(raw_id: str) -> str:
 
 
 def _patient_file_path(patient_id: str) -> Path:
-    """Return the target path for a patient's JSON profile."""
-    return PATIENTS_DIR / f"{patient_id}.json"
+    """Return the target path for a patient's YAML profile."""
+    return PATIENTS_DIR / f"{patient_id}.yaml"
 
 
 def _difficulty_to_volatility(level: int) -> str:
@@ -270,8 +271,13 @@ async def create_patient(req: PatientInitRequest):
 
     patient_id = _sanitize_patient_id(req.id)
     patient_path = _patient_file_path(patient_id)
+    existing_path = None
+    try:
+        existing_path = resolve_patient_profile_path(patient_id, PATIENTS_DIR)
+    except FileNotFoundError:
+        existing_path = None
 
-    if patient_path.exists():
+    if existing_path:
         return PatientInitResponse(
             status="exists",
             code="PATIENT_EXISTS",
@@ -283,8 +289,7 @@ async def create_patient(req: PatientInitRequest):
     PATIENTS_DIR.mkdir(parents=True, exist_ok=True)
     payload = _serialize_patient(req, patient_id)
     with open(patient_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=True, indent=2)
-        f.write("\n")
+        yaml.safe_dump(payload, f, allow_unicode=True, sort_keys=False)
 
     return PatientInitResponse(
         status="success",

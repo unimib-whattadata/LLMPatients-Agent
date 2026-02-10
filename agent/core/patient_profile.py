@@ -1,16 +1,21 @@
-"""Structured patient profile models aligned with the JSON schema in data/patients."""
+"""Structured patient profile models aligned with patient YAML schemas in data/patients."""
 
-import json
+try:
+    import yaml
+except ModuleNotFoundError:  # pragma: no cover - optional dependency in some local envs
+    yaml = None
 
 from pathlib import Path
 from pydantic import BaseModel, Field
 from agent.core.emotion_model import EMOTIONS
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Mapping, Optional, Union
 from agent.core.safety import NOT_REPORTED_MARKERS
+
+SUPPORTED_PATIENT_EXTENSIONS = (".yaml", ".yml")
 
 # === Emotion Traits ===
 class EmotionTraits(BaseModel):
-    """Baseline affective systems and volatility taken from patient JSON."""
+    """Baseline affective systems and volatility taken from patient YAML."""
 
     trait_baseline: Dict[str, float] = Field(default_factory=dict)
     volatility_level: str = "medium"
@@ -372,9 +377,23 @@ class PatientProfile(BaseModel):
 
     @classmethod
     def from_file(cls, path: str) -> "PatientProfile":
-        """Load a patient JSON file that follows the new schema."""
+        """Load a patient YAML file and normalize it to the runtime schema."""
+        suffix = Path(path).suffix.lower()
+        if suffix not in SUPPORTED_PATIENT_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported patient profile format '{suffix}'. "
+                f"Supported: {', '.join(SUPPORTED_PATIENT_EXTENSIONS)}"
+            )
         with open(path, "r", encoding="utf-8") as f:
-            raw = json.load(f)
+            if yaml is None:
+                raise ModuleNotFoundError(
+                    "PyYAML is required to load .yaml/.yml patient profiles. "
+                    "Install it with `pip install PyYAML`."
+                )
+            raw = yaml.safe_load(f) or {}
+
+        if not isinstance(raw, dict):
+            raise ValueError(f"Patient profile must be an object: {path}")
 
         prepared = _prepare_payload(raw, path)
         return cls(**prepared)
@@ -448,9 +467,34 @@ class PatientProfile(BaseModel):
         extra = "ignore"
 
 
+def resolve_patient_profile_path(patient_id: str, patients_dir: Path) -> Path:
+    """Resolve a patient profile path from YAML files only."""
+    requested = Path(patient_id)
+    if requested.suffix:
+        if requested.suffix.lower() not in SUPPORTED_PATIENT_EXTENSIONS:
+            raise FileNotFoundError(
+                f"Unsupported patient profile extension '{requested.suffix}'. "
+                f"Supported: {', '.join(SUPPORTED_PATIENT_EXTENSIONS)}"
+            )
+        direct = patients_dir / requested.name
+        if direct.exists():
+            return direct
+        raise FileNotFoundError(f"Patient YAML file not found: {direct}")
+
+    for ext in SUPPORTED_PATIENT_EXTENSIONS:
+        candidate = patients_dir / f"{patient_id}{ext}"
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(
+        f"Patient YAML file not found for '{patient_id}' in {patients_dir} "
+        f"(supported: {', '.join(SUPPORTED_PATIENT_EXTENSIONS)})"
+    )
+
+
 def _prepare_payload(raw: dict, path: str) -> dict:
-    """Normalize raw JSON into the structure expected by PatientProfile."""
+    """Normalize raw YAML into the structure expected by PatientProfile."""
     payload = dict(raw)
+    payload = _coerce_grouped_yaml_payload(payload, path)
 
     if "patientId" not in payload:
         payload["patientId"] = payload.get("patient_id") or Path(path).stem
@@ -469,7 +513,8 @@ def _prepare_payload(raw: dict, path: str) -> dict:
     payload["emotionTraits"] = _build_emotion_traits(payload)
 
     # ---- DETAILS NORMALIZATION ----
-    payload.setdefault("details", {})
+    if not isinstance(payload.get("details"), dict):
+        payload["details"] = {}
     payload["details"].setdefault("demographicAndSocioculturalInformation", {})
 
     # 👇 THIS IS THE IMPORTANT LINE
@@ -488,7 +533,11 @@ def _build_emotion_traits(raw: dict) -> dict:
         or raw.get("emotion_traits")
         or {}
     )
+    if not isinstance(container, Mapping):
+        container = {}
     baseline = container.get("trait_baseline") or raw.get("trait_baseline") or {}
+    if not isinstance(baseline, Mapping):
+        baseline = {}
     volatility = (
         container.get("volatility_level")
         or container.get("volatilityLevel")
@@ -507,6 +556,61 @@ def _build_emotion_traits(raw: dict) -> dict:
         )
         normalized[key] = _clamp_emotion_value(raw_value)
     return {"trait_baseline": normalized, "volatility_level": str(volatility).lower()}
+
+
+def _coerce_grouped_yaml_payload(raw: dict, path: str) -> dict:
+    """Convert grouped YAML schema (identifiers/profile/clinical/...) into flat runtime shape."""
+    if not any(key in raw for key in ("identifiers", "profile", "voice", "chat", "therapy", "clinical")):
+        return raw
+
+    identifiers = _as_mapping(raw.get("identifiers"))
+    profile = _as_mapping(raw.get("profile"))
+    voice = _as_mapping(raw.get("voice"))
+    chat = _as_mapping(raw.get("chat"))
+    therapy = _as_mapping(raw.get("therapy"))
+    clinical = _as_mapping(raw.get("clinical"))
+
+    payload = dict(raw)
+    payload["patientId"] = _first_non_empty(
+        payload.get("patientId"),
+        identifiers.get("patientId"),
+        payload.get("patient_id"),
+        Path(path).stem,
+    )
+    payload["name"] = _first_non_empty(payload.get("name"), profile.get("name"))
+    payload["briefDescription"] = _first_non_empty(
+        payload.get("briefDescription"),
+        payload.get("brief_description"),
+        profile.get("smallDescription"),
+        profile.get("briefDescription"),
+    )
+    payload["avatarUrl"] = _first_non_empty(payload.get("avatarUrl"), profile.get("avatarUrl"))
+    payload["voiceId"] = _first_non_empty(payload.get("voiceId"), voice.get("voiceId"))
+    payload["welcomeMessage"] = _first_non_empty(payload.get("welcomeMessage"), chat.get("welcomeMessage"))
+    payload["objectives"] = payload.get("objectives") or therapy.get("objectives") or []
+    payload["difficulty"] = _first_non_empty(payload.get("difficulty"), therapy.get("difficulty"))
+    payload["estimatedDuration"] = _first_non_empty(
+        payload.get("estimatedDuration"), therapy.get("estimatedDuration")
+    )
+    payload["clinicalCase"] = _first_non_empty(payload.get("clinicalCase"), clinical.get("clinicalCase"))
+    payload["emotionTraits"] = payload.get("emotionTraits") or clinical.get("emotionTraits") or {}
+    payload["details"] = payload.get("details") or clinical.get("details") or {}
+    payload["disorderId"] = _first_non_empty(payload.get("disorderId"), identifiers.get("disorderId"))
+    return payload
+
+
+def _as_mapping(value) -> dict:
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _first_non_empty(*values):
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        return value
+    return None
 
 
 def _clamp_emotion_value(value) -> float:

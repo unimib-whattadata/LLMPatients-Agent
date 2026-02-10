@@ -17,7 +17,11 @@ from agent.core.prompt_builder import build_prompt
 from agent.core.memory_store import JsonlMemoryStore
 from agent.core.llm_runner import create_llm_runner
 from agent.core.emotion_model import EMOTIONS, EVENT_SALIENCE, compute_emotional_state
-from agent.core.patient_profile import PatientProfile, PatientDetails
+from agent.core.patient_profile import (
+    PatientProfile,
+    PatientDetails,
+    resolve_patient_profile_path,
+)
 from agent.core.safety import SAFETY_PATTERNS, FOLLOW_UP_CUES, CONTEXT_EVENT_KEYWORDS
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
@@ -804,9 +808,8 @@ def load_profile(state):
             updates["therapist_id"] = therapist_id
         return updates
 
-    patient_path = ROOT_DIR / "data" / "patients" / f"{patient_id}.json"
-    if not patient_path.exists():
-        raise FileNotFoundError(f"❌ Patient file not found: {patient_path}")
+    patients_dir = ROOT_DIR / "data" / "patients"
+    patient_path = resolve_patient_profile_path(patient_id, patients_dir)
 
     profile = _get_cached_profile(patient_id, patient_path)
     if isinstance(profile.details, dict):

@@ -13,7 +13,7 @@ profile:
 voice:
   voiceId: EXAVITQu4vr4xnSDxMaL
   elevenlabsVoiceId: EXAVITQu4vr4xnSDxMaL
-  vibevoiceVoiceId: Luna
+  vibevoiceVoiceId: it-Spk0_woman
   chatterboxVoiceId: female_neutral_01
 chat:
   welcomeMessage: “Hi… I’m Crystal.

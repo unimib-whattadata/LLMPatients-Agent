@@ -13,7 +13,7 @@ profile:
 voice:
   voiceId: 21m00Tcm4TlvDq8ikWAM
   elevenlabsVoiceId: 21m00Tcm4TlvDq8ikWAM
-  vibevoiceVoiceId: Luna
+  vibevoiceVoiceId: it-Spk0_woman
   chatterboxVoiceId: female_expressive_01
 chat:
   welcomeMessage: I'm Juanita. I'm not sure where to start… or if it even matters. But I'm here, I guess.
