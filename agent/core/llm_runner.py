@@ -5,7 +5,13 @@ import vertexai
 from typing import Optional
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
-from vllm import LLM, SamplingParams
+try:
+    from vllm import LLM, SamplingParams
+    VLLM_AVAILABLE = True
+except ImportError:
+    VLLM_AVAILABLE = False
+    LLM = None  # Placeholder for type hints
+    SamplingParams = None
 
 from vertexai.generative_models import GenerativeModel, SafetySetting
 from vertexai.generative_models import HarmCategory, HarmBlockThreshold
@@ -39,6 +45,9 @@ class LLMRunnerBase(ABC):
 class LocalLLMRunner(LLMRunnerBase):
     """Adapter that executes prompts against a local vLLM engine."""
     def __init__(self, model_id: str, cache_path: Optional[str], temperature: float, max_tokens: int):
+        if not VLLM_AVAILABLE:
+            raise ImportError("Checking for execution: 'vllm' module is not installed. This installation requires Python <= 3.12 (approx) and compatible 'torch' version. Please use 'vertex_ai' provider or install 'vllm' manually in a compatible environment.")
+        
         super().__init__(temperature, max_tokens)
 
         if not model_id:
