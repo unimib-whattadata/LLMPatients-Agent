@@ -1,0 +1,291 @@
+id: pid5bf
+name: "Personality Inventory for DSM-5 – Brief Form Plus (PID-5-BF+M)"
+description: >
+  36 items (2 per trait facet) covering 18 facets across 6 personality trait domains:
+  Negative Affectivity, Detachment, Antagonism, Disinhibition, Anankastia, Psychoticism.
+  Scale: 0=Very False/Often False, 3=Very True/Often True.
+  Facet score = sum of 2 items (0-6). Domain score = mean of 3 facet scores (0-6).
+  Higher scores indicate greater dysfunction.
+  Item text based on the standard PID-5 instrument (APA). Verify against official
+  APA PID-5 publication (Krueger et al., 2012) for exact wording.
+  Scoring algorithm: Kerber et al. (2019), doi:10.31234/osf.io/rsw54
+time_frame: "yourself in general"
+scale:
+  type: integer
+  min: 0
+  max: 3
+  labels:
+    0: "Very False or Often False"
+    1: "Sometimes or Somewhat False"
+    2: "Sometimes or Somewhat True"
+    3: "Very True or Often True"
+batch_size: 1
+items:
+  # --- Negative Affectivity ---
+  - id: 1
+    text: "My emotions shift around a lot for little apparent reason"
+    facet: emotional_lability
+    domain: negative_affectivity
+    pid5_item: 62
+  - id: 7
+    text: "I am always fearful or on edge about something"
+    facet: anxiety
+    domain: negative_affectivity
+    pid5_item: 109
+  - id: 13
+    text: "I fear being alone in life more than anything else"
+    facet: separation_insecurity
+    domain: negative_affectivity
+    pid5_item: 50
+  # --- Detachment ---
+  - id: 4
+    text: "I don't like to spend time with people"
+    facet: withdrawal
+    domain: detachment
+    pid5_item: 82
+  - id: 10
+    text: "I can't seem to feel happy, no matter what I do"
+    facet: anhedonia
+    domain: detachment
+    pid5_item: 23
+  - id: 16
+    text: "I don't want to be close to anyone"
+    facet: intimacy_avoidance
+    domain: detachment
+    pid5_item: 89
+  # --- Antagonism ---
+  - id: 2
+    text: "I try to take advantage of other people when I can"
+    facet: manipulativeness
+    domain: antagonism
+    pid5_item: 162
+  - id: 8
+    text: "I lie to get what I want"
+    facet: deceitfulness
+    domain: antagonism
+    pid5_item: 126
+  - id: 14
+    text: "I deserve special treatment"
+    facet: grandiosity
+    domain: antagonism
+    pid5_item: 187
+  # --- Disinhibition ---
+  - id: 3
+    text: "I often fail to take care of my responsibilities"
+    facet: irresponsibility
+    domain: disinhibition
+    pid5_item: 129
+  - id: 9
+    text: "I often do things on impulse without thinking"
+    facet: impulsivity
+    domain: disinhibition
+    pid5_item: 4
+  - id: 15
+    text: "I jump from one activity to another without finishing any of them"
+    facet: distractibility
+    domain: disinhibition
+    pid5_item: 6
+  # --- Anankastia ---
+  - id: 6
+    text: "I hate making mistakes and check my work over and over to make sure there are none"
+    facet: perfectionism
+    domain: anankastia
+    pid5_item: 123
+  - id: 12
+    text: "I get very upset when things don't go exactly the way I want them to"
+    facet: rigidity
+    domain: anankastia
+    pid5_item: 140
+  - id: 30
+    text: "I keep everything neat and in order"
+    facet: orderliness
+    domain: anankastia
+    pid5_item: 34
+  # --- Psychoticism ---
+  - id: 5
+    text: "I believe there are forces in the universe that influence what happens to us in mysterious ways"
+    facet: unusual_beliefs
+    domain: psychoticism
+    pid5_item: 194
+  - id: 11
+    text: "I am truly a unique and special person, unlike anyone else"
+    facet: eccentricity
+    domain: psychoticism
+    pid5_item: 25
+  - id: 17
+    text: "I sometimes see things other people can't see"
+    facet: perceptual_dysregulation
+    domain: psychoticism
+    pid5_item: 44
+  # --- Second items per facet (items 18-36) ---
+  - id: 18
+    text: "I won't settle for anything less than perfect"
+    facet: perfectionism
+    domain: anankastia
+    pid5_item: 176
+  - id: 19
+    text: "Even minor things can make me very emotional"
+    facet: emotional_lability
+    domain: negative_affectivity
+    pid5_item: 122
+  - id: 20
+    text: "I use people to get what I want"
+    facet: manipulativeness
+    domain: antagonism
+    pid5_item: 219
+  - id: 21
+    text: "I'm not very dependable or reliable"
+    facet: irresponsibility
+    domain: disinhibition
+    pid5_item: 160
+  - id: 22
+    text: "I'd rather be by myself than with other people"
+    facet: withdrawal
+    domain: detachment
+    pid5_item: 136
+  - id: 23
+    text: "I often believe in things other people think are strange or unusual"
+    facet: unusual_beliefs
+    domain: psychoticism
+    pid5_item: 209
+  - id: 24
+    text: "I cannot tolerate it when things don't go exactly as I planned"
+    facet: rigidity
+    domain: anankastia
+    pid5_item: 220
+  - id: 25
+    text: "I feel like something terrible is going to happen a lot of the time"
+    facet: anxiety
+    domain: negative_affectivity
+    pid5_item: 110
+  - id: 26
+    text: "I'm comfortable stretching the truth when it suits me"
+    facet: deceitfulness
+    domain: antagonism
+    pid5_item: 218
+  - id: 27
+    text: "I often act on the spur of the moment"
+    facet: impulsivity
+    domain: disinhibition
+    pid5_item: 17
+  - id: 28
+    text: "I don't get enjoyment from much of anything"
+    facet: anhedonia
+    domain: detachment
+    pid5_item: 189
+  - id: 29
+    text: "I'm seen by others as an odd, eccentric person"
+    facet: eccentricity
+    domain: psychoticism
+    pid5_item: 185
+  - id: 31
+    text: "I can't stand being on my own"
+    facet: separation_insecurity
+    domain: negative_affectivity
+    pid5_item: 64
+  - id: 32
+    text: "I'm great at what I do, and others recognise it"
+    facet: grandiosity
+    domain: antagonism
+    pid5_item: 197
+  - id: 33
+    text: "I can't seem to focus on anything for long"
+    facet: distractibility
+    domain: disinhibition
+    pid5_item: 132
+  - id: 34
+    text: "I'm not interested in making close friends"
+    facet: intimacy_avoidance
+    domain: detachment
+    pid5_item: 108
+  - id: 35
+    text: "Sometimes I hear voices or see things other people can't hear or see"
+    facet: perceptual_dysregulation
+    domain: psychoticism
+    pid5_item: 77
+  - id: 36
+    text: "I always keep everything organised and tidy"
+    facet: orderliness
+    domain: anankastia
+    pid5_item: 115
+scoring:
+  subscales:
+    # Negative Affectivity facets
+    emotional_lability:
+      items: [1, 19]
+      method: sum
+    anxiety:
+      items: [7, 25]
+      method: sum
+    separation_insecurity:
+      items: [13, 31]
+      method: sum
+    # Detachment facets
+    withdrawal:
+      items: [4, 22]
+      method: sum
+    anhedonia:
+      items: [10, 28]
+      method: sum
+    intimacy_avoidance:
+      items: [16, 34]
+      method: sum
+    # Antagonism facets
+    manipulativeness:
+      items: [2, 20]
+      method: sum
+    deceitfulness:
+      items: [8, 26]
+      method: sum
+    grandiosity:
+      items: [14, 32]
+      method: sum
+    # Disinhibition facets
+    irresponsibility:
+      items: [3, 21]
+      method: sum
+    impulsivity:
+      items: [9, 27]
+      method: sum
+    distractibility:
+      items: [15, 33]
+      method: sum
+    # Anankastia facets
+    perfectionism:
+      items: [6, 18]
+      method: sum
+    rigidity:
+      items: [12, 24]
+      method: sum
+    orderliness:
+      items: [30, 36]
+      method: sum
+    # Psychoticism facets
+    unusual_beliefs:
+      items: [5, 23]
+      method: sum
+    eccentricity:
+      items: [11, 29]
+      method: sum
+    perceptual_dysregulation:
+      items: [17, 35]
+      method: sum
+  domains:
+    negative_affectivity:
+      subscales: [emotional_lability, anxiety, separation_insecurity]
+      method: mean
+    detachment:
+      subscales: [withdrawal, anhedonia, intimacy_avoidance]
+      method: mean
+    antagonism:
+      subscales: [manipulativeness, deceitfulness, grandiosity]
+      method: mean
+    disinhibition:
+      subscales: [irresponsibility, impulsivity, distractibility]
+      method: mean
+    anankastia:
+      subscales: [perfectionism, rigidity, orderliness]
+      method: mean
+    psychoticism:
+      subscales: [unusual_beliefs, eccentricity, perceptual_dysregulation]
+      method: mean

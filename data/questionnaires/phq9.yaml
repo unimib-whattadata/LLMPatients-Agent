@@ -1,0 +1,77 @@
+id: phq9
+name: "Patient Health Questionnaire-9 (PHQ-9)"
+description: >
+  Screens for depression severity. Items 1-9 rate symptom frequency over the past
+  2 weeks (0=Not at all, 3=Nearly every day). Item 10 captures functional impairment.
+  Total score (items 1-9): 0-27.
+time_frame: "the past 2 weeks"
+scale:
+  type: integer
+  min: 0
+  max: 3
+  labels:
+    0: "Not at all"
+    1: "Several days"
+    2: "More than half the days"
+    3: "Nearly every day"
+batch_size: 1
+items:
+  - id: 1
+    text: "Little interest or pleasure in doing things"
+    domain: depression
+  - id: 2
+    text: "Feeling down, depressed, or hopeless"
+    domain: depression
+  - id: 3
+    text: "Trouble falling or staying asleep, or sleeping too much"
+    domain: depression
+  - id: 4
+    text: "Feeling tired or having little energy"
+    domain: depression
+  - id: 5
+    text: "Poor appetite or overeating"
+    domain: depression
+  - id: 6
+    text: "Feeling bad about yourself — or that you are a failure or have let yourself or your family down"
+    domain: depression
+  - id: 7
+    text: "Trouble concentrating on things, such as reading the newspaper or watching television"
+    domain: depression
+  - id: 8
+    text: "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual"
+    domain: depression
+  - id: 9
+    text: "Thoughts that you would be better off dead or of hurting yourself in some way"
+    domain: depression
+  - id: 10
+    text: "How difficult have these problems made it for you to do your work, take care of things at home, or get along with other people?"
+    domain: functional_impairment
+    scale_override:
+      type: integer
+      min: 0
+      max: 3
+      labels:
+        0: "Not difficult at all"
+        1: "Somewhat difficult"
+        2: "Very difficult"
+        3: "Extremely difficult"
+scoring:
+  subscales:
+    depression:
+      items: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+      method: sum
+  total:
+    subscales: [depression]
+    method: sum
+  functional_item: 10
+  severity_thresholds:
+    - max: 4
+      label: "Minimal depression"
+    - max: 9
+      label: "Mild depression"
+    - max: 14
+      label: "Moderate depression"
+    - max: 19
+      label: "Moderately severe depression"
+    - max: 27
+      label: "Severe depression"

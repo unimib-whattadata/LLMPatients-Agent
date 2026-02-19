@@ -1,0 +1,413 @@
+id: snap2
+name: "Schedule for Nonadaptive and Adaptive Personality – 2nd Edition (SNAP-2)"
+description: >
+  390 True/False items assessing personality traits and disorders.
+  Respond T (True or Mostly True) or F (False or Mostly False).
+  Subscale scoring requires the SNAP-2 scoring key (Clark, 2014), which is not
+  included in the item booklet. Raw T/F answers are stored; subscale computation
+  requires the manual.
+  Copyright 2014, Lee Anna Clark. All rights reserved.
+time_frame: "yourself in general"
+scale:
+  type: choice
+  options: ["T", "F"]
+  labels:
+    T: "True or Mostly True"
+    F: "False or Mostly False"
+batch_size: 20
+items:
+  - {id: 1,   text: "I enjoy work more than play."}
+  - {id: 2,   text: "I've gotten into more fights than most people."}
+  - {id: 3,   text: "I like to keep my dignity at all costs."}
+  - {id: 4,   text: "I am not an \"impulse buyer.\""}
+  - {id: 5,   text: "As a kid, I was always getting into trouble for breaking the rules at home or at school."}
+  - {id: 6,   text: "I hate it when the topic of conversation turns to me."}
+  - {id: 7,   text: "Based on my experiences, I believe I have ESP or some kind of special ability."}
+  - {id: 8,   text: "Most people make friends because they expect friends to be useful."}
+  - {id: 9,   text: "Even when I'm around other people I keep to myself."}
+  - {id: 10,  text: "I consider it very important to have a good reputation in the community."}
+  - {id: 11,  text: "It often seems that I simply have no feelings."}
+  - {id: 12,  text: "I sometimes \"forget\" things that I would rather not do."}
+  - {id: 13,  text: "I haven't made much of my life."}
+  - {id: 14,  text: "I am sure I am being talked about."}
+  - {id: 15,  text: "Fear of criticism or rejection keeps me from getting involved in activities with others."}
+  - {id: 16,  text: "I usually handle my own problems, rather than rely upon others for help."}
+  - {id: 17,  text: "I rarely get so angry that I lose control."}
+  - {id: 18,  text: "People say I neglect other important parts of my life because I work so hard."}
+  - {id: 19,  text: "I'm no good at flirting."}
+  - {id: 20,  text: "I find that different odors have different colors."}
+  - {id: 21,  text: "I often quarrel with others."}
+  - {id: 22,  text: "I don't particularly like spending time with people."}
+  - {id: 23,  text: "When I was a kid, I was pretty much of a juvenile delinquent."}
+  - {id: 24,  text: "I am not the sort of person who holds a grudge."}
+  - {id: 25,  text: "I would not use others' weaknesses to my own advantage."}
+  - {id: 26,  text: "I'm a pretty independent person."}
+  - {id: 27,  text: "My closest friends have disappointed me the most."}
+  - {id: 28,  text: "I like people to notice how I look when I go out in public."}
+  - {id: 29,  text: "When I start a task, I am determined to finish it."}
+  - {id: 30,  text: "When I get very tense, hurting myself physically somehow calms me down."}
+  - {id: 31,  text: "When I get angry, I am often ready to hit someone."}
+  - {id: 32,  text: "I am disgusted by foul language."}
+  - {id: 33,  text: "When I resent having to do something, I sometimes make mistakes on purpose."}
+  - {id: 34,  text: "I believe in playing strictly by the rules."}
+  - {id: 35,  text: "I often prefer not to have people around me."}
+  - {id: 36,  text: "I can make up my own mind without too much trouble."}
+  - {id: 37,  text: "I rarely, if ever, do anything reckless."}
+  - {id: 38,  text: "I wonder if the people I know can really be trusted."}
+  - {id: 39,  text: "I frequently drink too much for my own good."}
+  - {id: 40,  text: "I let other people make important decisions for me."}
+  - {id: 41,  text: "I am more likely to be fast and careless than to be slow and plodding."}
+  - {id: 42,  text: "I sometimes have the feeling that people or things around me are not real."}
+  - {id: 43,  text: "I admit that I sometimes enjoy hurting someone physically."}
+  - {id: 44,  text: "I am happy to change the way I do things if it makes my family or friends like me better."}
+  - {id: 45,  text: "I don't like to be noticed when I walk into a room."}
+  - {id: 46,  text: "Others shouldn't mind if I borrow small things without asking."}
+  - {id: 47,  text: "I put my work ahead of being with family or friends."}
+  - {id: 48,  text: "There are few, if any, people to whom I feel close."}
+  - {id: 49,  text: "I am a very special person."}
+  - {id: 50,  text: "I always like to know if what I'm doing is the proper thing to do."}
+  - {id: 51,  text: "I have an inner world of my own that has its own special meaning."}
+  - {id: 52,  text: "I am a self-reliant person."}
+  - {id: 53,  text: "Most people stay friends only as long as it is to their advantage."}
+  - {id: 54,  text: "I often keep working on a problem even if I am very tired."}
+  - {id: 55,  text: "I'll do almost anything to keep someone from leaving me."}
+  - {id: 56,  text: "Sometimes I hit people who have done something to deserve it."}
+  - {id: 57,  text: "I like to show-off."}
+  - {id: 58,  text: "I am very level-headed and always like to \"keep my feet on the ground.\""}
+  - {id: 59,  text: "People are always asking me to do more than my fair share."}
+  - {id: 60,  text: "Sometimes I lose the boundaries of my self."}
+  - {id: 61,  text: "When I am unhappy about something, I would rather be with a friend than be alone."}
+  - {id: 62,  text: "I am quite self-sufficient."}
+  - {id: 63,  text: "People who try to get out of doing something by pretending to need help are probably lazy, not clever."}
+  - {id: 64,  text: "It is important to be polite at all times."}
+  - {id: 65,  text: "Sometimes I get so upset I feel like hurting myself."}
+  - {id: 66,  text: "I often act without thinking."}
+  - {id: 67,  text: "Sooner or later, people always let you down."}
+  - {id: 68,  text: "Even when I have done something very well, I usually demand that I do better the next time."}
+  - {id: 69,  text: "I like being the topic of conversation."}
+  - {id: 70,  text: "Some people consider me hostile."}
+  - {id: 71,  text: "I am usually right."}
+  - {id: 72,  text: "I sometimes feel unreal, or as if I am looking at myself from outside."}
+  - {id: 73,  text: "I've never been in trouble with the law."}
+  - {id: 74,  text: "For me, one of the best experiences is the warm feeling of being in a group of good friends."}
+  - {id: 75,  text: "When I have to make a decision, I am mostly concerned with pleasing others."}
+  - {id: 76,  text: "I sometimes manipulate people."}
+  - {id: 77,  text: "I like being me."}
+  - {id: 78,  text: "High moral standards are the most important things parents can teach their children."}
+  - {id: 79,  text: "My work is more important to me than anything else."}
+  - {id: 80,  text: "I would never start a fistfight."}
+  - {id: 81,  text: "I feel a strong need to have others approve of me."}
+  - {id: 82,  text: "I don't enjoy being in the spotlight."}
+  - {id: 83,  text: "I am not unusually talented."}
+  - {id: 84,  text: "I like to make my own decisions."}
+  - {id: 85,  text: "It is terribly rude to be even a little late for appointments."}
+  - {id: 86,  text: "Sometimes I know that something will happen before it actually does."}
+  - {id: 87,  text: "My \"friends\" have often betrayed me."}
+  - {id: 88,  text: "I'll take almost any excuse to goof off instead of work."}
+  - {id: 89,  text: "I tend to value and follow a rational, \"sensible\" approach to things."}
+  - {id: 90,  text: "People who are supposed to be experts often don't know any more than I do."}
+  - {id: 91,  text: "Lying comes easily to me."}
+  - {id: 92,  text: "I am pretty reserved around others."}
+  - {id: 93,  text: "I really enjoy speaking in public."}
+  - {id: 94,  text: "Poor table manners don't particularly offend me."}
+  - {id: 95,  text: "I hate having to decide things."}
+  - {id: 96,  text: "When someone hurts me, I try to get even."}
+  - {id: 97,  text: "I took advantage of people sexually before I was 15 years old."}
+  - {id: 98,  text: "I've really made a mess of my life."}
+  - {id: 99,  text: "I like to take chances on something that isn't sure, such as gambling."}
+  - {id: 100, text: "I base many of my decisions on what other people think."}
+  - {id: 101, text: "I usually like to spend my free time with family or friends rather than alone."}
+  - {id: 102, text: "I am quite willing to bend the truth if it will benefit me."}
+  - {id: 103, text: "There have been times when I've had such vivid experiences that I couldn't be sure afterwards if they had been a dream or real."}
+  - {id: 104, text: "I sometimes just don't go to work."}
+  - {id: 105, text: "It's fun to take advantage of others' weak points."}
+  - {id: 106, text: "My friendships often seem to swing between being really close and really far apart."}
+  - {id: 107, text: "People don't give me enough credit for my work."}
+  - {id: 108, text: "I perform in public whenever I can."}
+  - {id: 109, text: "It's very hard to make me angry."}
+  - {id: 110, text: "I would never kill myself."}
+  - {id: 111, text: "People say that I drive myself hard."}
+  - {id: 112, text: "I don't like to depend on other people."}
+  - {id: 113, text: "I deserve the best."}
+  - {id: 114, text: "I generally do not like to have detailed plans."}
+  - {id: 115, text: "People today aren't concerned enough about good manners."}
+  - {id: 116, text: "I often keep working on a problem long after others have given up."}
+  - {id: 117, text: "I've done a lot of things for which I could have been or was arrested."}
+  - {id: 118, text: "As a kid, I often used whatever I could find as a weapon to fight with."}
+  - {id: 119, text: "I am good at getting others to do my work."}
+  - {id: 120, text: "I have many qualities that others wish they had."}
+  - {id: 121, text: "People sometimes try to make me look foolish."}
+  - {id: 122, text: "I am ready for a fight when someone tries to take advantage of me."}
+  - {id: 123, text: "I frequently check with others to see if I'm doing OK."}
+  - {id: 124, text: "When I decide things, I always refer to the basic rules of right and wrong."}
+  - {id: 125, text: "Things go best when people do things the way I like them or want them done."}
+  - {id: 126, text: "Whenever I go out to have fun I like to have a pretty good idea of what I'm going to do."}
+  - {id: 127, text: "I never get so caught up in my work that I neglect my family or friends."}
+  - {id: 128, text: "Sometimes my surroundings seem to change and I feel like I'm in a strange place."}
+  - {id: 129, text: "I see no objection to stepping on other people's toes a little if it helps me out."}
+  - {id: 130, text: "I am a cautious person."}
+  - {id: 131, text: "I am a warm person rather than cool and detached."}
+  - {id: 132, text: "I deserve all that I have and more."}
+  - {id: 133, text: "People rarely try to take advantage of me."}
+  - {id: 134, text: "I've used drugs quite a bit."}
+  - {id: 135, text: "I wear clothes that are proper, even if they are uncomfortable."}
+  - {id: 136, text: "I usually make my own decisions without talking to others."}
+  - {id: 137, text: "When I talk, my voice is less expressive than most people's."}
+  - {id: 138, text: "I wouldn't buy anything before I was sure I could afford it."}
+  - {id: 139, text: "I have not lived the right kind of life."}
+  - {id: 140, text: "I am more of a loner than most people."}
+  - {id: 141, text: "I have a violent temper."}
+  - {id: 142, text: "I have tried to commit suicide."}
+  - {id: 143, text: "I deserve special recognition."}
+  - {id: 144, text: "Some of my best friends have become my worst enemies."}
+  - {id: 145, text: "I never attempt to be the life of the party."}
+  - {id: 146, text: "I like to stop and think things over before I do them."}
+  - {id: 147, text: "I am almost always treated fairly."}
+  - {id: 148, text: "When someone insults me, I can forgive and forget."}
+  - {id: 149, text: "I've learned how to work just slowly enough that others will do things for me."}
+  - {id: 150, text: "I have an unusual way of looking at the world."}
+  - {id: 151, text: "It is always important for me to be dressed correctly for the occasion."}
+  - {id: 152, text: "I used to skip school quite a bit when I was a kid."}
+  - {id: 153, text: "I have no trouble controlling my anger."}
+  - {id: 154, text: "I always try to be fully prepared before I begin working on anything."}
+  - {id: 155, text: "I deserve to be admired."}
+  - {id: 156, text: "I rarely look to others to help me make decisions."}
+  - {id: 157, text: "Sometimes I think suicide is the only way out of my troubles."}
+  - {id: 158, text: "I enjoy working with people more than working alone."}
+  - {id: 159, text: "When I tell a story, I often change the facts a little to make it more interesting."}
+  - {id: 160, text: "I greatly dislike it when someone breaks accepted rules of good behavior."}
+  - {id: 161, text: "I'm handling my life pretty well."}
+  - {id: 162, text: "Sometimes a part of my body seems to be separate from the rest of me."}
+  - {id: 163, text: "It's safer to keep things to yourself."}
+  - {id: 164, text: "I don't ever like to stay in one place for long."}
+  - {id: 165, text: "My temper sometimes gets me into trouble."}
+  - {id: 166, text: "I am sometimes careless with other people's things."}
+  - {id: 167, text: "I deserve special privileges."}
+  - {id: 168, text: "I've been told that I work too hard."}
+  - {id: 169, text: "I dress to attract sexual attention."}
+  - {id: 170, text: "I don't mind sharing my things with others."}
+  - {id: 171, text: "I think I am quite an extraordinary person."}
+  - {id: 172, text: "Sometimes I think that trying to commit suicide is the only way to get people to take me seriously."}
+  - {id: 173, text: "I usually use careful reasoning when making up my mind."}
+  - {id: 174, text: "I have hurt myself on purpose several times."}
+  - {id: 175, text: "I've gotten a lot of speeding tickets."}
+  - {id: 176, text: "It's dangerous to show your real feelings."}
+  - {id: 177, text: "I rarely feel strong emotions such as anger or joy."}
+  - {id: 178, text: "There have been times when I've felt that I have actually left my body and am somehow \"outside\" my physical self."}
+  - {id: 179, text: "All I have to do is smile and people give me my way."}
+  - {id: 180, text: "I don't consider a task finished until it's perfect."}
+  - {id: 181, text: "I seldom feel like hitting anyone."}
+  - {id: 182, text: "I go out of my way to meet people."}
+  - {id: 183, text: "I like to turn heads when I walk into a room."}
+  - {id: 184, text: "It makes me very uncomfortable to be underdressed at an event."}
+  - {id: 185, text: "I live a safe, quiet life."}
+  - {id: 186, text: "I often get out of doing things by making up good excuses."}
+  - {id: 187, text: "Some people say that I put my work ahead of too many other things."}
+  - {id: 188, text: "I have often been lied to."}
+  - {id: 189, text: "I often like to do the first thing that comes to my mind."}
+  - {id: 190, text: "I sometimes wonder if I would be better off dead."}
+  - {id: 191, text: "When I was in school, I was often sent to the principal for fighting."}
+  - {id: 192, text: "I push myself to my limits."}
+  - {id: 193, text: "I've wasted a lot of my life."}
+  - {id: 194, text: "I become angry more easily than most people."}
+  - {id: 195, text: "I love to have my picture taken."}
+  - {id: 196, text: "I am rather aloof and maintain distance between myself and others."}
+  - {id: 197, text: "I'd rather have someone tell me what to do than have to make my own choices."}
+  - {id: 198, text: "I don't keep particularly close track of where my money goes."}
+  - {id: 199, text: "I have never had the feeling that I was someone else."}
+  - {id: 200, text: "I would never hurt other people just to get what I want."}
+  - {id: 201, text: "Higher standards of conduct are what this country needs most."}
+  - {id: 202, text: "When I'm working on something, I'm not happy until all the details are taken care of."}
+  - {id: 203, text: "I deserve more than I am getting."}
+  - {id: 204, text: "The way I behave often gets me into trouble on the job, at home, or at school."}
+  - {id: 205, text: "It's best not to let other people get to know you too well."}
+  - {id: 206, text: "I have never given any thought to killing myself."}
+  - {id: 207, text: "I have trouble opening up to people."}
+  - {id: 208, text: "I really enjoy beating the system."}
+  - {id: 209, text: "I have often driven when I was fairly drunk."}
+  - {id: 210, text: "Nothing would hurt me more than to have a bad reputation."}
+  - {id: 211, text: "People sometimes tell me to slow down and \"take it easy.\""}
+  - {id: 212, text: "I enjoy a good brawl."}
+  - {id: 213, text: "At times I somehow feel the presence of someone who is not really there."}
+  - {id: 214, text: "I enjoy working hard."}
+  - {id: 215, text: "I'm nobody special."}
+  - {id: 216, text: "People often disappoint me."}
+  - {id: 217, text: "I love to flirt."}
+  - {id: 218, text: "I am a \"people person.\""}
+  - {id: 219, text: "I have on occasion deliberately not done my best."}
+  - {id: 220, text: "I get the most fun out of things that others think are immoral or illegal."}
+  - {id: 221, text: "Sometimes I have this strange experience in which things seem \"more real\" than usual."}
+  - {id: 222, text: "I believe that I am more strict about right and wrong than most people are."}
+  - {id: 223, text: "I wear clothes that draw attention."}
+  - {id: 224, text: "People often just use me instead of treating me as a person."}
+  - {id: 225, text: "I would go out of my way to avoid a fight."}
+  - {id: 226, text: "I don't deserve special privileges."}
+  - {id: 227, text: "No matter how busy I am, I always find some time to have fun."}
+  - {id: 228, text: "I prefer taking each day as it comes, rather than having some major goals set for my life."}
+  - {id: 229, text: "When I was a kid, I ran away from home overnight more than once."}
+  - {id: 230, text: "I prefer others to do things for me so they'll be done correctly."}
+  - {id: 231, text: "I insist on knowing what my family members are doing at all times."}
+  - {id: 232, text: "I have stolen things from time to time."}
+  - {id: 233, text: "Even when people smile at me I rarely smile back."}
+  - {id: 234, text: "I sometimes have a hard time finishing things because I want them to be perfect."}
+  - {id: 235, text: "I often have trouble understanding other people's feelings."}
+  - {id: 236, text: "I like to take care of things in order, one at a time."}
+  - {id: 237, text: "My future looks very bright to me."}
+  - {id: 238, text: "I worry a great deal about being criticized or rejected in social situations."}
+  - {id: 239, text: "I am able to approach tasks in such a way that they become interesting or fun."}
+  - {id: 240, text: "I sometimes rush from one activity to another without stopping to rest."}
+  - {id: 241, text: "I often have strong feelings such as anxiety or anger without really knowing why."}
+  - {id: 242, text: "I lead an active life."}
+  - {id: 243, text: "As a kid, I was sometimes physically cruel to animals or even other people."}
+  - {id: 244, text: "I sometimes get too upset by minor setbacks."}
+  - {id: 245, text: "My mood sometimes changes for example, from happy to sad, or vice versa without good reason."}
+  - {id: 246, text: "Bad things have happened to me one after another for as long as I can remember."}
+  - {id: 247, text: "I often stop in the middle of one activity to start another one."}
+  - {id: 248, text: "I often feel nervous and \"stressed.\""}
+  - {id: 249, text: "I lead a very interesting life."}
+  - {id: 250, text: "I frequently find myself worrying about things."}
+  - {id: 251, text: "If I had to choose, I would prefer having to sit through a long concert of music I dislike to being in a bank during an armed robbery."}
+  - {id: 252, text: "My anger frequently gets the better of me."}
+  - {id: 253, text: "I get excited when I think about the future."}
+  - {id: 254, text: "Before making a decision, I carefully consider all sides of the issue."}
+  - {id: 255, text: "I never say bad things about people, even when they aren't around to hear."}
+  - {id: 256, text: "People would describe me as a pretty enthusiastic person."}
+  - {id: 257, text: "I can easily find ways to liven up a dull day."}
+  - {id: 258, text: "When I was a kid, I stole things a number of times."}
+  - {id: 259, text: "Little things upset me too much."}
+  - {id: 260, text: "Sometimes I will suddenly feel scared for no good reason."}
+  - {id: 261, text: "I work just hard enough to get by."}
+  - {id: 262, text: "In my life, interesting and exciting things happen every day."}
+  - {id: 263, text: "I sometimes swear when I'm angry."}
+  - {id: 264, text: "I sometimes get all worked up as I think about things that happened during the day."}
+  - {id: 265, text: "I would never try to make friends with someone unless I was sure they liked me."}
+  - {id: 266, text: "Other people sometimes have trouble keeping up with the pace I set."}
+  - {id: 267, text: "My life has been one misfortune after another."}
+  - {id: 268, text: "I get a kick out of really scaring people."}
+  - {id: 269, text: "I am often nervous for no reason."}
+  - {id: 270, text: "I live a very full life."}
+  - {id: 271, text: "If I were overpaid even a small amount at work, I would report it."}
+  - {id: 272, text: "If I had to choose, I would prefer being in a flood to unloading a ton of newspapers from a truck."}
+  - {id: 273, text: "I can get very upset when little things don't go my way."}
+  - {id: 274, text: "I often take my anger out on those around me."}
+  - {id: 275, text: "I suspect that those I care about have been unfaithful to me."}
+  - {id: 276, text: "I am usually alert and attentive."}
+  - {id: 277, text: "I would describe myself as a tense person."}
+  - {id: 278, text: "It wouldn't particularly bother me if I never had an intimate or sexual relationship."}
+  - {id: 279, text: "I put a lot of energy into everything I do."}
+  - {id: 280, text: "I sometimes drive over the speed limit."}
+  - {id: 281, text: "I often worry about things I have done or said."}
+  - {id: 282, text: "I would much rather party than work."}
+  - {id: 283, text: "I can make a game out of some things that others consider work."}
+  - {id: 284, text: "It takes a lot to get me excited."}
+  - {id: 285, text: "I feel very uncomfortable around people unless I know them quite well."}
+  - {id: 286, text: "I have never cheated on a test, even when I was sure I wouldn't be caught."}
+  - {id: 287, text: "I have a happy-go-lucky attitude toward life."}
+  - {id: 288, text: "Sometimes life seems pretty confusing to me."}
+  - {id: 289, text: "I frequently get behind on my bills or other debts."}
+  - {id: 290, text: "I am sometimes troubled by thoughts or ideas that I can't get out of my mind."}
+  - {id: 291, text: "My pace is usually quick and lively."}
+  - {id: 292, text: "I feel so inadequate when meeting new people that I usually just keep to myself."}
+  - {id: 293, text: "I find that I quickly become close friends with people I meet."}
+  - {id: 294, text: "I often have difficulty sleeping because of my worries."}
+  - {id: 295, text: "What others think of me is unimportant."}
+  - {id: 296, text: "I sometimes don't answer letters right away."}
+  - {id: 297, text: "Most days I have a lot of \"pep\" or vigor."}
+  - {id: 298, text: "I don't get very upset when things go wrong."}
+  - {id: 299, text: "I tend not to trust other people's motives."}
+  - {id: 300, text: "People would describe me as a pretty energetic person."}
+  - {id: 301, text: "I sometimes feel \"on edge\" all day."}
+  - {id: 302, text: "I have trouble throwing things out even if they are of no value to me."}
+  - {id: 303, text: "I often feel personally or socially inadequate."}
+  - {id: 304, text: "My feelings are hurt rather easily."}
+  - {id: 305, text: "I have never voted for a person that I didn't know much about."}
+  - {id: 306, text: "In my life, I would rather try to do too much than too little."}
+  - {id: 307, text: "I am a serious-minded person."}
+  - {id: 308, text: "I get pretty excited when I'm starting a new project."}
+  - {id: 309, text: "Small annoyances often irritate me."}
+  - {id: 310, text: "I'm a pretty stubborn person."}
+  - {id: 311, text: "I am often troubled by guilt feelings."}
+  - {id: 312, text: "I seem to be able to remain calm in almost any situation."}
+  - {id: 313, text: "I feel very helpless when I'm alone."}
+  - {id: 314, text: "If I found a five-dollar bill, I would not try to find the person who lost it."}
+  - {id: 315, text: "I rarely stay in a sexual relationship with just one person for very long."}
+  - {id: 316, text: "I worry about terrible things that might happen."}
+  - {id: 317, text: "I like to stir up some excitement when things are getting dull."}
+  - {id: 318, text: "When I'm having a good time, I don't worry about the consequences."}
+  - {id: 319, text: "I am often playful around other people."}
+  - {id: 320, text: "I worry too much about things that don't really matter."}
+  - {id: 321, text: "I resent that some people seem to have all the luck."}
+  - {id: 322, text: "I have never made a promise that I didn't keep."}
+  - {id: 323, text: "I have days that I'm very irritable."}
+  - {id: 324, text: "I am sometimes \"on the go\" so much that I wear myself out."}
+  - {id: 325, text: "Often life feels like a big struggle."}
+  - {id: 326, text: "I spend a good deal of my time just having fun."}
+  - {id: 327, text: "I'll do almost anything in order to get other people to like me."}
+  - {id: 328, text: "I have more energy than most of the people I know."}
+  - {id: 329, text: "Taking care of details is not my strong point."}
+  - {id: 330, text: "When I was a kid, I sometimes did things I was told not to do."}
+  - {id: 331, text: "Things seem to bother me less than most other people."}
+  - {id: 332, text: "I have a lot of powerful friends."}
+  - {id: 333, text: "I sometimes feel angry for no good reason."}
+  - {id: 334, text: "I spend a good deal of time thinking about things or abilities that others have."}
+  - {id: 335, text: "I have reason to believe that my spouse or partner has been cheating on me."}
+  - {id: 336, text: "I often feel lively and cheerful for no particular reason."}
+  - {id: 337, text: "I can work hard, and for a long time, without feeling tired."}
+  - {id: 338, text: "Fear of criticism or embarrassment makes me hold back in many social situations."}
+  - {id: 339, text: "I have been on eating binges a number of times."}
+  - {id: 340, text: "When I'm alone, I often worry about whether I'll be able to handle things."}
+  - {id: 341, text: "I am usually enthusiastic about the things that I do."}
+  - {id: 342, text: "I get very nervous in social situations even if I know the people pretty well."}
+  - {id: 343, text: "For me life is a great adventure."}
+  - {id: 344, text: "I know that people have purposely spread false rumors about me."}
+  - {id: 345, text: "I'm always afraid the people I love are going to leave me."}
+  - {id: 346, text: "I'm not very interested in intimate or sexual relationships."}
+  - {id: 347, text: "If a clerk gives me too much change, I usually keep the extra."}
+  - {id: 348, text: "My mood often goes up and down."}
+  - {id: 349, text: "It takes someone really special to understand and appreciate me."}
+  - {id: 350, text: "I am too sensitive for my own good."}
+  - {id: 351, text: "I frequently go back and forth between getting very angry and feeling bad about it."}
+  - {id: 352, text: "I hate it when people try to \"improve\" my way of doing things."}
+  - {id: 353, text: "As a kid, I told a lot of lies."}
+  - {id: 354, text: "I am so concerned about embarrassing myself that I rarely try new things."}
+  - {id: 355, text: "I often lose confidence and give up when beginning a new project."}
+  - {id: 356, text: "I never throw out anything if there's even a small chance that I might need it sometime."}
+  - {id: 357, text: "I'm always afraid that the people I love are going to leave me and I'll have to take care of myself."}
+  - {id: 358, text: "I've had a lot of stupid bosses."}
+  - {id: 359, text: "I have never parked in a \"No Parking\" zone, even for a minute."}
+  - {id: 360, text: "I get angry very quickly if someone criticizes me even a little bit."}
+  - {id: 361, text: "I set fires a number of times when I was a kid."}
+  - {id: 362, text: "I feel empty or bored a great deal of the time."}
+  - {id: 363, text: "I express my feelings much more openly than most people do."}
+  - {id: 364, text: "I worry a great deal about embarrassing myself in front of others."}
+  - {id: 365, text: "It irritates me greatly when I am asked to do something I don't want to do."}
+  - {id: 366, text: "I sometimes don't cooperate with people who are trying to help me."}
+  - {id: 367, text: "I'm rather set in my ways."}
+  - {id: 368, text: "I don't pay much attention when people praise or criticize me."}
+  - {id: 369, text: "I will not openly disagree with people if I think they will dislike me for it."}
+  - {id: 370, text: "I can't stand being alone for any length of time."}
+  - {id: 371, text: "I can't help but feel terribly envious of people who have more than I do."}
+  - {id: 372, text: "Others frequently make unreasonable demands of me."}
+  - {id: 373, text: "I often feel that I'm not as good as other people."}
+  - {id: 374, text: "I am easily swayed by other people's arguments."}
+  - {id: 375, text: "People often don't appreciate the sacrifices I've made for them."}
+  - {id: 376, text: "Even in groups, I generally keep to myself for fear of being made fun of."}
+  - {id: 377, text: "Most of the time I feel sad or gloomy."}
+  - {id: 378, text: "When I stand up for myself, I often come to feel later that I overreacted."}
+  - {id: 379, text: "I often have intense \"up and down\" relationships with friends and lovers."}
+  - {id: 380, text: "I want approval so much that I have trouble even disagreeing with others."}
+  - {id: 381, text: "I rarely feel happiness or joy."}
+  - {id: 382, text: "I've had far more than my share of bad luck in life."}
+  - {id: 383, text: "I have a lot of \"love-hate\" relationships."}
+  - {id: 384, text: "In most situations, I take on the mood of the person or people I'm with."}
+  - {id: 385, text: "I usually feel very inadequate when I meet new people."}
+  - {id: 386, text: "I feel so helpless when a close relationship has ended that I seek out a new relationship right away."}
+  - {id: 387, text: "I made someone have sex with me before I was 15 years old."}
+  - {id: 388, text: "Even in close relationships, I am careful not to do anything that will embarrass me."}
+  - {id: 389, text: "I'm afraid I will lose people's support if I disagree with them."}
+  - {id: 390, text: "When I'm working on a project of my own, I often lose confidence and just quit."}
+scoring:
+  notes: >
+    Subscale scoring requires the SNAP-2 scoring key and manual (Clark, 2014).
+    Raw T/F answers are stored here. To compute the 34 primary scales, 6 validity
+    scales, and 13 personality disorder scales, apply the official scoring key.

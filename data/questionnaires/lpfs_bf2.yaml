@@ -1,0 +1,67 @@
+id: lpfs_bf2
+name: "Level of Personality Functioning Scale – Brief Form 2.0 (LPFS-BF 2.0)"
+description: >
+  Assesses impairments in personality functioning (DSM-5 Criterion A). 12 items on a
+  4-point scale (1=Completely Untrue, 4=Completely True). Two subscales:
+  self-functioning (items 1-6) and interpersonal functioning (items 7-12).
+  Higher scores indicate greater impairment.
+  Reference: Weekers, Hutsebaut & Kamphuis (2019), doi:10.1002/pmh.1434
+time_frame: "yourself in general"
+scale:
+  type: integer
+  min: 1
+  max: 4
+  labels:
+    1: "Completely Untrue"
+    2: "Somewhat Untrue"
+    3: "Somewhat True"
+    4: "Completely True"
+batch_size: 1
+items:
+  - id: 1
+    text: "I often do not know who I really am"
+    domain: self_functioning
+  - id: 2
+    text: "I often think very negatively about myself"
+    domain: self_functioning
+  - id: 3
+    text: "My emotions change without me having a grip on them"
+    domain: self_functioning
+  - id: 4
+    text: "I have no sense of where I want to go in my life"
+    domain: self_functioning
+  - id: 5
+    text: "I often do not understand my own thoughts and feelings"
+    domain: self_functioning
+  - id: 6
+    text: "I often make unrealistic demands on myself"
+    domain: self_functioning
+  - id: 7
+    text: "I often have difficulty understanding the thoughts and feelings of others"
+    domain: interpersonal_functioning
+  - id: 8
+    text: "I often find it hard to stand it when others have a different opinion"
+    domain: interpersonal_functioning
+  - id: 9
+    text: "I often do not fully understand why my behaviour has a certain effect on others"
+    domain: interpersonal_functioning
+  - id: 10
+    text: "My relationships and friendships never last long"
+    domain: interpersonal_functioning
+  - id: 11
+    text: "I often feel very vulnerable when relations become more personal"
+    domain: interpersonal_functioning
+  - id: 12
+    text: "I often do not succeed in cooperating with others in a mutually satisfactory way"
+    domain: interpersonal_functioning
+scoring:
+  subscales:
+    self_functioning:
+      items: [1, 2, 3, 4, 5, 6]
+      method: sum
+    interpersonal_functioning:
+      items: [7, 8, 9, 10, 11, 12]
+      method: sum
+  total:
+    subscales: [self_functioning, interpersonal_functioning]
+    method: sum

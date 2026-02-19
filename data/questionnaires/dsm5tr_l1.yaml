@@ -1,0 +1,132 @@
+id: dsm5tr_l1
+name: "DSM-5-TR Self-Rated Level 1 Cross-Cutting Symptom Measure – Adult"
+description: >
+  23 items across 13 psychiatric domains. Each item rated 0-4 over the past 2 weeks
+  (0=None/Not at all, 4=Severe/Nearly every day). Highest item score per domain
+  determines whether further assessment (Level 2) is warranted.
+  Thresholds: mild (2+) for most domains; slight (1+) for suicidal ideation,
+  psychosis, and substance use.
+  Copyright 2013 American Psychiatric Association.
+time_frame: "the past TWO (2) WEEKS"
+scale:
+  type: integer
+  min: 0
+  max: 4
+  labels:
+    0: "None (Not at all)"
+    1: "Slight (Rare, less than a day or two)"
+    2: "Mild (Several days)"
+    3: "Moderate (More than half the days)"
+    4: "Severe (Nearly every day)"
+batch_size: 1
+items:
+  - id: 1
+    text: "Little interest or pleasure in doing things?"
+    domain: depression
+  - id: 2
+    text: "Feeling down, depressed, or hopeless?"
+    domain: depression
+  - id: 3
+    text: "Feeling more irritated, grouchy, or angry than usual?"
+    domain: anger
+  - id: 4
+    text: "Sleeping less than usual, but still having a lot of energy?"
+    domain: mania
+  - id: 5
+    text: "Starting lots more projects than usual or doing more risky things than usual?"
+    domain: mania
+  - id: 6
+    text: "Feeling nervous, anxious, frightened, worried, or on edge?"
+    domain: anxiety
+  - id: 7
+    text: "Feeling panic or being frightened?"
+    domain: anxiety
+  - id: 8
+    text: "Avoiding situations that make you anxious?"
+    domain: anxiety
+  - id: 9
+    text: "Unexplained aches and pains (e.g., head, back, joints, abdomen, legs)?"
+    domain: somatic_symptoms
+  - id: 10
+    text: "Feeling that your illnesses are not being taken seriously enough?"
+    domain: somatic_symptoms
+  - id: 11
+    text: "Thoughts of actually hurting yourself?"
+    domain: suicidal_ideation
+  - id: 12
+    text: "Hearing things other people couldn't hear, such as voices even when no one was around?"
+    domain: psychosis
+  - id: 13
+    text: "Feeling that someone could hear your thoughts, or that you could hear what another person was thinking?"
+    domain: psychosis
+  - id: 14
+    text: "Problems with sleep that affected your sleep quality over all?"
+    domain: sleep_problems
+  - id: 15
+    text: "Problems with memory (e.g., learning new information) or with location (e.g., finding your way home)?"
+    domain: memory
+  - id: 16
+    text: "Unpleasant thoughts, urges, or images that repeatedly enter your mind?"
+    domain: repetitive_thoughts
+  - id: 17
+    text: "Feeling driven to perform certain behaviors or mental acts over and over again?"
+    domain: repetitive_thoughts
+  - id: 18
+    text: "Feeling detached or distant from yourself, your body, your physical surroundings, or your memories?"
+    domain: dissociation
+  - id: 19
+    text: "Not knowing who you really are or what you want out of life?"
+    domain: personality_functioning
+  - id: 20
+    text: "Not feeling close to other people or enjoying your relationships with them?"
+    domain: personality_functioning
+  - id: 21
+    text: "Drinking at least 4 drinks of any kind of alcohol in a single day?"
+    domain: substance_use
+  - id: 22
+    text: "Smoking any cigarettes, a cigar, or pipe, or using snuff or chewing tobacco?"
+    domain: substance_use
+  - id: 23
+    text: "Using any medications ON YOUR OWN (without a doctor's prescription) in greater amounts or longer than prescribed, or using any drugs like marijuana, cocaine, heroin, or other substances?"
+    domain: substance_use
+scoring:
+  domain_flags:
+    depression:
+      items: [1, 2]
+      flag_threshold: 2
+    anger:
+      items: [3]
+      flag_threshold: 2
+    mania:
+      items: [4, 5]
+      flag_threshold: 2
+    anxiety:
+      items: [6, 7, 8]
+      flag_threshold: 2
+    somatic_symptoms:
+      items: [9, 10]
+      flag_threshold: 2
+    suicidal_ideation:
+      items: [11]
+      flag_threshold: 1
+    psychosis:
+      items: [12, 13]
+      flag_threshold: 1
+    sleep_problems:
+      items: [14]
+      flag_threshold: 2
+    memory:
+      items: [15]
+      flag_threshold: 2
+    repetitive_thoughts:
+      items: [16, 17]
+      flag_threshold: 2
+    dissociation:
+      items: [18]
+      flag_threshold: 2
+    personality_functioning:
+      items: [19, 20]
+      flag_threshold: 2
+    substance_use:
+      items: [21, 22, 23]
+      flag_threshold: 1
