@@ -7,7 +7,7 @@ profile:
   age: 33
   gender: female
   smallDescription: 33-year-old African American married mother with melancholic depressive symptoms, guilt, social withdrawal, insomnia, and fragile self-esteem.
-  avatarUrl: /images/patients/crystal/realistic/base.jpeg
+  avatarUrl: /images/patients/crystal_smith/base.png
   diagnosis: No formal psychiatric diagnoses reported
   psychologicalProfile: Neurotic level of personality organization
 voice:
@@ -37,12 +37,14 @@ clinical:
     volatility_level: low
     trait_baseline:
       SEEKING: 0.2
-      ANGER: 0.7
+      RAGE: null
       FEAR: 0.8
       CARE: 0.5
       LUST: 0.5
       SADNESS: 0.9
       PLAY: 0.2
+      ANGER: 0.7
+      PANIC_GRIEF: null
   details:
     demographicAndSocioculturalInformation:
       age: 33
@@ -125,8 +127,13 @@ clinical:
           description: Your functioning is marked by a coherent and stable identity, generally stable long-term relationships, and intact impulse control. You show affective distress circumscribed to depressive guilt, sadness, and irritability without global dysregulation. You have a predominant use of neurotic defenses (introjection, suppression, withdrawal), but your reality testing remains intact.
         personalitySyndrome: Neurotic level of personality organization
         symptomPatterns:
+          S00: null
           S22: "Major depressive experience (melancholic features, moderate severity): pervasive anhedonia, guilt, early morning awakening, psychomotor agitation, and passive death wishes."
           S62: "Sleep–wake disturbance: insomnia and early morning awakening secondary to depressive affect."
+          S41: null
+          S63: null
+          S31: null
+          S42.1: null
         comorbidity: no comorbidity
       mentalFunctioningAxis:
         affectExperienceAndRegulation:

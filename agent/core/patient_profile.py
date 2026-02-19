@@ -6,7 +6,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency in some lo
     yaml = None
 
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from agent.core.emotion_model import EMOTIONS
 from typing import Dict, List, Mapping, Optional, Union
 from agent.core.safety import NOT_REPORTED_MARKERS
@@ -278,6 +278,26 @@ class PersonalityAndSymptomAxis(BaseModel):
     personalitySyndrome: Optional[str] = None
     symptomPatterns: Dict[str, str] = Field(default_factory=dict)
     comorbidity: Optional[str] = None
+
+    @field_validator("symptomPatterns", mode="before")
+    @classmethod
+    def _normalize_symptom_patterns(cls, value):
+        if value is None or not isinstance(value, Mapping):
+            return {}
+
+        normalized = {}
+        for key, raw in value.items():
+            key_text = str(key).strip() if key is not None else ""
+            if not key_text or raw is None:
+                continue
+            if isinstance(raw, str):
+                text = raw.strip()
+                if not text:
+                    continue
+                normalized[key_text] = text
+                continue
+            normalized[key_text] = str(raw)
+        return normalized
 
     def to_prompt(self) -> Optional[str]:
         chunks = []

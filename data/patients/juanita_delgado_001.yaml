@@ -7,7 +7,7 @@ profile:
   age: 33
   gender: female
   smallDescription: 33-year-old Hispanic woman with intense shame, fragile self-esteem, social withdrawal, and difficulty sustaining emotional, work, and relationship stability.
-  avatarUrl: /images/patients/juanita/realistic/base.jpeg
+  avatarUrl: /images/patients/juanita_delgado/base.png
   diagnosis: Recurrent major depressive episodes; Borderline personality disorder
   psychologicalProfile: Borderline
 voice:
@@ -42,8 +42,10 @@ clinical:
       FEAR: 0.8
       CARE: 0.65
       LUST: 0.65
-      PANIC_GRIEF: 0.85
+      SADNESS: null
       PLAY: 0.3
+      ANGER: null
+      PANIC_GRIEF: 0.85
   details:
     demographicAndSocioculturalInformation:
       age: 33
@@ -127,10 +129,13 @@ clinical:
           description: Identity diffusion, unstable relationships, impaired affect regulation, and poor impulse control.
         personalitySyndrome: Borderline
         symptomPatterns:
+          S00: null
           S22: Depressive experience with suicidal ideation (moderate).
+          S62: Irregular sleep–wake cycle with insomnia and hypersomnia.
+          S41: null
+          S63: null
           S31: Interpersonal anxiety related to perceived rejection or criticism.
           S42.1: Transient dissociative experiences under affective overload.
-          S62: Irregular sleep–wake cycle with insomnia and hypersomnia.
         comorbidity: None
       mentalFunctioningAxis:
         affectExperienceAndRegulation:

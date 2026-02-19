@@ -7,7 +7,7 @@ profile:
   age: 30
   gender: other
   smallDescription: 30-year-old psychologically healthy adult using the platform to practice therapeutic communication in non-clinical scenarios.
-  avatarUrl: /images/patients/old/base.png
+  avatarUrl: /images/patients/alex_carter/base.png
   diagnosis: No psychiatric diagnosis
   psychologicalProfile: Within normal limits
 voice:
@@ -39,6 +39,8 @@ clinical:
       LUST: 0.5
       SADNESS: 0.25
       PLAY: 0.6
+      ANGER: null
+      PANIC_GRIEF: null
   details:
     demographicAndSocioculturalInformation:
       age: 30
@@ -118,6 +120,12 @@ clinical:
         personalitySyndrome: None
         symptomPatterns:
           S00: No clinically significant symptom pattern detected.
+          S22: null
+          S62: null
+          S41: null
+          S63: null
+          S31: null
+          S42.1: null
         comorbidity: None
       mentalFunctioningAxis:
         affectExperienceAndRegulation:
