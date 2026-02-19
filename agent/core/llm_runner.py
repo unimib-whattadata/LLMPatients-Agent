@@ -128,6 +128,18 @@ class VertexLLMRunner(LLMRunnerBase):
             HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: HarmBlockThreshold.BLOCK_NONE,
         }
 
+    @staticmethod
+    def _extract_text_from_candidates(response) -> str:
+        text_chunks = []
+        for candidate in getattr(response, "candidates", []) or []:
+            content = getattr(candidate, "content", None)
+            parts = getattr(content, "parts", None) or []
+            for part in parts:
+                value = getattr(part, "text", None)
+                if value:
+                    text_chunks.append(value)
+        return "\n".join(text_chunks).strip()
+
     def generate(self, prompt: str, temperature: Optional[float] = None, max_tokens: Optional[int] = None) -> str:
         """Proxy prompt execution to Vertex AI with consistent config and error handling."""
         temp = temperature if temperature is not None else self.temperature
@@ -145,7 +157,17 @@ class VertexLLMRunner(LLMRunnerBase):
                 },
                 safety_settings=self.safety_settings
             )
-            return response.text.strip()
+            try:
+                return response.text.strip()
+            except Exception as text_error:
+                extracted = self._extract_text_from_candidates(response)
+                if extracted:
+                    logger.warning(
+                        "Falling back to candidate-part extraction after response.text error: %s",
+                        text_error,
+                    )
+                    return extracted
+                raise text_error
         except Exception as e:
             logger.error(f"Vertex AI (Gemini) generation error: {e}")
             return "[ERROR] Vertex AI Gemini failed to generate response."

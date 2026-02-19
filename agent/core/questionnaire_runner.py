@@ -222,20 +222,40 @@ class QuestionnaireRunner:
     ) -> Dict[str, Any]:
         """Generate and validate answers for a chunk of items, with retry logic."""
         scale = self.q_def["scale"]
+        item_ids = [it["id"] for it in items]
 
         last_error: Optional[Exception] = None
+        collected_choice_answers: Dict[str, str] = {}
+        pending_items = list(items)
+
         for attempt in range(retries):
             try:
                 if scale["type"] == "choice":
-                    prompt = self._build_batch_prompt(items, patient_context, patient_name, scale)
-                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=max(len(items) * 15 + 200, 300))
-                    return self._parse_batch_tf(raw, items)
+                    prompt = self._build_batch_prompt(pending_items, patient_context, patient_name, scale)
+                    raw = self.llm.generate(
+                        prompt,
+                        temperature=0.1,
+                        max_tokens=max(len(pending_items) * 15 + 200, 300),
+                    )
+                    parsed = self._parse_batch_tf_partial(raw)
+
+                    for it in pending_items:
+                        item_id = it["id"]
+                        if item_id in parsed:
+                            collected_choice_answers[str(item_id)] = parsed[item_id]
+
+                    missing = [it["id"] for it in items if str(it["id"]) not in collected_choice_answers]
+                    if not missing:
+                        return {str(it["id"]): collected_choice_answers[str(it["id"])] for it in items}
+
+                    pending_items = [it for it in items if str(it["id"]) not in collected_choice_answers]
+                    raise ValueError(f"Missing answers for item IDs: {missing}. Raw: '{raw[:200]}'")
                 else:
                     assert len(items) == 1, "Integer-scale questionnaires must use batch_size=1"
                     item = items[0]
                     item_scale = item.get("scale_override") or scale
                     prompt = self._build_single_prompt(item, patient_context, patient_name, item_scale)
-                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=100)
+                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=220)
                     validated = self._parse_integer(raw.strip(), item_scale)
                     return {str(item["id"]): validated}
             except ValueError as exc:
@@ -243,9 +263,31 @@ class QuestionnaireRunner:
                 if attempt < retries - 1:
                     logger.warning(f"Attempt {attempt + 1}/{retries} failed: {exc}")
 
+        if scale["type"] == "choice":
+            # If a large batch consistently returns partial output, recursively split
+            # into smaller chunks to recover missing answers instead of failing hard.
+            missing_items = [it for it in items if str(it["id"]) not in collected_choice_answers]
+            if len(missing_items) > 1 and collected_choice_answers:
+                midpoint = len(missing_items) // 2
+                logger.warning(
+                    "Retry budget exhausted for item IDs %s; splitting into %d and %d items.",
+                    [it["id"] for it in missing_items],
+                    midpoint,
+                    len(missing_items) - midpoint,
+                )
+                left = self._prompt_and_validate(
+                    missing_items[:midpoint], patient_context, patient_name, retries=retries
+                )
+                right = self._prompt_and_validate(
+                    missing_items[midpoint:], patient_context, patient_name, retries=retries
+                )
+                collected_choice_answers.update(left)
+                collected_choice_answers.update(right)
+                return {str(item_id): collected_choice_answers[str(item_id)] for item_id in item_ids}
+
         raise ValueError(
             f"Failed after {retries} attempts for items "
-            f"{[it['id'] for it in items]}. Last error: {last_error}"
+            f"{item_ids}. Last error: {last_error}"
         )
 
     def _build_single_prompt(
@@ -279,16 +321,16 @@ class QuestionnaireRunner:
         time_frame = self.q_def.get("time_frame", "")
         time_instruction = f" Think about {time_frame}." if time_frame else ""
         item_lines = "\n".join(f"{it['id']}. {it['text']}" for it in items)
-        first_id = items[0]["id"]
-        last_id = items[-1]["id"]
+        required_ids = ", ".join(str(it["id"]) for it in items)
 
         return (
             f"You are {patient_name}. {patient_context}\n\n"
             f"You are completing a self-report questionnaire.{time_instruction}\n"
             f"For each statement, answer T (True or Mostly True) or F (False or Mostly False) "
             f"AS YOURSELF.\n\n"
-            f"Reply ONLY with a numbered list — one item per line — in this exact format:\n"
-            f"{first_id}. T\n...\n{last_id}. F\n\n"
+            f"Reply ONLY with one line per statement in the format '<id>. <T/F>'.\n"
+            f"Return exactly {len(items)} lines and answer every ID exactly once.\n"
+            f"Required IDs: {required_ids}\n\n"
             f"Do not include any explanation or extra text.\n\n"
             f"Statements:\n{item_lines}\n\n"
             f"Your answers:"
@@ -311,15 +353,18 @@ class QuestionnaireRunner:
 
     def _parse_batch_tf(self, raw: str, items: List[dict]) -> Dict[str, str]:
         """Parse a numbered True/False list response like '1. T\\n2. F\\n...'"""
-        # Accept "N. T", "N.T", "N: T", "N) T", with optional whitespace
-        pattern = re.compile(r"(\d+)\s*[.:)]\s*([TF])", re.IGNORECASE)
-        matches = {int(m.group(1)): m.group(2).upper() for m in pattern.finditer(raw)}
+        matches = self._parse_batch_tf_partial(raw)
 
         missing = [it["id"] for it in items if it["id"] not in matches]
         if missing:
             raise ValueError(f"Missing answers for item IDs: {missing}. Raw: '{raw[:200]}'")
 
         return {str(it["id"]): matches[it["id"]] for it in items}
+
+    def _parse_batch_tf_partial(self, raw: str) -> Dict[int, str]:
+        """Extract any valid 'N. T/F' pairs from model output."""
+        pattern = re.compile(r"(\d+)\s*[.:)]\s*([TF])", re.IGNORECASE)
+        return {int(m.group(1)): m.group(2).upper() for m in pattern.finditer(raw)}
 
     # ------------------------------------------------------------------
     # Scorer

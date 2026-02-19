@@ -6,7 +6,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency in some lo
     yaml = None
 
 from pathlib import Path
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from agent.core.emotion_model import EMOTIONS
 from typing import Dict, List, Mapping, Optional, Union
 from agent.core.safety import NOT_REPORTED_MARKERS
@@ -238,9 +238,7 @@ class ImpairmentDetail(BaseModel):
     impairmentLevel: Optional[str] = Field(default=None, alias="level")
     description: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
-        extra = "ignore"
+    model_config = ConfigDict(validate_by_name=True, extra="ignore")
     
     def brief(self) -> Optional[str]:
         if self.description and self.impairmentLevel:
@@ -482,9 +480,7 @@ class PatientProfile(BaseModel):
             return None
         return "\n".join(f"- {item}" for item in bullets[:max_bullets])
 
-    class Config:
-        allow_population_by_field_name = True
-        extra = "ignore"
+    model_config = ConfigDict(validate_by_name=True, extra="ignore")
 
 
 def resolve_patient_profile_path(patient_id: str, patients_dir: Path) -> Path:

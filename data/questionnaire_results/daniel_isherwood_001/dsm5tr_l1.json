@@ -1,0 +1,87 @@
+{
+  "questionnaire_id": "dsm5tr_l1",
+  "questionnaire_name": "DSM-5-TR Self-Rated Level 1 Cross-Cutting Symptom Measure – Adult",
+  "patient_id": "daniel_isherwood_001",
+  "completed_at": "2026-02-19T17:23:06.539181+00:00",
+  "answers": {
+    "1": 1,
+    "2": 2,
+    "3": 2,
+    "4": 0,
+    "5": 0,
+    "6": 2,
+    "7": 2,
+    "8": 2,
+    "9": 1,
+    "10": 2,
+    "11": 0,
+    "12": 0,
+    "13": 0,
+    "14": 2,
+    "15": 0,
+    "16": 2,
+    "17": 3,
+    "18": 1,
+    "19": 0,
+    "20": 0,
+    "21": 0,
+    "22": 0,
+    "23": 0
+  },
+  "scores": {
+    "domain_flags": {
+      "depression": {
+        "highest": 2,
+        "flag": true
+      },
+      "anger": {
+        "highest": 2,
+        "flag": true
+      },
+      "mania": {
+        "highest": 0,
+        "flag": false
+      },
+      "anxiety": {
+        "highest": 2,
+        "flag": true
+      },
+      "somatic_symptoms": {
+        "highest": 2,
+        "flag": true
+      },
+      "suicidal_ideation": {
+        "highest": 0,
+        "flag": false
+      },
+      "psychosis": {
+        "highest": 0,
+        "flag": false
+      },
+      "sleep_problems": {
+        "highest": 2,
+        "flag": true
+      },
+      "memory": {
+        "highest": 0,
+        "flag": false
+      },
+      "repetitive_thoughts": {
+        "highest": 3,
+        "flag": true
+      },
+      "dissociation": {
+        "highest": 1,
+        "flag": false
+      },
+      "personality_functioning": {
+        "highest": 0,
+        "flag": false
+      },
+      "substance_use": {
+        "highest": 0,
+        "flag": false
+      }
+    }
+  }
+}

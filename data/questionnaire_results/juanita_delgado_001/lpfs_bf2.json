@@ -1,0 +1,27 @@
+{
+  "questionnaire_id": "lpfs_bf2",
+  "questionnaire_name": "Level of Personality Functioning Scale – Brief Form 2.0 (LPFS-BF 2.0)",
+  "patient_id": "juanita_delgado_001",
+  "completed_at": "2026-02-19T18:03:18.435113+00:00",
+  "answers": {
+    "1": 4,
+    "2": 4,
+    "3": 4,
+    "4": 4,
+    "5": 4,
+    "6": 4,
+    "7": 3,
+    "8": 4,
+    "9": 4,
+    "10": 4,
+    "11": 4,
+    "12": 4
+  },
+  "scores": {
+    "subscales": {
+      "self_functioning": 24,
+      "interpersonal_functioning": 23
+    },
+    "total": 47
+  }
+}

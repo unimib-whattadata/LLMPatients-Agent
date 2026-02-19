@@ -1,0 +1,87 @@
+{
+  "questionnaire_id": "dsm5tr_l1",
+  "questionnaire_name": "DSM-5-TR Self-Rated Level 1 Cross-Cutting Symptom Measure – Adult",
+  "patient_id": "juanita_delgado_001",
+  "completed_at": "2026-02-19T18:02:41.318504+00:00",
+  "answers": {
+    "1": 4,
+    "2": 4,
+    "3": 4,
+    "4": 1,
+    "5": 0,
+    "6": 4,
+    "7": 4,
+    "8": 4,
+    "9": 3,
+    "10": 4,
+    "11": 3,
+    "12": 0,
+    "13": 1,
+    "14": 4,
+    "15": 3,
+    "16": 4,
+    "17": 3,
+    "18": 4,
+    "19": 4,
+    "20": 4,
+    "21": 3,
+    "22": 3,
+    "23": 3
+  },
+  "scores": {
+    "domain_flags": {
+      "depression": {
+        "highest": 4,
+        "flag": true
+      },
+      "anger": {
+        "highest": 4,
+        "flag": true
+      },
+      "mania": {
+        "highest": 1,
+        "flag": false
+      },
+      "anxiety": {
+        "highest": 4,
+        "flag": true
+      },
+      "somatic_symptoms": {
+        "highest": 4,
+        "flag": true
+      },
+      "suicidal_ideation": {
+        "highest": 3,
+        "flag": true
+      },
+      "psychosis": {
+        "highest": 1,
+        "flag": true
+      },
+      "sleep_problems": {
+        "highest": 4,
+        "flag": true
+      },
+      "memory": {
+        "highest": 3,
+        "flag": true
+      },
+      "repetitive_thoughts": {
+        "highest": 4,
+        "flag": true
+      },
+      "dissociation": {
+        "highest": 4,
+        "flag": true
+      },
+      "personality_functioning": {
+        "highest": 4,
+        "flag": true
+      },
+      "substance_use": {
+        "highest": 3,
+        "flag": true
+      }
+    }
+  }
+}
