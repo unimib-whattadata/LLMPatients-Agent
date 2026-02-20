@@ -275,14 +275,33 @@ class QuestionnaireRunner:
                     midpoint,
                     len(missing_items) - midpoint,
                 )
-                left = self._prompt_and_validate(
-                    missing_items[:midpoint], patient_context, patient_name, retries=retries
+                try:
+                    left = self._prompt_and_validate(
+                        missing_items[:midpoint], patient_context, patient_name, retries=retries
+                    )
+                    right = self._prompt_and_validate(
+                        missing_items[midpoint:], patient_context, patient_name, retries=retries
+                    )
+                    collected_choice_answers.update(left)
+                    collected_choice_answers.update(right)
+                    return {str(item_id): collected_choice_answers[str(item_id)] for item_id in item_ids}
+                except ValueError as exc:
+                    last_error = exc
+                    logger.warning(
+                        "Split recovery failed for item IDs %s; switching to single-item fallback.",
+                        [it["id"] for it in missing_items],
+                    )
+
+            if missing_items:
+                logger.warning(
+                    "Retry budget exhausted for item IDs %s; answering remaining items one by one.",
+                    [it["id"] for it in missing_items],
                 )
-                right = self._prompt_and_validate(
-                    missing_items[midpoint:], patient_context, patient_name, retries=retries
-                )
-                collected_choice_answers.update(left)
-                collected_choice_answers.update(right)
+                for missing_item in missing_items:
+                    answer = self._answer_single_choice_item(
+                        missing_item, patient_context, patient_name, retries=retries
+                    )
+                    collected_choice_answers[str(missing_item["id"])] = answer
                 return {str(item_id): collected_choice_answers[str(item_id)] for item_id in item_ids}
 
         raise ValueError(
@@ -336,6 +355,66 @@ class QuestionnaireRunner:
             f"Your answers:"
         )
 
+    def _build_single_choice_prompt(
+        self,
+        item: dict,
+        patient_context: str,
+        patient_name: str,
+    ) -> str:
+        """Focused prompt for one T/F item when batch parsing repeatedly truncates."""
+        time_frame = self.q_def.get("time_frame", "")
+        time_instruction = f" Think about {time_frame}." if time_frame else ""
+
+        return (
+            f"You are {patient_name}. {patient_context}\n\n"
+            f"You are completing a self-report questionnaire.{time_instruction}\n"
+            f"Answer the following statement AS YOURSELF.\n"
+            f"Reply with ONLY one character: T or F.\n\n"
+            f'Statement {item["id"]}: "{item["text"]}"\n\n'
+            f"Your answer (T/F only):"
+        )
+
+    def _answer_single_choice_item(
+        self,
+        item: dict,
+        patient_context: str,
+        patient_name: str,
+        retries: int = MAX_RETRIES,
+    ) -> str:
+        """Recover a missing T/F answer with a constrained single-item prompt."""
+        last_error: Optional[Exception] = None
+        max_attempts = max(retries * 2, 6)
+        scale = self.q_def["scale"]
+
+        for attempt in range(max_attempts):
+            try:
+                # Alternate between a numbered single-line format and a one-character
+                # format; some model/provider combinations are flaky with one style only.
+                if attempt % 2 == 0:
+                    prompt = self._build_batch_prompt([item], patient_context, patient_name, scale)
+                else:
+                    prompt = self._build_single_choice_prompt(item, patient_context, patient_name)
+
+                raw = self.llm.generate(prompt, temperature=0.0, max_tokens=120)
+
+                parsed_numbered = self._parse_batch_tf_partial(raw)
+                if item["id"] in parsed_numbered:
+                    return parsed_numbered[item["id"]]
+
+                return self._parse_single_tf(raw)
+            except ValueError as exc:
+                last_error = exc
+                if attempt < max_attempts - 1:
+                    logger.warning(
+                        "Single-item fallback attempt %d/%d failed for item %s: %s",
+                        attempt + 1,
+                        max_attempts,
+                        item["id"],
+                        exc,
+                    )
+
+        raise ValueError(f"Single-item fallback failed for item {item['id']}. Last error: {last_error}")
+
     # ------------------------------------------------------------------
     # Parsers
     # ------------------------------------------------------------------
@@ -365,6 +444,22 @@ class QuestionnaireRunner:
         """Extract any valid 'N. T/F' pairs from model output."""
         pattern = re.compile(r"(\d+)\s*[.:)]\s*([TF])", re.IGNORECASE)
         return {int(m.group(1)): m.group(2).upper() for m in pattern.finditer(raw)}
+
+    def _parse_single_tf(self, raw: str) -> str:
+        """Parse a constrained single T/F response."""
+        cleaned = raw.strip()
+        if cleaned in {"T", "F"}:
+            return cleaned
+
+        single_letter = re.search(r"\b([TF])\b", cleaned, re.IGNORECASE)
+        if single_letter:
+            return single_letter.group(1).upper()
+
+        tf_word = re.search(r"\b(TRUE|FALSE)\b", cleaned, re.IGNORECASE)
+        if tf_word:
+            return "T" if tf_word.group(1).upper() == "TRUE" else "F"
+
+        raise ValueError(f"No T/F answer found in response: '{cleaned[:120]}'")
 
     # ------------------------------------------------------------------
     # Scorer

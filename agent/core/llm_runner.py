@@ -44,7 +44,14 @@ class LLMRunnerBase(ABC):
 # === Local vLLM Runner ===
 class LocalLLMRunner(LLMRunnerBase):
     """Adapter that executes prompts against a local vLLM engine."""
-    def __init__(self, model_id: str, cache_path: Optional[str], temperature: float, max_tokens: int):
+    def __init__(
+        self,
+        model_id: str,
+        cache_path: Optional[str],
+        temperature: float,
+        max_tokens: int,
+        max_model_len: Optional[int] = None,
+    ):
         if not VLLM_AVAILABLE:
             raise ImportError("Checking for execution: 'vllm' module is not installed. This installation requires Python <= 3.12 (approx) and compatible 'torch' version. Please use 'vertex_ai' provider or install 'vllm' manually in a compatible environment.")
         
@@ -55,6 +62,16 @@ class LocalLLMRunner(LLMRunnerBase):
 
         self.model_id = model_id
         self.cache_path = cache_path
+        # Keep generation length separate from the model context window.
+        inferred_context_len = max(self.max_tokens * 4, 4096)
+        self.max_model_len = max_model_len if max_model_len is not None else inferred_context_len
+        if self.max_model_len < self.max_tokens:
+            logger.warning(
+                "max_model_len (%s) is lower than max_tokens (%s); raising it to max_tokens.",
+                self.max_model_len,
+                self.max_tokens,
+            )
+            self.max_model_len = self.max_tokens
         self.llm = self._build_llm()
 
 
@@ -78,7 +95,7 @@ class LocalLLMRunner(LLMRunnerBase):
                 tokenizer_mode="auto",
                 trust_remote_code=True,
                 enable_prefix_caching=True,
-                max_model_len=self.max_tokens,
+                max_model_len=self.max_model_len,
                 download_dir=download_dir,
                 tensor_parallel_size=n_gpus
             )
@@ -180,10 +197,23 @@ def create_llm_runner() -> LLMRunnerBase:
     model_id = os.getenv("model_id")
     temperature = float(os.getenv("temperature", 0.7))
     max_tokens = int(os.getenv("max_tokens", 512))
+    max_model_len_raw = os.getenv("max_model_len")
     cache_path = os.getenv("cache_path")
+    max_model_len: Optional[int] = None
+    if max_model_len_raw:
+        try:
+            parsed_max_model_len = int(max_model_len_raw)
+            if parsed_max_model_len <= 0:
+                raise ValueError
+            max_model_len = parsed_max_model_len
+        except ValueError:
+            logger.warning(
+                "Ignoring invalid max_model_len=%r. Use a positive integer (e.g. 8192).",
+                max_model_len_raw,
+            )
 
     if provider == "local":
-        return LocalLLMRunner(model_id, cache_path, temperature, max_tokens)
+        return LocalLLMRunner(model_id, cache_path, temperature, max_tokens, max_model_len=max_model_len)
     elif provider == "vertex_ai":
         return VertexLLMRunner(model_id, temperature, max_tokens)
     else:
