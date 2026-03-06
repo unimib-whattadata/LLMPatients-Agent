@@ -1,9 +1,9 @@
 identifiers:
-  patientId: daniel_isherwood_001
-  externalPatientId: daniel_isherwood_001
+  patientId: daniel_isherwood_001_marco
+  externalPatientId: daniel_isherwood_001_marco
   disorderId: BED_MILD
 profile:
-  name: Daniel Isherwood
+  name: Daniel Isherwood_marco
   age: 55
   gender: male
   smallDescription: 55-year-old married man with recurrent binge-eating episodes (2–3/week), shame and post-binge fatigue, and concern about weight gain despite normal BMI.

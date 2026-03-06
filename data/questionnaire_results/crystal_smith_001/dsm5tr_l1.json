@@ -1,0 +1,87 @@
+{
+  "questionnaire_id": "dsm5tr_l1",
+  "questionnaire_name": "DSM-5-TR Self-Rated Level 1 Cross-Cutting Symptom Measure – Adult",
+  "patient_id": "crystal_smith_001",
+  "completed_at": "2026-02-19T17:20:14.452255+00:00",
+  "answers": {
+    "1": 4,
+    "2": 4,
+    "3": 3,
+    "4": 0,
+    "5": 0,
+    "6": 4,
+    "7": 3,
+    "8": 4,
+    "9": 3,
+    "10": 3,
+    "11": 1,
+    "12": 0,
+    "13": 0,
+    "14": 4,
+    "15": 2,
+    "16": 4,
+    "17": 2,
+    "18": 1,
+    "19": 0,
+    "20": 4,
+    "21": 0,
+    "22": 0,
+    "23": 0
+  },
+  "scores": {
+    "domain_flags": {
+      "depression": {
+        "highest": 4,
+        "flag": true
+      },
+      "anger": {
+        "highest": 3,
+        "flag": true
+      },
+      "mania": {
+        "highest": 0,
+        "flag": false
+      },
+      "anxiety": {
+        "highest": 4,
+        "flag": true
+      },
+      "somatic_symptoms": {
+        "highest": 3,
+        "flag": true
+      },
+      "suicidal_ideation": {
+        "highest": 1,
+        "flag": true
+      },
+      "psychosis": {
+        "highest": 0,
+        "flag": false
+      },
+      "sleep_problems": {
+        "highest": 4,
+        "flag": true
+      },
+      "memory": {
+        "highest": 2,
+        "flag": true
+      },
+      "repetitive_thoughts": {
+        "highest": 4,
+        "flag": true
+      },
+      "dissociation": {
+        "highest": 1,
+        "flag": false
+      },
+      "personality_functioning": {
+        "highest": 4,
+        "flag": true
+      },
+      "substance_use": {
+        "highest": 0,
+        "flag": false
+      }
+    }
+  }
+}

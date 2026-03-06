@@ -1,0 +1,29 @@
+{
+  "questionnaire_id": "phq9",
+  "questionnaire_name": "Patient Health Questionnaire-9 (PHQ-9)",
+  "patient_id": "crystal_smith_001",
+  "completed_at": "2026-02-19T17:20:58.258874+00:00",
+  "answers": {
+    "1": 3,
+    "2": 3,
+    "3": 3,
+    "4": 3,
+    "5": 3,
+    "6": 3,
+    "7": 3,
+    "8": 3,
+    "9": 2,
+    "10": 2
+  },
+  "scores": {
+    "subscales": {
+      "depression": 26
+    },
+    "total": 26,
+    "severity": "Severe depression",
+    "functional_impairment": {
+      "score": 2,
+      "label": "Very difficult"
+    }
+  }
+}

@@ -62,6 +62,7 @@ model_provider=local
 model_id=meta-llama/Llama-2-7b-chat-hf
 temperature=0.7
 max_tokens=512
+max_model_len=8192
 cache_path=/absolute/path/to/hf-cache
 
 # Solo per Vertex AI
@@ -72,6 +73,7 @@ GOOGLE_APPLICATION_CREDENTIALS=config/vertex-ai-api-key.json
 
 Note:
 - i parametri modello sono letti con nomi lowercase (`model_provider`, `model_id`, ...);
+- `max_tokens` limita i token di output per singola generazione, mentre `max_model_len` controlla la finestra totale prompt+output (utile per questionari lunghi come SNAP-2);
 - al primo avvio viene scaricato `all-MiniLM-L6-v2` per embedding topic/memory retrieval.
 
 ## Esecuzione

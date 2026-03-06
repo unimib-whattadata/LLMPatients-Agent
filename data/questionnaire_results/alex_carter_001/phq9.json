@@ -1,0 +1,29 @@
+{
+  "questionnaire_id": "phq9",
+  "questionnaire_name": "Patient Health Questionnaire-9 (PHQ-9)",
+  "patient_id": "alex_carter_001",
+  "completed_at": "2026-02-19T17:18:10.530119+00:00",
+  "answers": {
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 1,
+    "5": 0,
+    "6": 0,
+    "7": 0,
+    "8": 0,
+    "9": 0,
+    "10": 0
+  },
+  "scores": {
+    "subscales": {
+      "depression": 1
+    },
+    "total": 1,
+    "severity": "Minimal depression",
+    "functional_impairment": {
+      "score": 0,
+      "label": "Not difficult at all"
+    }
+  }
+}
