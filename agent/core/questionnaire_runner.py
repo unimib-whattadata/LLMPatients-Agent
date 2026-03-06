@@ -230,6 +230,12 @@ class QuestionnaireRunner:
                     prompt = self._build_batch_prompt(items, patient_context, patient_name, scale)
                     raw = self.llm.generate(prompt, temperature=0.1, max_tokens=max(len(items) * 15 + 200, 300))
                     return self._parse_batch_tf(raw, items)
+                elif scale["type"] == "ordinal_choice":
+                    assert len(items) == 1, "ordinal_choice questionnaires must use batch_size=1"
+                    item = items[0]
+                    prompt = self._build_choice_prompt(item, patient_context, patient_name)
+                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=50)
+                    return self._parse_ordinal_choice(raw.strip(), item)
                 else:
                     assert len(items) == 1, "Integer-scale questionnaires must use batch_size=1"
                     item = items[0]
@@ -294,6 +300,22 @@ class QuestionnaireRunner:
             f"Your answers:"
         )
 
+    def _build_choice_prompt(self, item: dict, patient_context: str, patient_name: str) -> str:
+        choices = item.get("choices", [])
+        time_frame = self.q_def.get("time_frame", "")
+        time_instruction = f" Think about {time_frame}." if time_frame else ""
+        options_text = "\n".join(f"{i + 1}. {c['text']}" for i, c in enumerate(choices))
+        n = len(choices)
+
+        return (
+            f"You are {patient_name}. {patient_context}\n\n"
+            f"You are completing a self-report questionnaire.{time_instruction} "
+            f"Read the options below and choose the ONE that best describes you. "
+            f"Reply with ONLY the option number (1-{n}) — no other text.\n\n"
+            f"Options:\n{options_text}\n\n"
+            f"Your answer (number only):"
+        )
+
     # ------------------------------------------------------------------
     # Parsers
     # ------------------------------------------------------------------
@@ -308,6 +330,16 @@ class QuestionnaireRunner:
         if not (min_val <= value <= max_val):
             raise ValueError(f"Value {value} out of valid range [{min_val}, {max_val}]")
         return value
+
+    def _parse_ordinal_choice(self, raw: str, item: dict) -> Dict[str, int]:
+        choices = item.get("choices", [])
+        match = re.search(r"\b(\d+)\b", raw)
+        if not match:
+            raise ValueError(f"No option number found in response: '{raw}'")
+        idx = int(match.group(1)) - 1
+        if not (0 <= idx < len(choices)):
+            raise ValueError(f"Option {idx + 1} out of range [1, {len(choices)}] for item {item['id']}")
+        return {str(item["id"]): choices[idx]["score"]}
 
     def _parse_batch_tf(self, raw: str, items: List[dict]) -> Dict[str, str]:
         """Parse a numbered True/False list response like '1. T\\n2. F\\n...'"""
