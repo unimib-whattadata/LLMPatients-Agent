@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(PYTHONPATH=. python3 -c \":*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(python3 -m pip show pyyaml)",
+      "Bash(ls venv*)",
+      "Bash(python3 -m pip install pyyaml -q)"
+    ]
+  }
+}

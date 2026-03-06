@@ -222,12 +222,8 @@ class QuestionnaireRunner:
     ) -> Dict[str, Any]:
         """Generate and validate answers for a chunk of items, with retry logic."""
         scale = self.q_def["scale"]
-        item_ids = [it["id"] for it in items]
 
         last_error: Optional[Exception] = None
-        collected_choice_answers: Dict[str, str] = {}
-        pending_items = list(items)
-
         for attempt in range(retries):
             try:
                 if scale["type"] == "choice":
@@ -254,49 +250,20 @@ class QuestionnaireRunner:
                     logger.warning(f"Attempt {attempt + 1}/{retries} failed: {exc}")
 
         if scale["type"] == "choice":
-            # If a large batch consistently returns partial output, recursively split
-            # into smaller chunks to recover missing answers instead of failing hard.
-            missing_items = [it for it in items if str(it["id"]) not in collected_choice_answers]
-            if len(missing_items) > 1 and collected_choice_answers:
-                midpoint = len(missing_items) // 2
-                logger.warning(
-                    "Retry budget exhausted for item IDs %s; splitting into %d and %d items.",
-                    [it["id"] for it in missing_items],
-                    midpoint,
-                    len(missing_items) - midpoint,
+            logger.warning(
+                "Retry budget exhausted for item IDs %s; answering remaining items one by one.",
+                [it["id"] for it in items],
+            )
+            answers: Dict[str, str] = {}
+            for item in items:
+                answers[str(item["id"])] = self._answer_single_choice_item(
+                    item, patient_context, patient_name, retries=retries
                 )
-                try:
-                    left = self._prompt_and_validate(
-                        missing_items[:midpoint], patient_context, patient_name, retries=retries
-                    )
-                    right = self._prompt_and_validate(
-                        missing_items[midpoint:], patient_context, patient_name, retries=retries
-                    )
-                    collected_choice_answers.update(left)
-                    collected_choice_answers.update(right)
-                    return {str(item_id): collected_choice_answers[str(item_id)] for item_id in item_ids}
-                except ValueError as exc:
-                    last_error = exc
-                    logger.warning(
-                        "Split recovery failed for item IDs %s; switching to single-item fallback.",
-                        [it["id"] for it in missing_items],
-                    )
-
-            if missing_items:
-                logger.warning(
-                    "Retry budget exhausted for item IDs %s; answering remaining items one by one.",
-                    [it["id"] for it in missing_items],
-                )
-                for missing_item in missing_items:
-                    answer = self._answer_single_choice_item(
-                        missing_item, patient_context, patient_name, retries=retries
-                    )
-                    collected_choice_answers[str(missing_item["id"])] = answer
-                return {str(item_id): collected_choice_answers[str(item_id)] for item_id in item_ids}
+            return answers
 
         raise ValueError(
             f"Failed after {retries} attempts for items "
-            f"{item_ids}. Last error: {last_error}"
+            f"{[it['id'] for it in items]}. Last error: {last_error}"
         )
 
     def _build_single_prompt(
@@ -343,6 +310,22 @@ class QuestionnaireRunner:
             f"Do not include any explanation or extra text.\n\n"
             f"Statements:\n{item_lines}\n\n"
             f"Your answers:"
+        )
+
+    def _build_choice_prompt(self, item: dict, patient_context: str, patient_name: str) -> str:
+        choices = item.get("choices", [])
+        time_frame = self.q_def.get("time_frame", "")
+        time_instruction = f" Think about {time_frame}." if time_frame else ""
+        options_text = "\n".join(f"{i + 1}. {c['text']}" for i, c in enumerate(choices))
+        n = len(choices)
+
+        return (
+            f"You are {patient_name}. {patient_context}\n\n"
+            f"You are completing a self-report questionnaire.{time_instruction} "
+            f"Read the options below and choose the ONE that best describes you. "
+            f"Reply with ONLY the option number (1-{n}) — no other text.\n\n"
+            f"Options:\n{options_text}\n\n"
+            f"Your answer (number only):"
         )
 
     def _build_single_choice_prompt(
