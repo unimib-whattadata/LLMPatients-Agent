@@ -1,0 +1,235 @@
+id: bes
+name: "Binge Eating Scale (BES)"
+description: >
+  16 forced-choice items assessing the behavioral, emotional, and cognitive dimensions
+  of binge eating. Each item presents 3-4 statements of increasing severity; the patient
+  selects the one that best describes them. Items with 4 options are scored 0-3; items
+  with 3 options (6, 16) are scored 0-2. Total score range: 0-46.
+  Thresholds (Gormally et al., 1982): 0-17 = no binge eating; 18-26 = moderate;
+  27-46 = severe binge eating.
+time_frame: "yourself in general"
+scale:
+  type: ordinal_choice
+batch_size: 1
+items:
+  - id: 1
+    domain: body_image
+    choices:
+      - score: 0
+        text: "I don't worry about my weight and body size when I'm with other people"
+      - score: 1
+        text: "I worry about my appearance, but this doesn't make me dissatisfied with myself"
+      - score: 2
+        text: "I think about my appearance and weight and feel disappointed in myself"
+      - score: 3
+        text: "I think a lot about my weight and often feel strong shame and disgust for myself. I therefore avoid meeting other people as much as possible"
+
+  - id: 2
+    domain: eating_behavior
+    choices:
+      - score: 0
+        text: "I have no difficulty eating slowly, sitting properly"
+      - score: 1
+        text: "I seem to wolf down food but in the end I don't feel uncomfortably full from overeating"
+      - score: 2
+        text: "Sometimes I eat quickly and afterwards I feel uncomfortably full"
+      - score: 3
+        text: "I usually swallow food almost without chewing and then feel stuffed because I have eaten too much"
+
+  - id: 3
+    domain: loss_of_control
+    choices:
+      - score: 0
+        text: "When I want to, I am able to control my impulses toward food"
+      - score: 1
+        text: "I think I have less control over food than most people"
+      - score: 2
+        text: "I feel totally unable to control my impulses toward food"
+      - score: 3
+        text: "I feel completely unable to control my relationship with eating and desperately try to fight my impulses toward food"
+
+  - id: 4
+    domain: emotional_eating
+    choices:
+      - score: 0
+        text: "I don't have a habit of eating when I'm bored"
+      - score: 1
+        text: "Sometimes I eat when I'm bored, but I can often distract myself and stop thinking about food"
+      - score: 2
+        text: "I often eat when I'm bored, but sometimes I can distract myself and stop thinking about food"
+      - score: 3
+        text: "I habitually eat when I'm bored and nothing can make me stop"
+
+  - id: 5
+    domain: eating_behavior
+    choices:
+      - score: 0
+        text: "Usually when I eat something it's because I'm hungry"
+      - score: 1
+        text: "Sometimes I eat impulsively, without being truly hungry"
+      - score: 2
+        text: "I often eat to satisfy a sense of hunger even though I'm not physically hungry; on these occasions I can't even taste what I'm eating"
+      - score: 3
+        text: "Even when I'm not physically hungry, I feel the need to put something in my mouth and feel satisfied only when I can fill my mouth (e.g., with a piece of bread). Sometimes when this happens, I spit the food out to avoid gaining weight"
+
+  - id: 6
+    domain: guilt_shame
+    choices:
+      - score: 0
+        text: "I feel no guilt at all, nor do I hate myself after eating too much"
+      - score: 1
+        text: "Sometimes I feel guilty or hate myself after eating too much"
+      - score: 2
+        text: "I almost always feel strong guilt or hatred toward myself if I have eaten too much"
+
+  - id: 7
+    domain: compensatory_behavior
+    choices:
+      - score: 0
+        text: "When I'm on a diet I never totally lose control over food, even on occasions when I eat too much"
+      - score: 1
+        text: "When I'm on a diet and eat a forbidden food, I feel I have broken the rules and eat even more"
+      - score: 2
+        text: "When I'm dieting and eat more than I should, I often tell myself: 'You've already broken the rules, why not go all the way?' When this happens, I eat even more"
+      - score: 3
+        text: "I regularly go on strict diets, but then break the diet with a binge. My life is made up of binges and fasts"
+
+  - id: 8
+    domain: eating_behavior
+    choices:
+      - score: 0
+        text: "It is rare that I eat so much that I feel uncomfortably full"
+      - score: 1
+        text: "About once a month I eat so much that I feel uncomfortably full"
+      - score: 2
+        text: "There are regular periods during the month when I eat large amounts of food, at meals or between meals"
+      - score: 3
+        text: "I eat so much that usually, after eating, I feel rather unwell and nauseated"
+
+  - id: 9
+    domain: compensatory_behavior
+    choices:
+      - score: 0
+        text: "The amount of calories I consume is fairly constant over time"
+      - score: 1
+        text: "Sometimes, after eating too much, I try to eat very few calories to compensate for the previous meal's excess"
+      - score: 2
+        text: "I habitually eat too much in the evenings. I'm usually not hungry in the morning and eat too much in the evening"
+      - score: 3
+        text: "As an adult I have had periods of about a week in which I imposed starvation diets on myself, following periods of overeating. My life is made up of binges and fasts"
+
+  - id: 10
+    domain: loss_of_control
+    choices:
+      - score: 0
+        text: "I can usually stop eating when I decide to. I know when it's time to stop"
+      - score: 1
+        text: "Sometimes I feel an urge to eat that I cannot control"
+      - score: 2
+        text: "I often feel urges to eat so strong that I cannot overcome them, while at other times I can control myself"
+      - score: 3
+        text: "I feel completely unable to control my urges to eat. I'm afraid I won't be able to stop eating through willpower alone"
+
+  - id: 11
+    domain: loss_of_control
+    choices:
+      - score: 0
+        text: "I have no problem stopping eating when I feel full"
+      - score: 1
+        text: "I can usually stop eating as soon as I feel full, but sometimes I eat so much that I feel uncomfortably full"
+      - score: 2
+        text: "Stopping eating once I have started is a real problem for me and I usually end up feeling uncomfortably full"
+      - score: 3
+        text: "Stopping eating is a real problem for me and sometimes I have to make myself vomit to get relief"
+
+  - id: 12
+    domain: guilt_shame
+    choices:
+      - score: 0
+        text: "When with others (family gatherings, social occasions) I seem to eat the same as when I'm alone"
+      - score: 1
+        text: "When with others I sometimes don't eat as much as I'd like, because I'm aware of my problems with food"
+      - score: 2
+        text: "When with others I often eat little, because eating in front of others embarrasses me a great deal"
+      - score: 3
+        text: "I am so ashamed of eating too much that I choose moments when no one sees me to do so. In fact, I eat in secret"
+
+  - id: 13
+    domain: eating_behavior
+    choices:
+      - score: 0
+        text: "I have three meals a day and occasionally a snack"
+      - score: 1
+        text: "I have three meals a day and usually also have snacks"
+      - score: 2
+        text: "When I have many snacks I skip regular meals"
+      - score: 3
+        text: "There are periods when I seem to eat continuously, without regular meals"
+
+  - id: 14
+    domain: preoccupation
+    choices:
+      - score: 0
+        text: "I don't think much about controlling the urges to eat that I don't want to have"
+      - score: 1
+        text: "Sometimes my mind is occupied with thoughts about how to control the urge to eat"
+      - score: 2
+        text: "I often spend a lot of time thinking about how much I have eaten or how to avoid eating"
+      - score: 3
+        text: "My mind is occupied most of the time with thoughts about eating. I feel as though I am constantly fighting not to eat"
+
+  - id: 15
+    domain: preoccupation
+    choices:
+      - score: 0
+        text: "I don't think much about food"
+      - score: 1
+        text: "I sometimes have a strong craving for food, but only for brief periods of time"
+      - score: 2
+        text: "There are days when I can't think of anything but food"
+      - score: 3
+        text: "Most of my days are taken up with thoughts about food. I feel I live to eat"
+
+  - id: 16
+    domain: preoccupation
+    choices:
+      - score: 0
+        text: "I usually know whether I am hungry or not. I take the right portion to feel satisfied"
+      - score: 1
+        text: "Sometimes I don't really know whether I am physically hungry or not. In these moments it is hard to know how much food it would take to satisfy me"
+      - score: 2
+        text: "Even if I knew how many calories I should eat, I would have no clear idea of what a normal amount of food would be for me"
+
+scoring:
+  subscales:
+    body_image:
+      items: [1]
+      method: sum
+    eating_behavior:
+      items: [2, 5, 8, 13]
+      method: sum
+    loss_of_control:
+      items: [3, 10, 11]
+      method: sum
+    emotional_eating:
+      items: [4]
+      method: sum
+    compensatory_behavior:
+      items: [7, 9]
+      method: sum
+    guilt_shame:
+      items: [6, 12]
+      method: sum
+    preoccupation:
+      items: [14, 15, 16]
+      method: sum
+  total:
+    subscales: [body_image, eating_behavior, loss_of_control, emotional_eating, compensatory_behavior, guilt_shame, preoccupation]
+    method: sum
+  severity_thresholds:
+    - max: 17
+      label: "No binge eating"
+    - max: 26
+      label: "Moderate binge eating"
+    - max: 46
+      label: "Severe binge eating"

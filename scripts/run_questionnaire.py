@@ -58,6 +58,8 @@ def cmd_list():
         elif scale_type == "choice":
             opts = q["scale"].get("options", [])
             scale_range = "/".join(opts)
+        elif scale_type == "ordinal_choice":
+            scale_range = "ordinal"
         print(f"  {q['id']:<22} {n_items:>5}  {scale_range:<10}  {q.get('name', '')}")
     print()
 
@@ -90,7 +92,7 @@ def main():
     parser.add_argument(
         "--questionnaire",
         metavar="QUESTIONNAIRE_ID",
-        help="Questionnaire ID (e.g. phq9, pid5bf, lpfs_bf2, dsm5tr_l1, snap2)",
+        help="Questionnaire ID (e.g. phq9, pid5bf, lpfs_bf2, dsm5tr_l1, snap2, bes)",
     )
     parser.add_argument("--list", action="store_true", help="List all available questionnaires and exit")
     parser.add_argument(

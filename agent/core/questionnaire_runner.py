@@ -222,34 +222,20 @@ class QuestionnaireRunner:
     ) -> Dict[str, Any]:
         """Generate and validate answers for a chunk of items, with retry logic."""
         scale = self.q_def["scale"]
-        item_ids = [it["id"] for it in items]
 
         last_error: Optional[Exception] = None
-        collected_choice_answers: Dict[str, str] = {}
-        pending_items = list(items)
-
         for attempt in range(retries):
             try:
                 if scale["type"] == "choice":
-                    prompt = self._build_batch_prompt(pending_items, patient_context, patient_name, scale)
-                    raw = self.llm.generate(
-                        prompt,
-                        temperature=0.1,
-                        max_tokens=max(len(pending_items) * 15 + 200, 300),
-                    )
-                    parsed = self._parse_batch_tf_partial(raw)
-
-                    for it in pending_items:
-                        item_id = it["id"]
-                        if item_id in parsed:
-                            collected_choice_answers[str(item_id)] = parsed[item_id]
-
-                    missing = [it["id"] for it in items if str(it["id"]) not in collected_choice_answers]
-                    if not missing:
-                        return {str(it["id"]): collected_choice_answers[str(it["id"])] for it in items}
-
-                    pending_items = [it for it in items if str(it["id"]) not in collected_choice_answers]
-                    raise ValueError(f"Missing answers for item IDs: {missing}. Raw: '{raw[:200]}'")
+                    prompt = self._build_batch_prompt(items, patient_context, patient_name, scale)
+                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=max(len(items) * 15 + 200, 300))
+                    return self._parse_batch_tf(raw, items)
+                elif scale["type"] == "ordinal_choice":
+                    assert len(items) == 1, "ordinal_choice questionnaires must use batch_size=1"
+                    item = items[0]
+                    prompt = self._build_choice_prompt(item, patient_context, patient_name)
+                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=50)
+                    return self._parse_ordinal_choice(raw.strip(), item)
                 else:
                     assert len(items) == 1, "Integer-scale questionnaires must use batch_size=1"
                     item = items[0]
@@ -264,49 +250,20 @@ class QuestionnaireRunner:
                     logger.warning(f"Attempt {attempt + 1}/{retries} failed: {exc}")
 
         if scale["type"] == "choice":
-            # If a large batch consistently returns partial output, recursively split
-            # into smaller chunks to recover missing answers instead of failing hard.
-            missing_items = [it for it in items if str(it["id"]) not in collected_choice_answers]
-            if len(missing_items) > 1 and collected_choice_answers:
-                midpoint = len(missing_items) // 2
-                logger.warning(
-                    "Retry budget exhausted for item IDs %s; splitting into %d and %d items.",
-                    [it["id"] for it in missing_items],
-                    midpoint,
-                    len(missing_items) - midpoint,
+            logger.warning(
+                "Retry budget exhausted for item IDs %s; answering remaining items one by one.",
+                [it["id"] for it in items],
+            )
+            answers: Dict[str, str] = {}
+            for item in items:
+                answers[str(item["id"])] = self._answer_single_choice_item(
+                    item, patient_context, patient_name, retries=retries
                 )
-                try:
-                    left = self._prompt_and_validate(
-                        missing_items[:midpoint], patient_context, patient_name, retries=retries
-                    )
-                    right = self._prompt_and_validate(
-                        missing_items[midpoint:], patient_context, patient_name, retries=retries
-                    )
-                    collected_choice_answers.update(left)
-                    collected_choice_answers.update(right)
-                    return {str(item_id): collected_choice_answers[str(item_id)] for item_id in item_ids}
-                except ValueError as exc:
-                    last_error = exc
-                    logger.warning(
-                        "Split recovery failed for item IDs %s; switching to single-item fallback.",
-                        [it["id"] for it in missing_items],
-                    )
-
-            if missing_items:
-                logger.warning(
-                    "Retry budget exhausted for item IDs %s; answering remaining items one by one.",
-                    [it["id"] for it in missing_items],
-                )
-                for missing_item in missing_items:
-                    answer = self._answer_single_choice_item(
-                        missing_item, patient_context, patient_name, retries=retries
-                    )
-                    collected_choice_answers[str(missing_item["id"])] = answer
-                return {str(item_id): collected_choice_answers[str(item_id)] for item_id in item_ids}
+            return answers
 
         raise ValueError(
             f"Failed after {retries} attempts for items "
-            f"{item_ids}. Last error: {last_error}"
+            f"{[it['id'] for it in items]}. Last error: {last_error}"
         )
 
     def _build_single_prompt(
@@ -353,6 +310,22 @@ class QuestionnaireRunner:
             f"Do not include any explanation or extra text.\n\n"
             f"Statements:\n{item_lines}\n\n"
             f"Your answers:"
+        )
+
+    def _build_choice_prompt(self, item: dict, patient_context: str, patient_name: str) -> str:
+        choices = item.get("choices", [])
+        time_frame = self.q_def.get("time_frame", "")
+        time_instruction = f" Think about {time_frame}." if time_frame else ""
+        options_text = "\n".join(f"{i + 1}. {c['text']}" for i, c in enumerate(choices))
+        n = len(choices)
+
+        return (
+            f"You are {patient_name}. {patient_context}\n\n"
+            f"You are completing a self-report questionnaire.{time_instruction} "
+            f"Read the options below and choose the ONE that best describes you. "
+            f"Reply with ONLY the option number (1-{n}) — no other text.\n\n"
+            f"Options:\n{options_text}\n\n"
+            f"Your answer (number only):"
         )
 
     def _build_single_choice_prompt(
@@ -429,6 +402,16 @@ class QuestionnaireRunner:
         if not (min_val <= value <= max_val):
             raise ValueError(f"Value {value} out of valid range [{min_val}, {max_val}]")
         return value
+
+    def _parse_ordinal_choice(self, raw: str, item: dict) -> Dict[str, int]:
+        choices = item.get("choices", [])
+        match = re.search(r"\b(\d+)\b", raw)
+        if not match:
+            raise ValueError(f"No option number found in response: '{raw}'")
+        idx = int(match.group(1)) - 1
+        if not (0 <= idx < len(choices)):
+            raise ValueError(f"Option {idx + 1} out of range [1, {len(choices)}] for item {item['id']}")
+        return {str(item["id"]): choices[idx]["score"]}
 
     def _parse_batch_tf(self, raw: str, items: List[dict]) -> Dict[str, str]:
         """Parse a numbered True/False list response like '1. T\\n2. F\\n...'"""
