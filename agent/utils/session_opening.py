@@ -9,6 +9,7 @@ from agent.core.patient_profile import PatientProfile, resolve_patient_profile_p
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
+SESSION_OPENING_MAX_TOKENS = 160
 
 
 def load_patient_profile(patient_id: str) -> PatientProfile:
@@ -59,10 +60,10 @@ Write the first thing you would say now. Requirements:
 - It should sound like a natural hello/check-in after time apart, not a continuation mid-sentence.
 - Briefly hint at how you've been feeling since last session (overall mood, energy, etc.) without diving into details.
 - Tone must match the patient’s personality; be genuine, 1-2 sentences max.
-""".strip()
+    """.strip()
 
     try:
-        opening = llm_runner.generate(prompt=prompt).strip()
+        opening = llm_runner.generate(prompt=prompt, max_tokens=SESSION_OPENING_MAX_TOKENS).strip()
     except Exception:
         return None
     return opening or None

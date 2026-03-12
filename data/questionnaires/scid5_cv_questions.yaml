@@ -3,6 +3,8 @@ name: SCID-5-CV Interview Questions (Extracted)
 description: Extracted interviewer questions/prompts from source PDF using pdftotext + heuristic cleanup.
 source_pdf: data/questionnaires pdf/scid5_cv_users_guide.pdf
 language: en
+runnable: false
+runnable_reason: Extracted SCID interviewer prompts are reference material, not runnable self-report questionnaires.
 scale:
   type: choice
   options:

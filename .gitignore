@@ -6,6 +6,8 @@ code/
 __pycache__/
 tests/
 OLD/
+!data/questionnaire_results/old/
+!data/questionnaire_results/old/**
 .env
 vertex-ai-api-key.json
 .android/
