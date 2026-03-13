@@ -1,0 +1,37 @@
+{
+  "questionnaire_id": "bes",
+  "questionnaire_name": "Binge Eating Scale (BES)",
+  "patient_id": "crystal_smith_001",
+  "completed_at": "2026-03-13T09:46:55.608958+00:00",
+  "answers": {
+    "1": 2,
+    "2": 2,
+    "3": 1,
+    "4": 1,
+    "5": 1,
+    "6": 2,
+    "7": 0,
+    "8": 2,
+    "9": 1,
+    "10": 2,
+    "11": 1,
+    "12": 3,
+    "13": 0,
+    "14": 1,
+    "15": 1,
+    "16": 1
+  },
+  "scores": {
+    "subscales": {
+      "body_image": 2,
+      "eating_behavior": 5,
+      "loss_of_control": 4,
+      "emotional_eating": 1,
+      "compensatory_behavior": 1,
+      "guilt_shame": 5,
+      "preoccupation": 3
+    },
+    "total": 21,
+    "severity": "Moderate binge eating"
+  }
+}
