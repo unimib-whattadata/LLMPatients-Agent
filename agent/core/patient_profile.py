@@ -148,6 +148,15 @@ class SocialRelationshipsAndInteractions(BaseModel):
             return None
         return " ".join(parts)
 
+    def stable_identity_prompt(self) -> Optional[str]:
+        """Return concise relationship facts that should remain stable across turns."""
+        if (
+            self.romanticRelationships
+            and self.romanticRelationships.lower() not in NOT_REPORTED_MARKERS
+        ):
+            return f"Primary relationship: {self.romanticRelationships}"
+        return None
+
 
 class TreatmentsAndInterventions(BaseModel):
     previousTherapeuticExperiences: Optional[Union[str, List[str]]] = None
@@ -430,6 +439,39 @@ class PatientProfile(BaseModel):
         overview = self.brief_description or self.clinicalCase or ""
         background_suffix = f" ({background})" if background else ""
         return f"{name}, {descriptor}{background_suffix}. {overview}".strip()
+
+    def stable_identity_facts_prompt(self) -> Optional[str]:
+        """Return fixed biographical facts that should stay consistent in dialogue."""
+        details = self.details
+        if isinstance(details, dict):
+            try:
+                details = PatientDetails(**details)
+                self.details = details
+            except Exception:
+                return None
+        if not details:
+            return None
+
+        facts: list[str] = []
+        demo = details.demographicAndSocioculturalInformation
+        social = details.socialRelationshipsAndInteractions
+
+        if demo.spokenLanguage and demo.spokenLanguage.lower() not in NOT_REPORTED_MARKERS:
+            facts.append(f"Spoken language: {demo.spokenLanguage}")
+
+        if social:
+            relationship_fact = social.stable_identity_prompt()
+            if relationship_fact:
+                facts.append(relationship_fact)
+
+        if not facts:
+            return None
+
+        bullet_lines = "\n".join(f"- {fact}" for fact in facts)
+        return (
+            "These identity facts stay consistent throughout the conversation:\n"
+            f"{bullet_lines}"
+        )
 
     def cognitive_style_prompt(self, max_bullets: int = 6) -> Optional[str]:
         """Derive a compact cognitive style guide from clinical functioning fields."""

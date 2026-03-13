@@ -1,0 +1,98 @@
+{
+  "therapist_id": "7c11ef64-516b-4a90-914e-ea11a8502e8f",
+  "sessions": [
+    {
+      "session_id": "bf58a159-1796-4ca2-836d-f036fdee9428",
+      "run_id": "20260212T181852Z_0004",
+      "patient_id": "crystal_smith_001",
+      "source": "api",
+      "mode": "live",
+      "started_at": "2026-02-12T18:18:52.495254",
+      "metadata": {
+        "initial_step_id": 1
+      },
+      "turns": [
+        {
+          "turn_index": 1,
+          "timestamp": "2026-02-12T18:19:14.289790",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "(a slight, tight smile that doesn't quite reach my eyes) Oh, uh... ciao. Hi. It's... it's been a week. I feel like I'm just running in place, you know? Just... so much to do and I'm just... tired. And then I get irritated with myself for being tired. It doesn't make any sense.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.704899321530537,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 1,
+          "total_turns": 1
+        }
+      ],
+      "final_state": {
+        "therapist_id": "7c11ef64-516b-4a90-914e-ea11a8502e8f",
+        "session_id": "bf58a159-1796-4ca2-836d-f036fdee9428",
+        "summary": "",
+        "session_reflection": "",
+        "history": [
+          {
+            "therapist": "ciao",
+            "patient": "(a slight, tight smile that doesn't quite reach my eyes) Oh, uh... ciao. Hi. It's... it's been a week. I feel like I'm just running in place, you know? Just... so much to do and I'm just... tired. And then I get irritated with myself for being tired. It doesn't make any sense.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          }
+        ],
+        "long_term_context": [],
+        "episodic_context": [],
+        "last_topic": {
+          "intent": "topic_detection",
+          "top": "Session Management",
+          "sub": "Greetings & SmallTalk",
+          "score": 1.0
+        },
+        "topic_similarity": 1.0,
+        "total_turns": 1,
+        "last_episode_turn": 0,
+        "messages": [
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(a slight, tight smile that doesn't quite reach my eyes) Oh, uh... ciao. Hi. It's... it's been a week. I feel like I'm just running in place, you know? Just... so much to do and I'm just... tired. And then I get irritated with myself for being tired. It doesn't make any sense."
+          }
+        ],
+        "core_emotion": "fear",
+        "emotion_intensity": 0.704899321530537,
+        "emotion_state": {
+          "SEEKING": 0.5614220240012195,
+          "FEAR": 0.8005508532167487,
+          "RAGE": 0.5083649930065567,
+          "LUST": 0.4894908861600669,
+          "CARE": 0.49151529128250776,
+          "PANIC_GRIEF": 0.5064991332360167,
+          "PLAY": 0.20455926884782055
+        },
+        "emotion_event": "neutral",
+        "emotion_salience": 0.2,
+        "low_salience_streak": 1
+      },
+      "last_updated_at": "2026-02-12T18:19:14.289817"
+    }
+  ]
+}

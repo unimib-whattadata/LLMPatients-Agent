@@ -20,7 +20,17 @@ PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 app = FastAPI(title="LLMPatients-Agent API")
 
 graph = build_graph()
-session_loggers: dict[tuple[str, str], dict] = {}
+session_loggers: dict[tuple[str, str, str], dict] = {}
+
+
+def _runtime_session_key(therapist_id: str, patient_id: str, session_id: str) -> tuple[str, str, str]:
+    """Isolate in-memory sessions by therapist, patient, and client session id."""
+    return (therapist_id or "therapist0", patient_id, session_id)
+
+
+def _runtime_thread_id(therapist_id: str, patient_id: str, session_id: str) -> str:
+    """Build a checkpointer thread id that cannot collide across patients."""
+    return f"{therapist_id or 'therapist0'}::{patient_id}::{session_id}"
 
 # === Request Schema ===
 class MessageRequest(BaseModel):
@@ -283,9 +293,9 @@ async def send_message(req: MessageRequest):
 
     patient_id = req.external_patient_id
     therapist_id = req.therapist_id or "therapist0"
-    session_key = (therapist_id, req.session_id)
+    session_key = _runtime_session_key(therapist_id, patient_id, req.session_id)
 
-    config = {"configurable": {"thread_id": req.session_id}}
+    config = {"configurable": {"thread_id": _runtime_thread_id(therapist_id, patient_id, req.session_id)}}
 
     # === Track reasoning time ===
     start_time = time.time()
@@ -322,6 +332,10 @@ async def send_message(req: MessageRequest):
     }
     if base_state:
         payload.update(base_state)
+        # Restored context may contain identifiers from a previous session; keep the live request authoritative.
+        payload["patient_id"] = patient_id
+        payload["therapist_id"] = therapist_id
+        payload["session_id"] = req.session_id
     result = graph.invoke(payload, config=config)
 
     reasoning_time = round(time.time() - start_time, 3)
@@ -397,7 +411,7 @@ async def send_message(req: MessageRequest):
 async def end_session(req: SessionEndRequest):
     """Finalize memory and logs for a therapist/patient session."""
     therapist_id = req.therapist_id or "therapist0"
-    session_key = (therapist_id, req.session_id)
+    session_key = _runtime_session_key(therapist_id, req.external_patient_id, req.session_id)
     entry = session_loggers.get(session_key)
     if not entry:
         return SessionEndResponse(
@@ -408,9 +422,9 @@ async def end_session(req: SessionEndRequest):
 
     run_logger = entry.get("logger")
     state = entry.get("latest_state") or entry.get("base_state") or {}
-    state.setdefault("patient_id", req.external_patient_id)
-    state.setdefault("therapist_id", therapist_id)
-    state.setdefault("session_id", req.session_id)
+    state["patient_id"] = req.external_patient_id
+    state["therapist_id"] = therapist_id
+    state["session_id"] = req.session_id
     state = finalize_session_memory(state)
     if run_logger:
         run_logger.finalize(state or {})

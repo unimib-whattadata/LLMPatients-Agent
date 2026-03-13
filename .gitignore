@@ -4,7 +4,6 @@ config/
 notebooks/
 code/
 __pycache__/
-tests/
 OLD/
 !data/questionnaire_results/old/
 !data/questionnaire_results/old/**
