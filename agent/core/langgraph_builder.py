@@ -725,11 +725,11 @@ def classify_topic_and_emotion(
     emotion_label = payload.get("emotion_label") if isinstance(payload, dict) else None
 
     if not topic_label:
-        match = re.search(r"topic_label\\s*[:=]\\s*([\\w\\s→>-]+)", raw, flags=re.IGNORECASE)
+        match = re.search(r"topic_label\s*[:=]\s*([\w\s→>-]+)", raw, flags=re.IGNORECASE)
         if match:
             topic_label = match.group(1).strip()
     if not emotion_label:
-        match = re.search(r"emotion_label\\s*[:=]\\s*([A-Za-z_/-]+)", raw, flags=re.IGNORECASE)
+        match = re.search(r"emotion_label\s*[:=]\s*([A-Za-z_/-]+)", raw, flags=re.IGNORECASE)
         if match:
             emotion_label = match.group(1).strip()
 
@@ -1056,9 +1056,7 @@ def trim_messages(state):
 
     overflow_msgs = messages[:-MAX_MESSAGE_WINDOW]
     trimmed = messages[-MAX_MESSAGE_WINDOW:]
-    turns = _messages_to_turns(overflow_msgs)
-    leftover_turns = []
-    leftover_turns = turns
+    leftover_turns = _messages_to_turns(overflow_msgs)
 
     if leftover_turns:
         trimmed = _turns_to_messages(leftover_turns) + trimmed
@@ -1175,7 +1173,7 @@ def display_response(state):
     """Log the agent's response and lightweight telemetry for observability."""
     logger.info("Displaying response:")
     logger.info(f"\n Patient: {state.response}\n")
-    logger.info(f"📜 Current emotional tone: {state.patient_profile.current_emotional_state}")
+    logger.info(f"📜 Current emotional tone: {getattr(state.patient_profile, 'current_emotional_state', 'unknown')}")
     logger.info(f"🕓 Turns so far: {len(state.history)} | Summary length: {len(state.summary)} chars\n")
 
     return state

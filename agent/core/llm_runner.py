@@ -187,7 +187,7 @@ class VertexLLMRunner(LLMRunnerBase):
                 raise text_error
         except Exception as e:
             logger.error(f"Vertex AI (Gemini) generation error: {e}")
-            return "[ERROR] Vertex AI Gemini failed to generate response."
+            raise RuntimeError(f"Vertex AI generation failed: {e}") from e
         
 
 # === Factory Function to Create LLM Runner ===
