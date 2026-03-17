@@ -17,3 +17,4 @@ scripts/eval_report.py
 CLAUDE.md
 questionnaiers/
 .claude/
+tests/

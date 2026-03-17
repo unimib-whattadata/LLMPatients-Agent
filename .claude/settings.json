@@ -6,7 +6,12 @@
       "Bash(source venv/bin/activate)",
       "Bash(python3 -m pip show pyyaml)",
       "Bash(ls venv*)",
-      "Bash(python3 -m pip install pyyaml -q)"
+      "Bash(python3 -m pip install pyyaml -q)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(''agent/core/llm_runner.py''\\).read\\(\\)\\); print\\(''OK''\\)\")",
+      "Bash(PYTHONPATH=. python3 -m pytest tests/test_langgraph_builder_unit.py -v --tb=short)",
+      "Bash(python3 -m pytest tests/test_langgraph_builder_unit.py -v --tb=short)",
+      "Read(//Users/davidlabarbera/**)",
+      "Bash(pip3 install:*)"
     ]
   }
 }

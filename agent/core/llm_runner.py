@@ -433,11 +433,6 @@ class VertexLLMRunner(LLMRunnerBase):
                         self._retry_delay_seconds(attempt),
                         self._retry_after_seconds(e),
                     )
-                    return extracted
-                raise text_error
-        except Exception as e:
-            logger.error(f"Vertex AI (Gemini) generation error: {e}")
-            raise RuntimeError(f"Vertex AI generation failed: {e}") from e
                     shared_cooldown_seconds = delay_seconds
                     if self._is_rate_limited_error(e):
                         shared_cooldown_seconds = max(shared_cooldown_seconds, self.rate_limit_cooldown_seconds)
