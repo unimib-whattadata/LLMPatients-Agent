@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import os
 import re
 from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor, wait, ALL_COMPLETED
@@ -49,7 +50,18 @@ st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
 CHECKPOINTER = MemorySaver()
 PROFILE_CACHE: Dict[str, dict] = {}
 MAX_LLM_RETRIES = 2
-SUMMARY_EXECUTOR = ThreadPoolExecutor(max_workers=2)
+EPISODE_SUMMARY_MAX_TOKENS = 256
+JOINT_CLASSIFICATION_MAX_TOKENS = 192
+SESSION_REFLECTION_MAX_TOKENS = 320
+LONG_TERM_SUMMARY_MAX_TOKENS = 512
+
+
+def _summary_executor_max_workers() -> int:
+    provider = os.getenv("model_provider", "local").lower()
+    return 1 if provider == "vertex_ai" else 2
+
+
+SUMMARY_EXECUTOR = ThreadPoolExecutor(max_workers=_summary_executor_max_workers())
 EPISODE_TASKS: Dict[tuple[str, str], List[Future]] = defaultdict(list)
 SUMMARY_TIMEOUT_SECONDS = 10
 MAX_SHORT_TERM_TURNS = 5
@@ -337,7 +349,7 @@ def _summarize_episode(
         f"{chunk_text}"
     )
     try:
-        summary_update = llm_runner.generate(prompt=prompt).strip()
+        summary_update = llm_runner.generate(prompt=prompt, max_tokens=EPISODE_SUMMARY_MAX_TOKENS).strip()
     except Exception as exc:
         logger.warning(f"⚠️ Async episode generation failed: {exc}")
         return ""
@@ -707,7 +719,7 @@ def classify_topic_and_emotion(
         f"{labels_text}\n"
     )
     try:
-        raw = llm_runner.generate(prompt=prompt).strip()
+        raw = llm_runner.generate(prompt=prompt, temperature=0.0, max_tokens=JOINT_CLASSIFICATION_MAX_TOKENS).strip()
     except Exception as exc:
         logger.warning(f"⚠️ Joint classification failed: {exc}")
         return "unknown", "SEEKING"
@@ -1230,7 +1242,7 @@ def _generate_session_reflection(episode_texts: list[str], fallback_history: lis
         f"{context}"
     )
     try:
-        return llm_runner.generate(prompt=prompt).strip()
+        return llm_runner.generate(prompt=prompt, max_tokens=SESSION_REFLECTION_MAX_TOKENS).strip()
     except Exception as exc:
         logger.warning(f"⚠️ Session reflection generation failed: {exc}")
         return ""
@@ -1252,7 +1264,7 @@ def _update_long_term_summary_from_reflection(
         f"New session reflection:\n{reflection_text}"
     )
     try:
-        updated = llm_runner.generate(prompt=prompt).strip()
+        updated = llm_runner.generate(prompt=prompt, max_tokens=LONG_TERM_SUMMARY_MAX_TOKENS).strip()
     except Exception as exc:
         logger.warning(f"⚠️ Long-term summary update failed: {exc}")
         return existing

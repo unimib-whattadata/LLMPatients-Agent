@@ -1,0 +1,37 @@
+{
+  "questionnaire_id": "bes",
+  "questionnaire_name": "Binge Eating Scale (BES)",
+  "patient_id": "jason_smith_001",
+  "completed_at": "2026-03-13T09:51:11.749032+00:00",
+  "answers": {
+    "1": 1,
+    "2": 1,
+    "3": 0,
+    "4": 1,
+    "5": 0,
+    "6": 0,
+    "7": 0,
+    "8": 0,
+    "9": 0,
+    "10": 0,
+    "11": 1,
+    "12": 0,
+    "13": 1,
+    "14": 0,
+    "15": 1,
+    "16": 0
+  },
+  "scores": {
+    "subscales": {
+      "body_image": 1,
+      "eating_behavior": 2,
+      "loss_of_control": 1,
+      "emotional_eating": 1,
+      "compensatory_behavior": 0,
+      "guilt_shame": 0,
+      "preoccupation": 1
+    },
+    "total": 6,
+    "severity": "No binge eating"
+  }
+}

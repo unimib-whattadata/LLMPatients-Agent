@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run all questionnaires for all patients.
+# Run all runnable questionnaires for canonical patients only.
 #
 # Usage:
 #   ./scripts/run_all_questionnaires.sh              # skip already-completed pairs
@@ -24,15 +24,23 @@ fi
 PATIENTS_DIR="$ROOT_DIR/data/patients"
 QUESTIONNAIRES_DIR="$ROOT_DIR/data/questionnaires"
 
-mapfile -t PATIENT_FILES < <(find "$PATIENTS_DIR" -maxdepth 2 -name "*.yaml" | sort)
-mapfile -t Q_FILES      < <(find "$QUESTIONNAIRES_DIR" -maxdepth 1 -name "*.yaml" | sort)
+mapfile -t PATIENT_FILES < <(find "$PATIENTS_DIR" -maxdepth 2 -name "*_001.yaml" | sort)
+mapfile -t QUESTIONNAIRES < <(
+    PYTHONPATH="$ROOT_DIR" "$PYTHON" - <<'PY'
+from agent.core.questionnaire_catalog import iter_questionnaire_definitions, questionnaire_is_runnable
+
+for questionnaire_def in iter_questionnaire_definitions():
+    if questionnaire_is_runnable(questionnaire_def):
+        print(questionnaire_def["id"])
+PY
+)
 
 if [[ ${#PATIENT_FILES[@]} -eq 0 ]]; then
-    echo "No patient files found in $PATIENTS_DIR" >&2
+    echo "No canonical patient files ending with _001 found in $PATIENTS_DIR" >&2
     exit 1
 fi
-if [[ ${#Q_FILES[@]} -eq 0 ]]; then
-    echo "No questionnaire files found in $QUESTIONNAIRES_DIR" >&2
+if [[ ${#QUESTIONNAIRES[@]} -eq 0 ]]; then
+    echo "No runnable questionnaire files found in $QUESTIONNAIRES_DIR" >&2
     exit 1
 fi
 
@@ -40,11 +48,6 @@ fi
 PATIENTS=()
 for f in "${PATIENT_FILES[@]}"; do
     PATIENTS+=("$(basename "$f" .yaml)")
-done
-
-QUESTIONNAIRES=()
-for f in "${Q_FILES[@]}"; do
-    QUESTIONNAIRES+=("$(basename "$f" .yaml)")
 done
 
 N_PATIENTS=${#PATIENTS[@]}

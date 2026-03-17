@@ -140,6 +140,15 @@ def build_prompt(state):
             details.demographicAndSocioculturalInformation.to_prompt(),
         )
 
+    if hasattr(profile, "stable_identity_facts_prompt"):
+        stable_identity = profile.stable_identity_facts_prompt()
+        if stable_identity:
+            primary_sections = add_section(
+                primary_sections,
+                "🔒 Stable Identity Facts",
+                _truncate_text(stable_identity, SECTION_MAX_CHARS),
+            )
+
     # --- Cognitive style (diagnosis-informed from patient profile) ---
     if hasattr(profile, "cognitive_style_prompt"):
         cognitive_style = profile.cognitive_style_prompt()

@@ -6,7 +6,7 @@ Usage examples:
   # List available questionnaires
   PYTHONPATH=. python3 scripts/run_questionnaire.py --list
 
-  # Run a questionnaire
+  # Run a questionnaire (canonical patient IDs only)
   PYTHONPATH=. python3 scripts/run_questionnaire.py --patient juanita_delgado_001 --questionnaire phq9
 
   # Show an existing result
@@ -28,26 +28,32 @@ QUESTIONNAIRES_DIR = ROOT_DIR / "data" / "questionnaires"
 RESULTS_DIR = ROOT_DIR / "data" / "questionnaire_results"
 
 
+def is_questionnaire_eligible_patient_id(patient_id: str) -> bool:
+    """Questionnaires only run on canonical patient IDs ending exactly with _001."""
+    return bool(patient_id) and patient_id.endswith("_001")
+
+
 def cmd_list():
     """Print all available questionnaire definitions."""
     if not QUESTIONNAIRES_DIR.exists():
         print(f"Questionnaires directory not found: {QUESTIONNAIRES_DIR}")
         return
 
-    import yaml
+    from agent.core.questionnaire_catalog import (
+        iter_questionnaire_definitions,
+        questionnaire_is_runnable,
+    )
 
-    paths = sorted(QUESTIONNAIRES_DIR.glob("*.yaml"))
-    if not paths:
+    questionnaire_defs = iter_questionnaire_definitions(QUESTIONNAIRES_DIR)
+    if not questionnaire_defs:
         print("No questionnaire definitions found in data/questionnaires/")
         return
 
     print("\nAvailable questionnaires:\n")
-    header = f"  {'ID':<22} {'Items':>5}  {'Scale':<10}  Name"
+    header = f"  {'ID':<22} {'Run':<3} {'Items':>5}  {'Scale':<10}  Name"
     print(header)
     print("  " + "-" * (len(header) - 2))
-    for path in paths:
-        with open(path, encoding="utf-8") as f:
-            q = yaml.safe_load(f)
+    for q in questionnaire_defs:
         n_items = len(q.get("items", []))
         scale_type = q.get("scale", {}).get("type", "?")
         scale_range = ""
@@ -60,7 +66,8 @@ def cmd_list():
             scale_range = "/".join(opts)
         elif scale_type == "ordinal_choice":
             scale_range = "ordinal"
-        print(f"  {q['id']:<22} {n_items:>5}  {scale_range:<10}  {q.get('name', '')}")
+        runnable = "yes" if questionnaire_is_runnable(q) else "no"
+        print(f"  {q['id']:<22} {runnable:<3} {n_items:>5}  {scale_range:<10}  {q.get('name', '')}")
     print()
 
 
@@ -76,6 +83,29 @@ def cmd_show(patient_id: str, questionnaire_id: str):
 
 def cmd_run(patient_id: str, questionnaire_id: str, force: bool):
     """Execute the questionnaire for the given patient."""
+    if not is_questionnaire_eligible_patient_id(patient_id):
+        print(
+            "Questionnaires can only be run for canonical patients whose ID ends exactly with '_001'. "
+            f"Received: {patient_id!r}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    from agent.core.questionnaire_catalog import (
+        load_questionnaire_definition,
+        questionnaire_is_runnable,
+        questionnaire_non_runnable_reason,
+    )
+
+    q_def = load_questionnaire_definition(questionnaire_id, QUESTIONNAIRES_DIR)
+    if not questionnaire_is_runnable(q_def):
+        print(
+            f"Questionnaire '{questionnaire_id}' is marked as non-runnable. "
+            f"{questionnaire_non_runnable_reason(q_def)}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     from agent.core.questionnaire_runner import QuestionnaireRunner
 
     runner = QuestionnaireRunner(questionnaire_id, patient_id, force=force)
@@ -88,7 +118,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--patient", metavar="PATIENT_ID", help="Patient ID (e.g. juanita_delgado_001)")
+    parser.add_argument(
+        "--patient",
+        metavar="PATIENT_ID",
+        help="Patient ID ending exactly with _001 (e.g. juanita_delgado_001)",
+    )
     parser.add_argument(
         "--questionnaire",
         metavar="QUESTIONNAIRE_ID",

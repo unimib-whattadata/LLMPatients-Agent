@@ -1,0 +1,359 @@
+id: scid5_pd_questions
+name: SCID-5-PD Interview Questions (Extracted)
+description: Extracted interviewer questions/prompts from source PDF using pdftotext + heuristic cleanup.
+source_pdf: data/questionnaires pdf/scid5_pd_structured_clinical_interview.pdf
+language: en
+runnable: false
+runnable_reason: Extracted SCID interviewer prompts are reference material, not runnable self-report questionnaires.
+scale:
+  type: choice
+  options:
+  - T
+  - F
+  labels:
+    T: Applicable/Yes
+    F: Not applicable/No
+batch_size: 20
+items:
+- id: 1
+  text: How old are you?
+- id: 2
+  text: Are you married?
+- id: 3
+  text: 'IF NO: Do you live with someone as if you are married?'
+- id: 4
+  text: 'IF NO: Were you ever married?'
+- id: 5
+  text: How long have you been (MARITAL STATUS)?
+- id: 6
+  text: Do you have any children?
+- id: 7
+  text: 'IF YES: How many?'
+- id: 8
+  text: What are their ages?
+- id: 9
+  text: How many children under the age of 18 live in your household?
+- id: 10
+  text: How far did you go in school?
+- id: 11
+  text: What kind of work do you do?
+- id: 12
+  text: Do you work outside of your home?
+- id: 13
+  text: Have you always done that kind of work?
+- id: 14
+  text: 'IF NO: What other kind of work have you done in the past?'
+- id: 15
+  text: What's the longest you've worked at one place?
+- id: 16
+  text: Are you currently employed (getting paid)?
+- id: 17
+  text: 'IF NO: Why not?'
+- id: 18
+  text: 'IF UNKNOWN: Has there ever been a period of time when you were unable to work or go to school?'
+- id: 19
+  text: 'IF YES: Why was that?'
+- id: 20
+  text: Have you ever been arrested, involved in a lawsuit, or had other legal trouble?
+- id: 21
+  text: Have you ever seen anybody for emotional or psychiatric problems?
+- id: 22
+  text: 'IF YES: What was that for?'
+- id: 23
+  text: What treatment[s] did you get?
+- id: 24
+  text: Any medications?
+- id: 25
+  text: When was that?
+- id: 26
+  text: 'IF NO: Was there ever a time when you, or someone else, thought you should see someone because of the way you were
+    feeling or acting?'
+- id: 27
+  text: Have you ever seen anybody for problems with alcohol or drugs?
+- id: 28
+  text: Have you ever attended a self-help group, like Alcoholics Anonymous, Gamblers Anonymous, or Overeaters Anonymous?
+- id: 29
+  text: Have you used a lot of alcohol or taken a lot of drugs for much of the time in your life?
+- id: 30
+  text: Tell me about that. What was that like?
+- id: 31
+  text: How were you feeling?
+- id: 32
+  text: How would you describe yourself as a person before (SXS OF DISORDER)?
+- id: 33
+  text: How do you think other people would describe you as a person before (SXS OF DISORDER)?
+- id: 34
+  text: Who have been the important people in your life?
+- id: 35
+  text: How have you gotten along with them?
+- id: 36
+  text: Do you think that the usual way that you react to things or behave with people has caused you problems with anyone?
+- id: 37
+  text: How successful would you say you are at getting the things you want in life, like having a satisfying relationship,
+    a fulfilling career, or close friends?
+- id: 38
+  text: How do you spend your free time?
+- id: 39
+  text: Who do you spend it with?
+- id: 40
+  text: What is that like?
+- id: 41
+  text: Do you think you are more this way than most people you know?
+- id: 42
+  text: Does this happen in a lot of different situations?
+- id: 43
+  text: Does this happen with a lot of different people?
+- id: 44
+  text: What problems has this caused for you?
+- id: 45
+  text: Has this affected your relationships or your interactions with other people?
+- id: 46
+  text: How about your family, romantic partner, or friends?
+- id: 47
+  text: Has this affected your work/school?
+- id: 48
+  text: Has it bothered other people?
+- id: 49
+  text: Have you been this way for a long time?
+- id: 50
+  text: How often does this happen?
+- id: 51
+  text: When can you first remember (feeling/acting) this way?
+- id: 52
+  text: Do you remember a period of time when you didn't feel this way?
+- id: 53
+  text: Does this happen only when you are trying to get alcohol or drugs?
+- id: 54
+  text: What was the reason that you avoided these (JOBS OR TASKS)?
+- id: 55
+  text: Is it because you just don't like to be around people, or is it because you are afraid of being criticized or rejected?
+- id: 56
+  text: Do you avoid joining in group activities unless you are sure that you will be welcomed and a social relationship accepted?
+- id: 57
+  text: Why is this?
+- id: 58
+  text: Are you afraid of being made fun of or embarrassed?
+- id: 59
+  text: Do you spend a lot of time worrying about this?
+- id: 60
+  text: Why is that?
+- id: 61
+  text: Is it because you feel in some way inadequate or not good enough?
+- id: 62
+  text: Is that because you are afraid of being embarrassed?
+- id: 63
+  text: Can you give me some examples of the kinds of decisions you would ask for advice or reassurance about?
+- id: 64
+  text: Does this happen most of the time?
+- id: 65
+  text: Has this happened with MOST important areas of your life?
+- id: 66
+  text: What are you afraid would happen if you disagree?
+- id: 67
+  text: Is this because you are not sure you can do it right?
+- id: 68
+  text: Can you do it as long as there is someone there to help you?
+- id: 69
+  text: Have you reacted this way most of the time when close relationships have ended?
+- id: 70
+  text: What makes you think that you are going to be left alone to take care of yourself?
+- id: 71
+  text: How realistic is this fear?
+- id: 72
+  text: How much do you worry about this?
+- id: 73
+  text: Do you spend so much time doing this that the point of what you were trying to do gets lost?
+- id: 74
+  text: Are you so devoted that you rarely get to spend time with friends, go on vacation, or do things just for fun?
+- id: 75
+  text: Do you insist that others also follow the rules?
+- id: 76
+  text: Can you give me some examples?
+- id: 77
+  text: "Are you stricter than other people \u2018who share your religious views?"
+- id: 78
+  text: What about things that are worn out or worthless?
+- id: 79
+  text: Tell me about that. (Does this happen often?
+- id: 80
+  text: Do you often end up doing things yourself to make sure they are done right?
+- id: 81
+  text: What might you need it for?
+- id: 82
+  text: Has anyone said that you are "stingy" or "miserly"?
+- id: 83
+  text: Are you so concerned about having things done the one "correct" way that you have trouble going along with anyone
+    else's ideas?
+- id: 84
+  text: What makes you think that?
+- id: 85
+  text: Is it because you don't trust your friends or the people you work with?
+- id: 86
+  text: Why don't you trust them?
+- id: 87
+  text: Do you spend a lot of time thinking about this?
+- id: 88
+  text: When has this happened?
+- id: 89
+  text: Do others say that you often take offense too easily?
+- id: 90
+  text: Tell me about that. suspicions with several partners or on several occasions with the same (What clues did you have?
+- id: 91
+  text: What did you do about it?
+- id: 92
+  text: Were you right?
+- id: 93
+  text: What are some of your norms (e.g., superstitiousness, superstitions?
+- id: 94
+  text: How have they affected what you say or do?
+- id: 95
+  text: Do you know other people who do these things?
+- id: 96
+  text: How did it affect you?
+- id: 97
+  text: How di it affect you?
+- id: 98
+  text: How does it affect you?
+- id: 99
+  text: Were you drinking or taking drugs at the time?
+- id: 100
+  text: How many close friends do you have?
+- id: 101
+  text: What are you nervous about?
+- id: 102
+  text: Is it because you are worried about being taken advantage of or hurt in some way rather than being rejected or criticized?
+- id: 103
+  text: you like that before (ONSET OF GMC)?
+- id: 104
+  text: Tell me about that. especially applies to sensory, bodily, and interpersonal (What about physical things like eating
+    a good meal or having sex?
+- id: 105
+  text: How do you feel when people praise you or criticize you?
+- id: 106
+  text: How do you feel when you're not?
+- id: 107
+  text: Has anyone complained about this?
+- id: 108
+  text: Do you do that kind of thing most of the time?
+- id: 109
+  text: Tell me more about this. daydreaming or in pursuit of unrealistic goals (How much time do you spend thinking about
+    these things?
+- id: 110
+  text: How much time do you spend thinking about this?
+- id: 111
+  text: Why do you have to see the top person?
+- id: 112
+  text: Is it because you are unique or special?
+- id: 113
+  text: In what way?
+- id: 114
+  text: Is it because you are too special or unique to spend time with people who are not?
+- id: 115
+  text: How often do you feel that way?
+- id: 116
+  text: What do they envy about you?
+- id: 117
+  text: What have you done?
+- id: 118
+  text: Have you threatened or pleaded with him/her?
+- id: 119
+  text: How often has this happened?
+- id: 120
+  text: Were there times when you thought these people were perfect or everything you wanted, and then other times when you
+    thought they were terrible?
+- id: 121
+  text: Do you feel this way a lot?
+- id: 122
+  text: What kinds of things?
+- id: 123
+  text: How often does it happen?
+- id: 124
+  text: 'IF YES: When was the last time that happened?'
+- id: 125
+  text: Tell me about that. What kinds of things cause your mood to change?
+- id: 126
+  text: How long do your "bad" moods typically last?
+- id: 127
+  text: Does this happen often?
+- id: 128
+  text: In what kinds of situations has this happened?
+- id: 129
+  text: How often did this happen?
+- id: 130
+  text: What did you do?
+- id: 131
+  text: Were you hoping to cause serious damage?
+- id: 132
+  text: How often did you do that?
+- id: 133
+  text: Was that more than once?
+- id: 134
+  text: How often?
+- id: 135
+  text: Have you done things that are against the law-even if you weren''t caught-like stealing, identity theft, writing bad
+    checks, or having sex for money?
+- id: 136
+  text: you ever been arrested for anything?
+- id: 137
+  text: just for the fun of it?
+- id: 138
+  text: Have you ever used an alias or pretended you were someone else?
+- id: 139
+  text: Have you "conned" others to get something?
+- id: 140
+  text: Do you often do something on the spur of the moment without thinking about how it will affect you or other people?
+- id: 141
+  text: Tell me about that. What kinds of things?
+- id: 142
+  text: Did you ever walk off a job without having another one to go to?
+- id: 143
+  text: How many times?
+- id: 144
+  text: Have you ever moved out of a place without having another place to live?
+- id: 145
+  text: Have you been in any fights?
+- id: 146
+  text: Have you ever been so angry that you hit or threw things at other people (INCLUDING SPOUSE/PARTNER)?
+- id: 147
+  text: Have you ever hit a child very hard?
+- id: 148
+  text: Have you physically threatened or hurt anyone else?
+- id: 149
+  text: How many speeding tickets have you gotten or car accidents have you been in?
+- id: 150
+  text: Do you always use protection if you have sex with someone you don't know well?
+- id: 151
+  text: Has anyone ever said that you allowed a child to be in danger when you were supposed to be taking care of the child?
+- id: 152
+  text: How much of the time in the last 5 years were you not working?
+- id: 153
+  text: Was there work available?
+- id: 154
+  text: When you were working, did you miss a lot of work?
+- id: 155
+  text: 'IF YES: Why?'
+- id: 156
+  text: Have you ever owed people money and not paid them back?
+- id: 157
+  text: What about not paying child support or not giving money to children or someone else who depended on you?
+- id: 158
+  text: Do you think what you did was wrong in any way?
+- id: 159
+  text: Do you think you were justified in (ANTISOCIAL ACTS)?
+- id: 160
+  text: Do you think the other person deserved it?
+- id: 161
+  text: How about your family, romantic partner or friends?
+extraction_meta:
+  extracted_at_utc: '2026-02-27T11:06:11.107128+00:00'
+  method: pdftotext -layout + left-column parsing + question heuristics
+verification:
+  method: whitespace-normalized exact match + full-pool fuzzy similarity against question candidates from source text layer
+  total_questions: 161
+  exact_whitespace_match_count: 131
+  fuzzy_similarity_ge_0_95_count: 161
+  fuzzy_similarity_ge_0_90_count: 161
+  fuzzy_similarity_ge_0_85_count: 161
+  min_fuzzy_similarity: 1.0
+  avg_fuzzy_similarity: 1.0
+  low_confidence_examples: []

@@ -14,7 +14,7 @@ scale:
   labels:
     T: "True or Mostly True"
     F: "False or Mostly False"
-batch_size: 20
+batch_size: 3
 items:
   - {id: 1,   text: "I enjoy work more than play."}
   - {id: 2,   text: "I've gotten into more fights than most people."}

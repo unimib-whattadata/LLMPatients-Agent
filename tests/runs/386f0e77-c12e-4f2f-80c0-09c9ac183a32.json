@@ -1,0 +1,651 @@
+{
+  "therapist_id": "386f0e77-c12e-4f2f-80c0-09c9ac183a32",
+  "sessions": [
+    {
+      "session_id": "73bd9c87-508f-4dc5-9661-f98fcb62c54e",
+      "run_id": "20260210T145113Z_0001",
+      "patient_id": "crystal_smith_001",
+      "source": "api",
+      "mode": "live",
+      "started_at": "2026-02-10T14:51:13.762924",
+      "metadata": {
+        "initial_step_id": 1
+      },
+      "turns": [
+        {
+          "turn_index": 1,
+          "timestamp": "2026-02-10T14:51:34.441623",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "(I settle into the chair, my hands clasped tightly in my lap.) Hey. Um... yeah. It's been a week. I've been kind of... wound up, I guess? Just thinking a lot. It's like my brain won't shut off, and I'm not even sure what I'm looking for. It's just... a lot of noise.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.7040743609227174,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 1,
+          "total_turns": 1
+        }
+      ],
+      "final_state": {
+        "therapist_id": "386f0e77-c12e-4f2f-80c0-09c9ac183a32",
+        "session_id": "73bd9c87-508f-4dc5-9661-f98fcb62c54e",
+        "summary": "",
+        "session_reflection": "",
+        "history": [
+          {
+            "therapist": "ciao",
+            "patient": "(I settle into the chair, my hands clasped tightly in my lap.) Hey. Um... yeah. It's been a week. I've been kind of... wound up, I guess? Just thinking a lot. It's like my brain won't shut off, and I'm not even sure what I'm looking for. It's just... a lot of noise.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          }
+        ],
+        "long_term_context": [],
+        "episodic_context": [],
+        "last_topic": {
+          "intent": "topic_detection",
+          "top": "Session Management",
+          "sub": "Greetings & SmallTalk",
+          "score": 1.0
+        },
+        "topic_similarity": 1.0,
+        "total_turns": 1,
+        "last_episode_turn": 0,
+        "messages": [
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(I settle into the chair, my hands clasped tightly in my lap.) Hey. Um... yeah. It's been a week. I've been kind of... wound up, I guess? Just thinking a lot. It's like my brain won't shut off, and I'm not even sure what I'm looking for. It's just... a lot of noise."
+          }
+        ],
+        "core_emotion": "fear",
+        "emotion_intensity": 0.7040743609227174,
+        "emotion_state": {
+          "SEEKING": 0.5694491977944257,
+          "FEAR": 0.7938244696749117,
+          "RAGE": 0.5036889082832899,
+          "LUST": 0.49646984438294883,
+          "CARE": 0.5044447873914149,
+          "PANIC_GRIEF": 0.5051632458403333,
+          "PLAY": 0.1958142144326165
+        },
+        "emotion_event": "neutral",
+        "emotion_salience": 0.2,
+        "low_salience_streak": 1
+      },
+      "last_updated_at": "2026-02-10T14:51:34.441631"
+    },
+    {
+      "session_id": "73bd9c87-508f-4dc5-9661-f98fcb62c54e",
+      "run_id": "20260210T145931Z_0001",
+      "patient_id": "crystal_smith_001",
+      "source": "api",
+      "mode": "live",
+      "started_at": "2026-02-10T14:59:31.994034",
+      "metadata": {
+        "initial_step_id": 1
+      },
+      "turns": [
+        {
+          "turn_index": 1,
+          "timestamp": "2026-02-10T15:00:03.605347",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "(I shift a little in my seat, looking at a spot on the wall) I guess... it's just this constant feeling of being... on. You know? Like I’m watching everything, including myself, and just... waiting. And I don't even know what I'm waiting for. It makes me feel... disconnected, even when I'm right there next to Marcus. It's just a weird, restless energy.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "CheckIn & WellbeingInquiry",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "CheckIn & WellbeingInquiry",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.6930562768918862,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 2,
+          "total_turns": 2
+        }
+      ],
+      "final_state": {
+        "therapist_id": "386f0e77-c12e-4f2f-80c0-09c9ac183a32",
+        "session_id": "73bd9c87-508f-4dc5-9661-f98fcb62c54e",
+        "summary": "",
+        "session_reflection": "",
+        "history": [
+          {
+            "therapist": "ciao",
+            "patient": "(I settle into the chair, my hands clasped tightly in my lap.) Hey. Um... yeah. It's been a week. I've been kind of... wound up, I guess? Just thinking a lot. It's like my brain won't shut off, and I'm not even sure what I'm looking for. It's just... a lot of noise.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "ciao",
+            "patient": "(I shift a little in my seat, looking at a spot on the wall) I guess... it's just this constant feeling of being... on. You know? Like I’m watching everything, including myself, and just... waiting. And I don't even know what I'm waiting for. It makes me feel... disconnected, even when I'm right there next to Marcus. It's just a weird, restless energy.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "CheckIn & WellbeingInquiry",
+              "score": 1.0
+            }
+          }
+        ],
+        "long_term_context": [],
+        "episodic_context": [],
+        "last_topic": {
+          "intent": "topic_detection",
+          "top": "Session Management",
+          "sub": "CheckIn & WellbeingInquiry",
+          "score": 1.0
+        },
+        "topic_similarity": 1.0,
+        "total_turns": 2,
+        "last_episode_turn": 0,
+        "messages": [
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(I settle into the chair, my hands clasped tightly in my lap.) Hey. Um... yeah. It's been a week. I've been kind of... wound up, I guess? Just thinking a lot. It's like my brain won't shut off, and I'm not even sure what I'm looking for. It's just... a lot of noise."
+          },
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(I shift a little in my seat, looking at a spot on the wall) I guess... it's just this constant feeling of being... on. You know? Like I’m watching everything, including myself, and just... waiting. And I don't even know what I'm waiting for. It makes me feel... disconnected, even when I'm right there next to Marcus. It's just a weird, restless energy."
+          }
+        ],
+        "core_emotion": "fear",
+        "emotion_intensity": 0.6930562768918862,
+        "emotion_state": {
+          "SEEKING": 0.5511369702764554,
+          "FEAR": 0.78766914796884,
+          "RAGE": 0.4977059769905957,
+          "LUST": 0.4994046334887737,
+          "CARE": 0.4899330691835464,
+          "PANIC_GRIEF": 0.49859207681378304,
+          "PLAY": 0.20033536485500622
+        },
+        "emotion_event": "neutral",
+        "emotion_salience": 0.2,
+        "low_salience_streak": 2
+      },
+      "last_updated_at": "2026-02-10T15:00:03.605355"
+    },
+    {
+      "session_id": "73bd9c87-508f-4dc5-9661-f98fcb62c54e",
+      "run_id": "20260210T161128Z_0001",
+      "patient_id": "crystal_smith_001",
+      "source": "api",
+      "mode": "live",
+      "started_at": "2026-02-10T16:11:28.115202",
+      "metadata": {
+        "initial_step_id": 1
+      },
+      "turns": [
+        {
+          "turn_index": 1,
+          "timestamp": "2026-02-10T16:12:00.649019",
+          "therapist_input_raw": "who is marcus?",
+          "therapist_input_safe": "who is marcus?",
+          "patient_response": "(a small, nervous laugh) Oh. Um... Marcus is my husband. Sorry, I... I guess I just assume you know everyone in my head. We've been married for thirteen years. It just... yeah, he's the one I was talking about, being right there next to me but... feeling like he's a million miles away.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Relationships",
+            "sub": "RomanticRelationships & SexualRelationships",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Relationships",
+            "sub": "RomanticRelationships & SexualRelationships",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.7006485816859556,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 3,
+          "total_turns": 3
+        },
+        {
+          "turn_index": 2,
+          "timestamp": "2026-02-10T16:32:50.908276",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "(a small, quiet sigh) Hey. It... it felt weird, having to explain who he is. It just makes this whole thing feel more... real, I guess. And heavier. I keep trying to pinpoint when it happened, you know? When he stopped feeling like my husband and started feeling more like… just someone who lives in my house. It's a lonely feeling.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "panic_grief",
+          "emotion_intensity": 0.5824382455764059,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 4,
+          "total_turns": 4
+        },
+        {
+          "turn_index": 3,
+          "timestamp": "2026-02-10T16:33:37.595167",
+          "therapist_input_raw": "ok capisco",
+          "therapist_input_safe": "ok capisco",
+          "patient_response": "(a small, quiet sigh) Yeah... It's just... I keep replaying things in my head, trying to figure out what I missed. Or what I did wrong. It feels like a... a personal failure, you know? To have this person you've built a whole life with, and then one day you look over and... you feel totally alone. It makes me feel so guilty.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Relationships",
+            "sub": "RomanticRelationships & SexualRelationships",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Relationships",
+            "sub": "RomanticRelationships & SexualRelationships",
+            "score": 1.0
+          },
+          "current_emotion": "panic_grief",
+          "emotion_intensity": 0.5853409112530792,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 5,
+          "total_turns": 5
+        }
+      ],
+      "final_state": {
+        "therapist_id": "386f0e77-c12e-4f2f-80c0-09c9ac183a32",
+        "session_id": "73bd9c87-508f-4dc5-9661-f98fcb62c54e",
+        "summary": "",
+        "session_reflection": "",
+        "history": [
+          {
+            "therapist": "ciao",
+            "patient": "(I settle into the chair, my hands clasped tightly in my lap.) Hey. Um... yeah. It's been a week. I've been kind of... wound up, I guess? Just thinking a lot. It's like my brain won't shut off, and I'm not even sure what I'm looking for. It's just... a lot of noise.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "ciao",
+            "patient": "(I shift a little in my seat, looking at a spot on the wall) I guess... it's just this constant feeling of being... on. You know? Like I’m watching everything, including myself, and just... waiting. And I don't even know what I'm waiting for. It makes me feel... disconnected, even when I'm right there next to Marcus. It's just a weird, restless energy.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "CheckIn & WellbeingInquiry",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "who is marcus?",
+            "patient": "(a small, nervous laugh) Oh. Um... Marcus is my husband. Sorry, I... I guess I just assume you know everyone in my head. We've been married for thirteen years. It just... yeah, he's the one I was talking about, being right there next to me but... feeling like he's a million miles away.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Relationships",
+              "sub": "RomanticRelationships & SexualRelationships",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "ciao",
+            "patient": "(a small, quiet sigh) Hey. It... it felt weird, having to explain who he is. It just makes this whole thing feel more... real, I guess. And heavier. I keep trying to pinpoint when it happened, you know? When he stopped feeling like my husband and started feeling more like… just someone who lives in my house. It's a lonely feeling.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "ok capisco",
+            "patient": "(a small, quiet sigh) Yeah... It's just... I keep replaying things in my head, trying to figure out what I missed. Or what I did wrong. It feels like a... a personal failure, you know? To have this person you've built a whole life with, and then one day you look over and... you feel totally alone. It makes me feel so guilty.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Relationships",
+              "sub": "RomanticRelationships & SexualRelationships",
+              "score": 1.0
+            }
+          }
+        ],
+        "long_term_context": [],
+        "episodic_context": [],
+        "last_topic": {
+          "intent": "topic_detection",
+          "top": "Relationships",
+          "sub": "RomanticRelationships & SexualRelationships",
+          "score": 1.0
+        },
+        "topic_similarity": 1.0,
+        "total_turns": 5,
+        "last_episode_turn": 5,
+        "messages": [
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(I settle into the chair, my hands clasped tightly in my lap.) Hey. Um... yeah. It's been a week. I've been kind of... wound up, I guess? Just thinking a lot. It's like my brain won't shut off, and I'm not even sure what I'm looking for. It's just... a lot of noise."
+          },
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(I shift a little in my seat, looking at a spot on the wall) I guess... it's just this constant feeling of being... on. You know? Like I’m watching everything, including myself, and just... waiting. And I don't even know what I'm waiting for. It makes me feel... disconnected, even when I'm right there next to Marcus. It's just a weird, restless energy."
+          },
+          {
+            "type": "human",
+            "content": "who is marcus?"
+          },
+          {
+            "type": "ai",
+            "content": "(a small, nervous laugh) Oh. Um... Marcus is my husband. Sorry, I... I guess I just assume you know everyone in my head. We've been married for thirteen years. It just... yeah, he's the one I was talking about, being right there next to me but... feeling like he's a million miles away."
+          },
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(a small, quiet sigh) Hey. It... it felt weird, having to explain who he is. It just makes this whole thing feel more... real, I guess. And heavier. I keep trying to pinpoint when it happened, you know? When he stopped feeling like my husband and started feeling more like… just someone who lives in my house. It's a lonely feeling."
+          },
+          {
+            "type": "human",
+            "content": "ok capisco"
+          },
+          {
+            "type": "ai",
+            "content": "(a small, quiet sigh) Yeah... It's just... I keep replaying things in my head, trying to figure out what I missed. Or what I did wrong. It feels like a... a personal failure, you know? To have this person you've built a whole life with, and then one day you look over and... you feel totally alone. It makes me feel so guilty."
+          }
+        ],
+        "core_emotion": "panic_grief",
+        "emotion_intensity": 0.5853409112530792,
+        "emotion_state": {
+          "SEEKING": 0.5040938268890856,
+          "FEAR": 0.5019641507136914,
+          "RAGE": 0.49480224012206186,
+          "LUST": 0.5060323982266883,
+          "CARE": 0.5172012265323502,
+          "PANIC_GRIEF": 0.6307673677335651,
+          "PLAY": 0.5098245736720112
+        },
+        "emotion_event": "neutral",
+        "emotion_salience": 0.2,
+        "low_salience_streak": 5
+      },
+      "last_updated_at": "2026-02-10T16:33:37.595175"
+    },
+    {
+      "session_id": "57411dc5-473c-478d-bd5c-9a695d8136b7",
+      "run_id": "20260210T163553Z_0002",
+      "patient_id": "normal_user_001",
+      "source": "api",
+      "mode": "live",
+      "started_at": "2026-02-10T16:35:53.562589",
+      "metadata": {
+        "initial_step_id": 1
+      },
+      "turns": [
+        {
+          "turn_index": 1,
+          "timestamp": "2026-02-10T16:36:12.307956",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "Ciao! (chuckles a little) I like that. It's good to see you. It's actually been a pretty decent week on my end. I feel like I've had a bit more energy, just... for thinking, you know? It's been nice to just sort of mull things over without any pressure. How have you been?",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.6578503345105255,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 1,
+          "total_turns": 1
+        },
+        {
+          "turn_index": 2,
+          "timestamp": "2026-02-10T16:39:15.206792",
+          "therapist_input_raw": "fine",
+          "therapist_input_safe": "fine",
+          "patient_response": "Good, I'm glad. (a small smile) It's funny, with that extra brain space I mentioned, I found myself kind of... excavating. I was thinking about something we talked about a while back, actually. The whole idea of 'productive rest' versus just being lazy. It sort of popped back into my head and I've been turning it over.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.587423748360874,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 2,
+          "total_turns": 2
+        },
+        {
+          "turn_index": 3,
+          "timestamp": "2026-02-10T17:26:37.860773",
+          "therapist_input_raw": "tell me something",
+          "therapist_input_safe": "tell me something",
+          "patient_response": "(a small, thoughtful laugh) Well, with that whole 'productive rest' thing... I think I realized how much of my self-worth is tied to being busy. It's kind of... infuriating, actually, when I think about it. There's this little voice that's always judging, saying that if I'm not moving forward, I'm failing. And maybe I'm a little scared of what happens if I actually just... stop. What if there's nothing there? It's a surprisingly heavy thought.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "TherapyProcess",
+            "sub": "SessionInsights",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "TherapyProcess",
+            "sub": "SessionInsights",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.5937077430491983,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 3,
+          "total_turns": 3
+        },
+        {
+          "turn_index": 4,
+          "timestamp": "2026-02-10T17:29:59.918554",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "Ciao. (a small smile) Good to see you. That thought I left with last week... about what happens when the noise stops... it's been a bit of a shadow, you know? Not in a bad way, necessarily. Just... present. I'm actually kind of curious to poke at it a little more today, if that feels right.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "fear",
+          "emotion_intensity": 0.5839743269615989,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 4,
+          "total_turns": 4
+        }
+      ],
+      "final_state": {
+        "therapist_id": "386f0e77-c12e-4f2f-80c0-09c9ac183a32",
+        "session_id": "57411dc5-473c-478d-bd5c-9a695d8136b7",
+        "summary": "",
+        "session_reflection": "",
+        "history": [
+          {
+            "therapist": "ciao",
+            "patient": "Ciao! (chuckles a little) I like that. It's good to see you. It's actually been a pretty decent week on my end. I feel like I've had a bit more energy, just... for thinking, you know? It's been nice to just sort of mull things over without any pressure. How have you been?",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "fine",
+            "patient": "Good, I'm glad. (a small smile) It's funny, with that extra brain space I mentioned, I found myself kind of... excavating. I was thinking about something we talked about a while back, actually. The whole idea of 'productive rest' versus just being lazy. It sort of popped back into my head and I've been turning it over.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "tell me something",
+            "patient": "(a small, thoughtful laugh) Well, with that whole 'productive rest' thing... I think I realized how much of my self-worth is tied to being busy. It's kind of... infuriating, actually, when I think about it. There's this little voice that's always judging, saying that if I'm not moving forward, I'm failing. And maybe I'm a little scared of what happens if I actually just... stop. What if there's nothing there? It's a surprisingly heavy thought.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "TherapyProcess",
+              "sub": "SessionInsights",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "ciao",
+            "patient": "Ciao. (a small smile) Good to see you. That thought I left with last week... about what happens when the noise stops... it's been a bit of a shadow, you know? Not in a bad way, necessarily. Just... present. I'm actually kind of curious to poke at it a little more today, if that feels right.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          }
+        ],
+        "long_term_context": [],
+        "episodic_context": [],
+        "last_topic": {
+          "intent": "topic_detection",
+          "top": "Session Management",
+          "sub": "Greetings & SmallTalk",
+          "score": 1.0
+        },
+        "topic_similarity": 1.0,
+        "total_turns": 4,
+        "last_episode_turn": 0,
+        "messages": [
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "Ciao! (chuckles a little) I like that. It's good to see you. It's actually been a pretty decent week on my end. I feel like I've had a bit more energy, just... for thinking, you know? It's been nice to just sort of mull things over without any pressure. How have you been?"
+          },
+          {
+            "type": "human",
+            "content": "fine"
+          },
+          {
+            "type": "ai",
+            "content": "Good, I'm glad. (a small smile) It's funny, with that extra brain space I mentioned, I found myself kind of... excavating. I was thinking about something we talked about a while back, actually. The whole idea of 'productive rest' versus just being lazy. It sort of popped back into my head and I've been turning it over."
+          },
+          {
+            "type": "human",
+            "content": "tell me something"
+          },
+          {
+            "type": "ai",
+            "content": "(a small, thoughtful laugh) Well, with that whole 'productive rest' thing... I think I realized how much of my self-worth is tied to being busy. It's kind of... infuriating, actually, when I think about it. There's this little voice that's always judging, saying that if I'm not moving forward, I'm failing. And maybe I'm a little scared of what happens if I actually just... stop. What if there's nothing there? It's a surprisingly heavy thought."
+          },
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "Ciao. (a small smile) Good to see you. That thought I left with last week... about what happens when the noise stops... it's been a bit of a shadow, you know? Not in a bad way, necessarily. Just... present. I'm actually kind of curious to poke at it a little more today, if that feels right."
+          }
+        ],
+        "core_emotion": "fear",
+        "emotion_intensity": 0.5839743269615989,
+        "emotion_state": {
+          "SEEKING": 0.5041720584026984,
+          "FEAR": 0.6342289295383088,
+          "RAGE": 0.5020205239041879,
+          "LUST": 0.508592423096534,
+          "CARE": 0.5001147298782915,
+          "PANIC_GRIEF": 0.501957011416976,
+          "PLAY": 0.49062977157947346
+        },
+        "emotion_event": "neutral",
+        "emotion_salience": 0.2,
+        "low_salience_streak": 4
+      },
+      "last_updated_at": "2026-02-10T17:29:59.918561"
+    }
+  ]
+}

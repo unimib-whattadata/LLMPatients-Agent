@@ -28,7 +28,7 @@ therapy:
   difficulty: 2
   estimatedDuration: 40
 clinical:
-  clinicalCase: Daniel Isherwood is a 55-year-old married man who sought psychiatric consultation because of weight gain. Although his BMI is in the normal range (140 lb at 5'5"; BMI 23.3), he reports recurrent, distressing binge-eating episodes characterized by loss of control, eating rapidly and alone until uncomfortably full, and subsequent fatigue and disgust. Episodes occur two to three times per week, often when he arrives home before his husband after long workdays as a marketing director. Binges are usually on "healthy" foods, but he also has sugar-focused binges (ice cream, candy). He denies compensatory behaviors (vomiting, fasting, laxatives/diuretics, weight-loss agents). He exercises about an hour nearly every day and reports no substance misuse, mood elevation, psychosis, or suicidality. Medical history, examination, and basic labs are unremarkable. Presentation is consistent with DSM-5 binge-eating disorder, mild.
+  clinicalCase: Daniel Isherwood is a 55-year-old married man who sought psychiatric consultation because of weight gain. Although his BMI is in the normal range (140 lb at 5'5"; BMI 23.3), he reports recurrent, distressing binge-eating episodes characterized by loss of control, eating rapidly and alone until uncomfortably full, and subsequent fatigue and disgust. Episodes occur two to three times per week, often when he arrives home before his husband, Erik, after long workdays as a marketing director. Binges are usually on "healthy" foods, but he also has sugar-focused binges (ice cream, candy). He denies compensatory behaviors (vomiting, fasting, laxatives/diuretics, weight-loss agents). He exercises about an hour nearly every day and reports no substance misuse, mood elevation, psychosis, or suicidality. Medical history, examination, and basic labs are unremarkable. Presentation is consistent with DSM-5 binge-eating disorder, mild.
   currentMedications:
     - None
   emotionTraits:
@@ -61,12 +61,12 @@ clinical:
     educationAndEmployment:
       educationLevel: Not reported; functioning consistent with professional/managerial role.
       workHistory: Marketing director for a large software company; frequently works late and reports stress and time pressure.
-      housingStability: Stable housing with spouse.
+      housingStability: Stable housing with his husband, Erik.
       financialSituation: Stable; no acute financial stress reported.
       hobbiesAndInterests: Regular exercise (swimming, biking, elliptical); historically a competitive runner in his late 20s.
     socialRelationshipsAndInteractions:
       friendships: Not reported; no major social impairment indicated.
-      romanticRelationships: Married to a supportive husband; binge episodes often occur when alone at home before spouse returns.
+      romanticRelationships: Married to a supportive husband, Erik; binge episodes often occur when alone at home before Erik returns.
       sexualRelationships: Not reported
       familyInteractions: Not reported
       relationshipsWithPeersAndColleagues: High occupational functioning; tends to overwork and stay late.

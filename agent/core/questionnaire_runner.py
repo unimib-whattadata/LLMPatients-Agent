@@ -16,13 +16,18 @@ Design notes:
 
 import json
 import logging
+import os
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import yaml
-
+from agent.core.questionnaire_catalog import (
+    load_questionnaire_definition,
+    questionnaire_is_runnable,
+    questionnaire_non_runnable_reason,
+)
 from agent.core.emotion_model import EMOTION_LABELS, EMOTION_SYSTEM_HINTS
 from agent.core.llm_runner import create_llm_runner
 from agent.core.patient_profile import PatientDetails, PatientProfile, resolve_patient_profile_path
@@ -30,29 +35,114 @@ from agent.core.patient_profile import PatientDetails, PatientProfile, resolve_p
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-QUESTIONNAIRES_DIR = ROOT_DIR / "data" / "questionnaires"
 RESULTS_DIR = ROOT_DIR / "data" / "questionnaire_results"
 
 CLINICAL_CASE_MAX_CHARS = 400
 MAX_RETRIES = 3
+ORDINAL_CHOICE_MAX_TOKENS = 256
+SINGLE_CHOICE_MAX_TOKENS = 256
+CHOICE_BATCH_MIN_MAX_TOKENS = 1024
+
+
+def is_questionnaire_eligible_patient_id(patient_id: str) -> bool:
+    """Questionnaires only run on canonical patient IDs ending exactly with _001."""
+    return bool(re.fullmatch(r".+_001", patient_id or ""))
+
+
+def questionnaire_inter_batch_delay_seconds() -> float:
+    """Throttle questionnaire runs a bit on hosted providers to reduce 429 bursts."""
+    provider = os.getenv("model_provider", "local").lower()
+    default_delay = 3.0 if provider == "vertex_ai" else 0.0
+    raw_value = os.getenv("QUESTIONNAIRE_INTER_BATCH_DELAY_SECONDS")
+    if raw_value is None:
+        return default_delay
+    try:
+        delay_seconds = float(raw_value)
+        if delay_seconds < 0:
+            raise ValueError
+        return delay_seconds
+    except ValueError:
+        logger.warning(
+            "Ignoring invalid QUESTIONNAIRE_INTER_BATCH_DELAY_SECONDS=%r. Using %.1fs.",
+            raw_value,
+            default_delay,
+        )
+        return default_delay
+
+
+def choice_batch_max_tokens(item_count: int) -> int:
+    """Give T/F batches extra output headroom on hosted models with hidden reasoning."""
+    safe_item_count = max(int(item_count), 1)
+    return max(CHOICE_BATCH_MIN_MAX_TOKENS, safe_item_count * 32 + 256)
+
+
+def _env_optional_float(name: str) -> Optional[float]:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return None
+    try:
+        return float(raw_value)
+    except ValueError:
+        logger.warning("Ignoring invalid %s=%r.", name, raw_value)
+        return None
+
+
+def _env_optional_positive_int(name: str) -> Optional[int]:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return None
+    try:
+        value = int(raw_value)
+        if value <= 0:
+            raise ValueError
+        return value
+    except ValueError:
+        logger.warning("Ignoring invalid %s=%r.", name, raw_value)
+        return None
+
+
+def questionnaire_llm_overrides() -> Dict[str, Any]:
+    """Allow questionnaires to run on a lighter or cheaper model than chat."""
+    overrides: Dict[str, Any] = {}
+
+    provider = os.getenv("QUESTIONNAIRE_MODEL_PROVIDER")
+    if provider:
+        overrides["provider"] = provider.strip().lower()
+
+    model_id = os.getenv("QUESTIONNAIRE_MODEL_ID")
+    if model_id:
+        overrides["model_id"] = model_id.strip()
+
+    temperature = _env_optional_float("QUESTIONNAIRE_TEMPERATURE")
+    if temperature is not None:
+        overrides["temperature"] = temperature
+
+    max_tokens = _env_optional_positive_int("QUESTIONNAIRE_MAX_TOKENS")
+    if max_tokens is not None:
+        overrides["max_tokens"] = max_tokens
+
+    return overrides
 
 
 class QuestionnaireRunner:
     def __init__(self, questionnaire_id: str, patient_id: str, force: bool = False):
+        if not is_questionnaire_eligible_patient_id(patient_id):
+            raise ValueError(
+                "Questionnaires can only be run for canonical patients whose ID ends exactly with '_001'. "
+                f"Received: {patient_id!r}"
+            )
+
         self.questionnaire_id = questionnaire_id
         self.patient_id = patient_id
         self.force = force
 
         # Load questionnaire definition
-        q_path = QUESTIONNAIRES_DIR / f"{questionnaire_id}.yaml"
-        if not q_path.exists():
-            available = [p.stem for p in QUESTIONNAIRES_DIR.glob("*.yaml")]
-            raise FileNotFoundError(
-                f"Questionnaire '{questionnaire_id}' not found in {QUESTIONNAIRES_DIR}. "
-                f"Available: {', '.join(sorted(available)) or 'none'}"
+        self.q_def = load_questionnaire_definition(questionnaire_id)
+        if not questionnaire_is_runnable(self.q_def):
+            raise ValueError(
+                f"Questionnaire '{questionnaire_id}' is marked as non-runnable. "
+                f"{questionnaire_non_runnable_reason(self.q_def)}"
             )
-        with open(q_path, "r", encoding="utf-8") as f:
-            self.q_def = yaml.safe_load(f)
 
         # Load patient profile — same path as interactive mode
         patients_dir = ROOT_DIR / "data" / "patients"
@@ -63,8 +153,15 @@ class QuestionnaireRunner:
         if isinstance(self.profile.details, dict):
             self.profile.details = PatientDetails(**(self.profile.details or {}))
 
-        # Create LLM runner (same factory as the interactive pipeline)
-        self.llm = create_llm_runner()
+        # Questionnaires can target a lighter model than interactive chat.
+        llm_overrides = questionnaire_llm_overrides()
+        self.llm = create_llm_runner(**llm_overrides)
+        logger.info(
+            "Questionnaire runner using provider=%s model=%s",
+            llm_overrides.get("provider", os.getenv("model_provider", "local")).strip().lower(),
+            llm_overrides.get("model_id", os.getenv("model_id")),
+        )
+        self.inter_batch_delay_seconds = questionnaire_inter_batch_delay_seconds()
 
         # Resolve storage paths
         result_dir = RESULTS_DIR / patient_id
@@ -128,6 +225,9 @@ class QuestionnaireRunner:
 
             completed = done_count + sum(len(c) for c in chunks[: i + 1])
             print(f"  [{min(completed, total_items):>4}/{total_items}]  batch {i + 1}/{len(chunks)}", flush=True)
+
+            if self.inter_batch_delay_seconds > 0 and i < len(chunks) - 1:
+                time.sleep(self.inter_batch_delay_seconds)
 
         # Score and finalise
         scores = self._compute_scores(answers)
@@ -228,13 +328,21 @@ class QuestionnaireRunner:
             try:
                 if scale["type"] == "choice":
                     prompt = self._build_batch_prompt(items, patient_context, patient_name, scale)
-                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=max(len(items) * 15 + 200, 300))
+                    raw = self.llm.generate(
+                        prompt,
+                        temperature=0.0,
+                        max_tokens=choice_batch_max_tokens(len(items)),
+                    )
                     return self._parse_batch_tf(raw, items)
                 elif scale["type"] == "ordinal_choice":
                     assert len(items) == 1, "ordinal_choice questionnaires must use batch_size=1"
                     item = items[0]
                     prompt = self._build_choice_prompt(item, patient_context, patient_name)
-                    raw = self.llm.generate(prompt, temperature=0.1, max_tokens=50)
+                    raw = self.llm.generate(
+                        prompt,
+                        temperature=0.0,
+                        max_tokens=max(ORDINAL_CHOICE_MAX_TOKENS, len(item.get("choices", [])) * 64),
+                    )
                     return self._parse_ordinal_choice(raw.strip(), item)
                 else:
                     assert len(items) == 1, "Integer-scale questionnaires must use batch_size=1"
@@ -323,7 +431,8 @@ class QuestionnaireRunner:
             f"You are {patient_name}. {patient_context}\n\n"
             f"You are completing a self-report questionnaire.{time_instruction} "
             f"Read the options below and choose the ONE that best describes you. "
-            f"Reply with ONLY the option number (1-{n}) — no other text.\n\n"
+            f"If multiple options partly fit, choose the single best match. "
+            f"Reply with EXACTLY one digit from 1 to {n} — no words, no punctuation, no explanation.\n\n"
             f"Options:\n{options_text}\n\n"
             f"Your answer (number only):"
         )
@@ -364,11 +473,11 @@ class QuestionnaireRunner:
                 # Alternate between a numbered single-line format and a one-character
                 # format; some model/provider combinations are flaky with one style only.
                 if attempt % 2 == 0:
-                    prompt = self._build_batch_prompt([item], patient_context, patient_name, scale)
-                else:
                     prompt = self._build_single_choice_prompt(item, patient_context, patient_name)
+                else:
+                    prompt = self._build_batch_prompt([item], patient_context, patient_name, scale)
 
-                raw = self.llm.generate(prompt, temperature=0.0, max_tokens=120)
+                raw = self.llm.generate(prompt, temperature=0.0, max_tokens=SINGLE_CHOICE_MAX_TOKENS)
 
                 parsed_numbered = self._parse_batch_tf_partial(raw)
                 if item["id"] in parsed_numbered:

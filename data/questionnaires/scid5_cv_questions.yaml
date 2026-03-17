@@ -1,0 +1,1231 @@
+id: scid5_cv_questions
+name: SCID-5-CV Interview Questions (Extracted)
+description: Extracted interviewer questions/prompts from source PDF using pdftotext + heuristic cleanup.
+source_pdf: data/questionnaires pdf/scid5_cv_users_guide.pdf
+language: en
+runnable: false
+runnable_reason: Extracted SCID interviewer prompts are reference material, not runnable self-report questionnaires.
+scale:
+  type: choice
+  options:
+  - T
+  - F
+  labels:
+    T: Applicable/Yes
+    F: Not applicable/No
+batch_size: 20
+items:
+- id: 1
+  text: Do you have any questions before we begin?
+- id: 2
+  text: How old are you?
+- id: 3
+  text: What kind of place do you live in?
+- id: 4
+  text: What kind of work do you do?
+- id: 5
+  text: Have you always done that kind of work?
+- id: 6
+  text: Are you currently employed (getting paid)?
+- id: 7
+  text: 'IF YES: Do you work part-time or full-time?'
+- id: 8
+  text: 'IF PART-TIME: How many hours do you typically work each week?'
+- id: 9
+  text: 'IF NO: Why is that?'
+- id: 10
+  text: When was the last time you worked?
+- id: 11
+  text: 'IF DISABLED: Are you currently receiving disability payments?'
+- id: 12
+  text: Why are you on disability?
+- id: 13
+  text: 'IF UNKNOWN: Has there ever been a period of time when you were unable to work or go to school?'
+- id: 14
+  text: 'IF YES: Why was that?'
+- id: 15
+  text: What led to your coming here (this time)?
+- id: 16
+  text: What's the major problem you've been having trouble with?
+- id: 17
+  text: What was going on in your life when this began?
+- id: 18
+  text: When were you last feeling OK (your usual self)?
+- id: 19
+  text: When were you feeling better?
+- id: 20
+  text: When was the first time you saw someone for emotional or psychiatric problems?
+- id: 21
+  text: What was that for?
+- id: 22
+  text: What treatment[s] did you get?
+- id: 23
+  text: What medications?
+- id: 24
+  text: Have you ever been a patient in a psychiatric hospital?
+- id: 25
+  text: 'IF YES: What was that for?'
+- id: 26
+  text: How many times?
+- id: 27
+  text: Have you ever had any treatment for drugs or alcohol?
+- id: 28
+  text: How has your physical health been?
+- id: 29
+  text: Have you had any medical problems?
+- id: 30
+  text: Have you ever been in a hospital for treatment of a medical problem?
+- id: 31
+  text: Do you take any medications, vitamins, or other nutritional supplements (other than those you've already told me about)?
+- id: 32
+  text: 'IF YES: What are you taking and at what dose?'
+- id: 33
+  text: 'IF YES: Did you have any of these thoughts in the past week (including today)?'
+- id: 34
+  text: In the past week, did you have any intention of attempting suicide?
+- id: 35
+  text: In the past week, have you thought about how you might actually do it?
+- id: 36
+  text: Have you thought about what you would need to do to carry this out?
+- id: 37
+  text: 'IF NO: Have you ever done anything to harm yourself?'
+- id: 38
+  text: 'IF YES: What did you do?'
+- id: 39
+  text: Were you trying to end your life?
+- id: 40
+  text: Have you made any suicide attempts in the past week (including today)?
+- id: 41
+  text: Have you had any other problems in the past month?
+- id: 42
+  text: How are things going at work, at home, and with other people?
+- id: 43
+  text: What has your mood been like?
+- id: 44
+  text: In the past month, how much have you been drinking?
+- id: 45
+  text: When you drink, who are you usually with?
+- id: 46
+  text: Are you usually alone or out with other people?
+- id: 47
+  text: In the past month, have you been using any illegal or recreational drugs?
+- id: 48
+  text: How about taking more of your prescription drugs than was prescribed or running out of medication early?
+- id: 49
+  text: In the past month, since (ONE MONTH AGO), has there been a period of time when you were feeling depressed or down
+    most of the day, nearly every day?
+- id: 50
+  text: Has anyone said that you look sad, down, or depressed?
+- id: 51
+  text: 'IF NO: How about feeling sad, empty, or hopeless, most of the day, nearly every day?'
+- id: 52
+  text: How long has it lasted?
+- id: 53
+  text: What has that been like?
+- id: 54
+  text: What about compared to your usual appetite?
+- id: 55
+  text: Have you had to force yourself to eat?
+- id: 56
+  text: Has that been nearly every day?
+- id: 57
+  text: Have you lost or gained any weight?
+- id: 58
+  text: 'IF YES: How much?'
+- id: 59
+  text: How many hours of sleep (including naps) have you been getting?
+- id: 60
+  text: How many hours of sleep did you typically get before you got (depressed/OWN WORDS)?
+- id: 61
+  text: Has it been nearly every night?
+- id: 62
+  text: What about the opposite-talking more slowly, or moving more slowly than is normal for you, as if you're moving through
+    molasses or mud?
+- id: 63
+  text: In either instance, has it been so bad that other people have noticed it?
+- id: 64
+  text: What have they noticed?
+- id: 65
+  text: Has that been nearly every day?
+- id: 66
+  text: What about feeling guilty about things you have done or not done?
+- id: 67
+  text: 'IF YES: What kinds of things?'
+- id: 68
+  text: Is this only because you can't take care of things since you have been sick?
+- id: 69
+  text: Has it been hard to make decisions about everyday things?
+- id: 70
+  text: What kinds of things has it been interfering with?
+- id: 71
+  text: Have you thought about taking your own life?
+- id: 72
+  text: 'IF YES: Have you done something about it?'
+- id: 73
+  text: What have you done?
+- id: 74
+  text: Have you made a specific plan?
+- id: 75
+  text: Have you taken any action to prepare for it?
+- id: 76
+  text: Have you actually made a suicide attempt?
+- id: 77
+  text: 'IF UNCLEAR: What effect have (DEPRESSIVE SXS) had on your life?'
+- id: 78
+  text: How have (DEPRESSIVE SXS) affected your relationships or your interactions with other people?
+- id: 79
+  text: Have [DEPRESSIVE SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 80
+  text: How have (DEPRESSIVE SXS) affected your work/school?
+- id: 81
+  text: How about your attendance at work/school?
+- id: 82
+  text: Have [DEPRESSIVE SXS] affected the quality of your work/schoolwork?
+- id: 83
+  text: How have (DEPRESSIVE SXS) affected your ability to take care of things at home?
+- id: 84
+  text: How about doing simple everyday things, like getting dressed, bathing, or brushing your teeth?
+- id: 85
+  text: What about doing other things that are important to you, like religious activities, physical exercise, or hobbies?
+- id: 86
+  text: Have you avoided doing anything because you felt like you weren't up to it?
+- id: 87
+  text: Have (DEPRESSIVE SXS) affected any other important part of your life?
+- id: 88
+  text: 'IF UNKNOWN: When did (EPISODE OF DEPRESSION) begin?'
+- id: 89
+  text: Just before this period of depression began, were you physically ill?
+- id: 90
+  text: 'IF YES: What did the doctor say?'
+- id: 91
+  text: Just before this began, were you taking any medications?
+- id: 92
+  text: 'IF YES: Any change in the amount you were taking?'
+- id: 93
+  text: Just before this began, were you drinking or using any street drugs?
+- id: 94
+  text: 'IF UNKNOWN: When did this period of (depression/OWN WORDS) begin?'
+- id: 95
+  text: Have you ever had a period of time when you were feeling depressed or down most of the day, nearly every day?
+- id: 96
+  text: What was that like?
+- id: 97
+  text: Was it nearly every day?
+- id: 98
+  text: How long did it last?
+- id: 99
+  text: Have you had more than one time like that?
+- id: 100
+  text: 'IF UNCLEAR: Have you had any times like that since (ONE YEAR AGO)?'
+- id: 101
+  text: 'IF UNCLEAR: During (MAJOR DEPRESSIVE EPISODE) when were you the most (depressed/OWN WORDS)?'
+- id: 102
+  text: Did you have to force yourself to eat?
+- id: 103
+  text: Was that nearly every day?
+- id: 104
+  text: Did you lose or gain any weight?
+- id: 105
+  text: How much?
+- id: 106
+  text: Were you trying to lose or gain weight?
+- id: 107
+  text: How many hours of sleep (including naps) had you been getting?
+- id: 108
+  text: Was that nearly every night?
+- id: 109
+  text: What about the opposite-talking more slowly, or moving more slowly than is normal for you, as if you were moving through
+    molasses or mud?
+- id: 110
+  text: In either instance, was it so bad that other people noticed it?
+- id: 111
+  text: What did they notice?
+- id: 112
+  text: What about feeling guilty about things you had done or not every day (not merely self-reproach or guilt about done?
+- id: 113
+  text: Was this only because you couldn't take care of things since you had been sick?
+- id: 114
+  text: Was it hard to make decisions about everyday things?
+- id: 115
+  text: What kinds of things was it interfering with?
+- id: 116
+  text: Did you think about taking your own life?
+- id: 117
+  text: 'IF YES: Did you do something about it?'
+- id: 118
+  text: What did you do?
+- id: 119
+  text: Did you make a specific plan?
+- id: 120
+  text: Did you take any action to prepare for it?
+- id: 121
+  text: Did you actually make a suicide attempt?
+- id: 122
+  text: 'IF UNCLEAR: What effect did (DEPRESSIVE SXS) have on your life?'
+- id: 123
+  text: How did (DEPRESSIVE SXS) affect your relationships or your interactions with other people?
+- id: 124
+  text: Did [DEPRESSIVE SXS] cause you any problems in your relationships with your family, romantic partner, or friends?
+- id: 125
+  text: How did (DEPRESSIVE SXS) affect your work/school?
+- id: 126
+  text: Did (DEPRESSIVE SXS) make it more difficult to do your work/schoolwork?
+- id: 127
+  text: Did (DEPRESSIVE SXS) affect the quality of your work/schoolwork?
+- id: 128
+  text: How did (DEPRESSIVE SXS) affect your ability to take care of things at home?
+- id: 129
+  text: What about doing other things that were important to you, like religious activities, physical exercise, or hobbies?
+- id: 130
+  text: Did you avoid doing anything because you felt like you weren't up to it?
+- id: 131
+  text: Did (DEPRESSIVE SXS) affect any other important part of your life?
+- id: 132
+  text: How much were you bothered or upset by having (DEPRESSIVE SXS)?
+- id: 133
+  text: Just before this began, were you physically ill?
+- id: 134
+  text: Just before this began, were you drinking or using any Induced street drugs?
+- id: 135
+  text: 'IF UNKNOWN: Has there been any other time when you were (depressed/OWN WORDS) like this but were not (ill with GMC/using
+    SUBSTANCE)?'
+- id: 136
+  text: In the past month, since (ONE MONTH AGO), has there been a period of time when you were feeling so good, "high," excited,
+    or "on top of the world" that other people thought you were not your normal self?
+- id: 137
+  text: 'IF YES: What has it been like?'
+- id: 138
+  text: Have you also been feeling like you were "hyper" or "wired" and had an unusual amount of energy?
+- id: 139
+  text: Have you been much more active than is typical for you?
+- id: 140
+  text: Have other people commented on how much you have been doing?
+- id: 141
+  text: What has it been like?
+- id: 142
+  text: Have other people commented on how much you were doing?
+- id: 143
+  text: How long has this lasted?
+- id: 144
+  text: Have you been feeing (high/irritable/OWN WORDS) for most of the day, nearly every day, during this time?
+- id: 145
+  text: 'IF UNKNOWN: During (EPISODE), when were you the most (high/irritable/OWN WORDS)?'
+- id: 146
+  text: Did you feel much smarter or better than everyone else?
+- id: 147
+  text: Did you feel like you had any special powers or abilities?
+- id: 148
+  text: How much sleep did you get?
+- id: 149
+  text: 'IF YES: Did you still feel rested?'
+- id: 150
+  text: Did people have trouble stopping you or understanding you?
+- id: 151
+  text: Did people have trouble getting a word in edgewise?
+- id: 152
+  text: Were you especially busy during that time?
+- id: 153
+  text: Did you find yourself more enthusiastic at work or working harder at your job?
+- id: 154
+  text: Did you find yourself more engaged in school activities or studying harder?
+- id: 155
+  text: Were you more sociable during that time, such as calling on friends, going out with them more than you usually do,
+    or making a lot of new friends?
+- id: 156
+  text: Were you spending more time thinking about sex or involved in doing something sexual, by yourself or with others?
+- id: 157
+  text: Was that a big change for you?
+- id: 158
+  text: Were you physically restless during this time, doing things like pacing a lot, or being unable to sit still?
+- id: 159
+  text: How bad was it?
+- id: 160
+  text: How about giving away money or valuable things?
+- id: 161
+  text: Did you make any risky or impulsive business investments or get involved in a business scheme that you wouldn't normally
+    have done?
+- id: 162
+  text: 'IF UNCLEAR: What effect have (MANIC SXS) had on your life?'
+- id: 163
+  text: 'IF UNKNOWN: Have you needed to go into the hospital to protect you from hurting yourself or someone else, or from
+    doing something that could have caused serious financial or legal problems?'
+- id: 164
+  text: How have (MANIC SXS) affected your relationships or your interactions with other people?
+- id: 165
+  text: Have [MANIC SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 166
+  text: How have (MANIC SXS) affected your work/school?
+- id: 167
+  text: Have [MANIC SXS] made it more difficult to do your work/schoolwork?
+- id: 168
+  text: Have [MANIC SXS] affected the quality of your work/schoolwork?
+- id: 169
+  text: How have (MANIC SXS) affected your ability to take care of things at home?
+- id: 170
+  text: Has it lasted for most of elevated, expansive, or irritable mood and the day, nearly every day?
+- id: 171
+  text: 'IF YES: Were you still feeling rested?'
+- id: 172
+  text: Did people have trouble stopping you, understanding you, or getting a word in edgewise?
+- id: 173
+  text: Were you especially productive or busy during that time?
+- id: 174
+  text: Were you finding yourself more enthusiastic at work or working harder at your job?
+- id: 175
+  text: Were you physically restless during this time, doing things like pacing a lot or being unable to sit still?
+- id: 176
+  text: 'IF UNCLEAR: Was this very different from the way you usually are when you''re not (high/irritable/OWN WORDS)?'
+- id: 177
+  text: How were you different?
+- id: 178
+  text: 'IF UNKNOWN: Did other people notice the change in you?'
+- id: 179
+  text: What did they say?
+- id: 180
+  text: How have (HYPOMANIC SXS) affected your relationships or your interactions with other people?
+- id: 181
+  text: Have [HYPOMANIC SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 182
+  text: How have (HYPOMANIC SXS) affected your work/school?
+- id: 183
+  text: Have [HYPOMANIC SXS] affected the quality of your work/schoolwork?
+- id: 184
+  text: How have (HYPOMANIC SXS) affected your ability to take care of things at home?
+- id: 185
+  text: 'IF UNKNOWN: When did this period of being (high/irritable/OWN WORDS) begin?'
+- id: 186
+  text: Just before this began, were you drinking or using any Disorder street drugs?
+- id: 187
+  text: Have you ever had a period of time when you were feeling so good, "high," excited, or "on top of the world" that other
+    people thought you were not your normal self?
+- id: 188
+  text: Was that more than just feeling good?
+- id: 189
+  text: Did you also feel like you were "hyper" or "wired" and had an unusual amount of energy?
+- id: 190
+  text: Were you much more active than is typical for you?
+- id: 191
+  text: Did other people comment on how much you were doing?
+- id: 192
+  text: Was that different from the way you usually are?
+- id: 193
+  text: What was it like?
+- id: 194
+  text: Did you also feel like you were "hyper" or "wired" and Disorder), had an unusual amount of energy?
+- id: 195
+  text: How long did this last?
+- id: 196
+  text: Did you feel (high/irritable/OWN WORDS) for most of the day, nearly every day, during this time?
+- id: 197
+  text: 'IF UNKNOWN: During (EPISODE), when were you the most irritable) are present to a significant degree and (high/irritable/OWN
+    WORDS)?'
+- id: 198
+  text: Were you so easily distracted by things around you that you had trouble concentrating or staying on one track?
+- id: 199
+  text: Were you more sociable during that time, such as calling on friends or going out with them more than you usually do
+    or making a lot of new friends?
+- id: 200
+  text: 'IF UNCLEAR: What effect did (MANIC SXS) have on your life?'
+- id: 201
+  text: 'IF UNKNOWN: Did you need to go into the hospital to protect you from hurting yourself or someone else, or from doing
+    something that could have caused serious financial or legal problems?'
+- id: 202
+  text: How did (MANIC SXS) affect your relationships or your interactions with other people?
+- id: 203
+  text: Did [MANIC SXS] cause you any problems in your relationships with your family, romantic partner, or friends?
+- id: 204
+  text: How did (MANIC SXS) affect your work/school?
+- id: 205
+  text: Did [MANIC SXS] make it more difficult to do your work/schoolwork)?
+- id: 206
+  text: Did [MANIC SXS] affect the quality of your work/schoolwork?
+- id: 207
+  text: How did (MANIC SXS) affect your ability to take care of things at home?
+- id: 208
+  text: Has there been any other time when you were (high/irritable/OWN WORDS) and had (ACKNOWLEDGED MANIC SXS) and you were
+    not (ill with GMC/using SUBSTANCE)?
+- id: 209
+  text: Was it for most of the day, nearly every day?
+- id: 210
+  text: Were you doing anything that could have caused trouble for you or your family?
+- id: 211
+  text: 'IF UNCLEAR: Was this very different from the way you usually are when you are not (high/irritable/OWN WORDS)?'
+- id: 212
+  text: 'IF UNCLEAR: What effect did (HYPOMANIC SXS) have on your life?'
+- id: 213
+  text: How did (HYPOMANIC SXS) affect your relationships or your interactions with other people?
+- id: 214
+  text: Did [HYPOMANIC SXS] cause you any problems in your relationships with your If severe enough to require hospitalization
+    or severe family, romantic partner, or friends?
+- id: 215
+  text: How did (HYPOMANIC SXS) affect your work/school?
+- id: 216
+  text: How did (HYPOMANIC SXS) affect your ability to take care of things at home?
+- id: 217
+  text: In the past 2 years, since (TWO YEARS AGO), have you been bothered by depressed mood most of the day, more days than
+    not?
+- id: 218
+  text: 'IF YES: What has that been like?'
+- id: 219
+  text: What about overeating?
+- id: 220
+  text: Since (TWO YEARS AGO), what was the longest period of time up till now, during this period of long-lasting depression,
+    that you felt OK?
+- id: 221
+  text: Just before this began, were you drinking or using any Depressive street drugs?
+- id: 222
+  text: Have [DEPRESSIVE SXS] made it more difficult to do your work/schoolwork?
+- id: 223
+  text: How about doing other things that are important to you, like religious activities, physical exercise, or hobbies?
+- id: 224
+  text: Just before (PSYCHOTIC SXS) began, were you using drugs?
+- id: 225
+  text: 'IF YES: Were you convinced they were talking about you or did you think it might have been your imagination?'
+- id: 226
+  text: Did you ever have the feeling that something on the radio, TV, or in a movie was meant especially for you?
+- id: 227
+  text: Did you ever have the feeling that the words in a popular song were meant to send you a special message?
+- id: 228
+  text: Did you ever have the feeling that what people were wearing was intended to send you a special message?
+- id: 229
+  text: Did you ever have the feeling that street signs or billboards had a special meaning for you?
+- id: 230
+  text: Have you ever had the feeling that you were being followed, spied on, manipulated, or plotted against?
+- id: 231
+  text: Did you ever have the feeling that you were being poisoned or that your food had been tampered with?
+- id: 232
+  text: Have you ever thought that you were especially important in some way, or that you had special powers or knowledge?
+- id: 233
+  text: Did you ever believe that you had a special or close relationship with a celebrity or someone else famous?
+- id: 234
+  text: Have you ever been convinced that something was very wrong with your physical health even though your doctor said
+    nothing was wrong...like you had cancer or some other disease?
+- id: 235
+  text: Have you ever felt that something strange was happening to parts of your body?
+- id: 236
+  text: Have you ever felt that you had committed a crime or done something terrible for which you should be punished?
+- id: 237
+  text: Have you ever felt that something you did, or should have done but did not do, caused serious harm to your parents,
+    children, other family members, or friends?
+- id: 238
+  text: What about feeling responsible for a disaster such as a fire, flood, or earthquake?
+- id: 239
+  text: Have you ever been convinced that your spouse or partner was being unfaithful to you?
+- id: 240
+  text: 'IF YES: How did you know he/she was being unfaithful?'
+- id: 241
+  text: What clued you into this?
+- id: 242
+  text: Are you a religious or spiritual person?
+- id: 243
+  text: 'IF YES: Have you ever had any religious or spiritual experiences that the other people in your religious or spiritual
+    community have not experienced?'
+- id: 244
+  text: 'IF YES: Tell me about your experiences. (What did they think about these experiences of yours?'
+- id: 245
+  text: 'IF NO: Have you ever felt that God, the devil, or some other spiritual being or higher power has communicated directly
+    with you?'
+- id: 246
+  text: Tell me about that. Do others in your religious or spiritual community also have such experiences?
+- id: 247
+  text: 'IF NO: Have you ever felt that God, or the devil or some other spiritual being or higher power has communicated directly
+    with you?'
+- id: 248
+  text: Do others in your religious or spiritual community also have such experiences?
+- id: 249
+  text: Were you ever romantically involved with someone famous?
+- id: 250
+  text: Did you ever feel that someone or something outside yourself was controlling your thoughts or actions against your
+    will?
+- id: 251
+  text: What about thoughts being taken out of your head?
+- id: 252
+  text: Did you ever feel as if your thoughts were being broadcast out loud so that other people could actually hear what
+    you were thinking?
+- id: 253
+  text: Did you ever believe that someone could read your mind?
+- id: 254
+  text: Did you ever hear things that other people couldn't, such as noises, or the voices of people whispering or talking?
+- id: 255
+  text: Were you awake at the time?
+- id: 256
+  text: 'IF YES: What did you hear?'
+- id: 257
+  text: How often did you hear it?
+- id: 258
+  text: Did you have visions or see things that other people couldn't see?
+- id: 259
+  text: Tell me about that. Were you awake at the time?
+- id: 260
+  text: What about strange sensations on your skin, like feeling like something is creeping or crawling on or under your skin?
+- id: 261
+  text: How about the feeling of being touched or stroked?
+- id: 262
+  text: What about having unusual sensations inside a part of your body, like a feeling of electricity?
+- id: 263
+  text: What about smelling unpleasant things that other people couldn't smell, like decaying food or dead bodies?
+- id: 264
+  text: 'IF UNKNOWN: How about a period of time when you were unable to take care of basic everyday things, like brushing
+    your teeth or bathing?'
+- id: 265
+  text: 'IF NO: Did anyone ever say that you were not taking care of these or other basic everyday things?'
+- id: 266
+  text: 'HAS EVER BEEN PRESENT: Has there ever been a time when you had (PSYCHOTIC SXS) and you were not (depressed/high/irritable/OWN
+    WORDS)?'
+- id: 267
+  text: How about having difficulties with family members or friends, or not wanting to be around other people?
+- id: 268
+  text: Just before this began, were you using any street drugs?
+- id: 269
+  text: How have [PSYCHOTIC SXS] affected your relationships or your interactions with other people?
+- id: 270
+  text: Have [PSYCHOTIC SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 271
+  text: Have [PSYCHOTIC SXS] made it more difficult to do your work/schoolwork?
+- id: 272
+  text: Have [PSYCHOTIC SXS] affected the quality of your work/schoolwork?
+- id: 273
+  text: Have [PSYCHOTIC SXS] affected any other important part of your life?
+- id: 274
+  text: 'IF UNCLEAR: During the past month, since (ONE MONTH (1) delusions, (2) hallucinations, Current AGO), have you had
+    (PSYCHOTIC SXS)?'
+- id: 275
+  text: 'IF UNCLEAR: During the past month, since (ONE MONTH Current AGO), have you had (PSYCHOTIC SXS)?'
+- id: 276
+  text: How have [BIPOLAR II SXS] affected your relationships or your interactions with other people?
+- id: 277
+  text: Have [BIPOLAR II SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 278
+  text: Have [BIPOLAR I! SXS] made it more difficult to do your work/schoolwork?
+- id: 279
+  text: Have [BIPOLAR I! SXS] affected the quality of your work/schoolwork?
+- id: 280
+  text: How have [BIPOLAR SXS] affected your relationships or your interactions with other people?
+- id: 281
+  text: Have [BIPOLAR SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 282
+  text: Have [BIPOLAR SXS] affected the quality of your work/schoolwork?
+- id: 283
+  text: Have you needed to go into the hospital to protect you from hurting yourself or someone else, or from doing something
+    that could have caused serious financial or legal problems?
+- id: 284
+  text: How have [DEPRESSIVE SXS] affected your relationships or your interactions with other people?
+- id: 285
+  text: 'IF UNCLEAR: During the past month, since (ONE MONTH AGO), have you had (DEPRESSIVE OR MANIC SXS)?'
+- id: 286
+  text: 'IF UNCLEAR: During the past month, since (ONE MONTH AGO), have you had (DEPRESSIVE SXS)?'
+- id: 287
+  text: How much do you drink?
+- id: 288
+  text: 'IF NO: What about drinking for a much longer period of time than you were intending to?'
+- id: 289
+  text: 'IF YES: How long did this desire to stop, cut down, or control your drinking last?'
+- id: 290
+  text: 'IF NO: During the past 12 months, did you ever try to cut down, stop, or control your drinking?'
+- id: 291
+  text: How successful were you?
+- id: 292
+  text: Did you make more than one attempt to stop, cut down, or control your drinking?
+- id: 293
+  text: How much time?
+- id: 294
+  text: 'IF NO: How about having a strong desire or urge to drink when you were around bars or around people with whom you
+    go drinking?'
+- id: 295
+  text: 'IF NO: How about doing a bad job at work or school, or failing courses or getting kicked out of school because of
+    your drinking?'
+- id: 296
+  text: 'IF NO: How about getting into trouble at work or school because of your use of alcohol?'
+- id: 297
+  text: 'IF NO: How about not taking care of things at home because of your drinking, like making sure there are food and
+    clean clothes for your family and making sure your children go to school and get medical care?'
+- id: 298
+  text: How about not paying your bills?
+- id: 299
+  text: Have you found yourself regularly getting into arguments about what happens when you drink too much?
+- id: 300
+  text: Have you gotten into physical fights when you were drunk?
+- id: 301
+  text: 'IF YES: Did you keep on drinking anyway?'
+- id: 302
+  text: Over what period of time?
+- id: 303
+  text: 'IF YES: Would you say that the amount you had to drink affected your coordination or concentration so that it was
+    more likely that you or someone else could have been hurt?'
+- id: 304
+  text: How about putting you in a "mental fog," making it difficult for you to sleep, or making it so you couldn't recall
+    what happened while you were drinking?
+- id: 305
+  text: Has your drinking caused significant physical problems or made a physical problem worse, like stomach ulcers, liver
+    disease, or pancreatitis?
+- id: 306
+  text: 'IF YES: How much more?'
+- id: 307
+  text: 'IF NO: What about finding that when you drank the same amount, it had much less effect than before?'
+- id: 308
+  text: How much less?
+- id: 309
+  text: 'IF YES: What symptoms did you have?'
+- id: 310
+  text: How about having a seizure or seeing, feeling, or hearing things that weren't really there?
+- id: 311
+  text: 'IF NO: Have you ever started the day with a drink, or did you often drink or take some other drug or medication to
+    keep yourself from getting the shakes or becoming sick?'
+- id: 312
+  text: Did they all happen within the past 12 months?
+- id: 313
+  text: How about cocaine or "crack"?
+- id: 314
+  text: How about prescription pain killers?
+- id: 315
+  text: 'IF YES: During the past year, when were you taking (SUBSTANCE) the most?'
+- id: 316
+  text: How long did that period last?
+- id: 317
+  text: During that time, how often were you taking it?
+- id: 318
+  text: How much were you using?
+- id: 319
+  text: Did your use of (SUBSTANCE) cause problems for you?
+- id: 320
+  text: Did anyone object to your use of (SUBSTANCE)?
+- id: 321
+  text: Did you ever take more of it than was prescribed or run out of your prescription early?
+- id: 322
+  text: Did you ever have to go to more than one doctor to make sure you didn't run out?
+- id: 323
+  text: 'IF NO: What about using (DRUG) for a much longer period of time than you were intending to?'
+- id: 324
+  text: 'IF YES: How long did this desire to stop, cut down, or control your use of (DRUG) last?'
+- id: 325
+  text: 'IF NO: During the past year, did you ever try to cut down, stop, or control your use of (DRUG)?'
+- id: 326
+  text: Did you make more than one attempt to stop, cut down, or control your use of (DRUG)?
+- id: 327
+  text: Has there been a time when you had such strong urges to use (DRUG) that you had trouble thinking about anything else?
+- id: 328
+  text: 'IF NO: How about having a strong desire or urge to use (DRUG) when you were around people with whom you have used
+    (DRUG)?'
+- id: 329
+  text: 'IF NO: How about getting into trouble at work or school because of your use of (DRUG)?'
+- id: 330
+  text: 'IF NO: How about not taking care of things at home because of your use of (DRUG), like making sure there are food
+    and clean clothes for your family and making sure your children go to school and get medical care?'
+- id: 331
+  text: Have you found yourself regularly getting into arguments about your [DRUG] use?
+- id: 332
+  text: Have you gotten into physical fights when you were taking [DRUG]?
+- id: 333
+  text: 'IF YES: Did you keep on using (DRUG) anyway?'
+- id: 334
+  text: Over what period of time?
+- id: 335
+  text: Would you say that your use of (DRUG) affected your coordination or concentration so that it was more likely that
+    you or someone else could have been hurt?
+- id: 336
+  text: What about triggering panic attacks, making it difficult for you to sleep, putting you into a "mental fog," or making
+    it so you couldn't recall what happened while you were using (DRUG)?
+- id: 337
+  text: Has your use of (DRUG) ever caused physical problems, like heart palpitations, coughing or trouble breathing, constipation,
+    or skin infections?
+- id: 338
+  text: 'IF NO: What about finding that when you used the same amount, it had much less effect than before?'
+- id: 339
+  text: Did you ever go to more than one doctor in order to get the amount of medication you wanted?
+- id: 340
+  text: Have you ever had any withdrawal symptoms, in other words felt sick when you cut down or stopped using (DRUG)?
+- id: 341
+  text: Did you ever take more of it individuals taking opioids; sedatives, hypnotics, or than was prescribed or run out of
+    your prescription early?
+- id: 342
+  text: When was the last bad one?
+- id: 343
+  text: How did it begin?
+- id: 344
+  text: 'IF UNCLEAR: Did the symptoms come on suddenly?'
+- id: 345
+  text: 'IF YES: How long did it take from when it began to when it got really bad?'
+- id: 346
+  text: Did it happen within a few minutes?
+- id: 347
+  text: Have trouble catching your breath?
+- id: 348
+  text: 'IF NO: How about feeling that everything around you was unreal or that you were in a dream?'
+- id: 349
+  text: Have any of these attacks ever come on out of the blue- in situations where you didn't expect to be nervous or uncomfortable?
+- id: 350
+  text: 'IF YES: What was going on when the attack(s) happened?'
+- id: 351
+  text: What were you doing at the time?
+- id: 352
+  text: Were you already nervous or anxious at the time or rather were you relatively calm or relaxed?
+- id: 353
+  text: 'IF NO: How about the very first one you had. What was going on in your life at that time?'
+- id: 354
+  text: 'IF YES: How long did that concern or worry last?'
+- id: 355
+  text: What about avoiding certain activities like exercise?
+- id: 356
+  text: What about things like always making sure you're near a bathroom or exit?
+- id: 357
+  text: 'IF YES: How long did that last?'
+- id: 358
+  text: 'IF UNKNOWN: When did your panic attacks start?'
+- id: 359
+  text: Just before you began having panic attacks, were you taking any drugs, caffeine, diet pills, or other medicines?
+- id: 360
+  text: How much coffee, tea, or caffeinated beverages do you drink a day?
+- id: 361
+  text: Just before the attacks, were you physically ill?
+- id: 362
+  text: Have you done anything differently because of the attacks (like avoiding certain places or not going out alone)?
+- id: 363
+  text: 'IF UNKNOWN: Have you been afraid of, or anxious about, traveling in taxicabs, buses, trains, ships or planes?'
+- id: 364
+  text: 'IF UNKNOWN: How about being in open spaces, like parking lots, outdoor marketplaces, or bridges?'
+- id: 365
+  text: 'IF UNKNOWN: How about being in enclosed places like stores, movie theaters, or shopping malls?'
+- id: 366
+  text: 'IF UNKNOWN: How about standing in a line or being ina crowd?'
+- id: 367
+  text: 'IF UNKNOWN: How about being outside of the house alone?'
+- id: 368
+  text: "Why have you been avoiding (AVOIDED SITUATIONS) or F24 F2\xA2 what have you been afraid would happen?"
+- id: 369
+  text: Have you been afraid of becoming impaired in some way, like by falling or passing out?
+- id: 370
+  text: How about being worried that there would be nobody there to help you in case these kinds of things happened?
+- id: 371
+  text: Do you almost always feel frightened or anxious when you are in (AVOIDED SITUATIONS)?
+- id: 372
+  text: 'IF NO: Have you been only able to go into one of these situations if you are with someone you know?'
+- id: 373
+  text: 'IF NO: When you have had to be in one of these situations, have you felt intensely afraid or anxious?'
+- id: 374
+  text: 'IF UNKNOWN: Do you feel any danger or threat to your safety when you are in (SITUATIONS)?'
+- id: 375
+  text: Has your fear or avoidance of (AVOIDED SITUATIONS) been present for most of the past 6 months?
+- id: 376
+  text: 'IF UNCLEAR: What effect have (AGORAPHOBIC SXS) had on your life?'
+- id: 377
+  text: How have (AGORAPHOBIC SXS) affected your relationships or your interactions with other people?
+- id: 378
+  text: Have [AGORAPHOBIC SXS] caused any problems in your relationships with your family, romantic partner, or friends?
+- id: 379
+  text: How have (AGORAPHOBIC SXS) affected your ability to work, take care of your family or household needs, or be involved
+    in things that are important to you, like religious activities, physical exercise, or hobbies?
+- id: 380
+  text: Have (AGORAPHOBIC SXS) affected any other important part of your life?
+- id: 381
+  text: 'IS PRESENT: Is your avoidance of (AVOIDED SITUATION) related to your (MEDICAL CONDITION)?'
+- id: 382
+  text: How often has [INCAPACITATING SYMPTOM] actually happened in [AVOIDED SITUATION]?
+- id: 383
+  text: Were you afraid that this would lead to your being rejected by other people?
+- id: 384
+  text: How about making others uncomfortable or offending them because of what you said or how you acted?
+- id: 385
+  text: 'IF NO: How hard is it for you to be in (FEARED SOCIAL OR PERFORMANCE SITUATION)?'
+- id: 386
+  text: 'IF UNKNOWN: What would you say would be the likely outcome of (PERFORMING POORLY IN SOCIAL SITUATION)?'
+- id: 387
+  text: Are these situations actually dangerous in some way, like avoiding being bullied or tormented by someone?
+- id: 388
+  text: Has your fear or avoidance of (FEARED SOCIAL OR PERFORMANCE SITUATION) been present for most of the past 6 months?
+- id: 389
+  text: 'IF UNCLEAR: What effect have (SOCIAL ANXIETY SXS) had on your life?'
+- id: 390
+  text: How have (SOCIAL ANXIETY SXS) affected your ability to have friends or meet new people?
+- id: 391
+  text: How about dating?
+- id: 392
+  text: How have (SOCIAL ANXIETY SXS) affected your interactions with other people, especially unfamiliar people?
+- id: 393
+  text: How have (SOCIAL ANXIETY SXS) affected your ability to do things at school or at work that require interacting with
+    other people?
+- id: 394
+  text: How about making presentations or giving talks?
+- id: 395
+  text: Have you avoided going to school or to work if you think you will be put in a situation that makes your uncomfortable?
+- id: 396
+  text: How have (SOCIAL ANXIETY SXS) affected your ability to work, take care of your family or household needs, or be involved
+    in things that are important to you, like religious activities, physical exercise, or hobbies?
+- id: 397
+  text: Have (SOCIAL ANXIETY SXS) affected any other important part of your life?
+- id: 398
+  text: 'IF UNKNOWN: When did you begin having (SOCIAL ANXIETY SXS)?'
+- id: 399
+  text: 'IF YES: How have you dealt with your condition?'
+- id: 400
+  text: What kinds of things have you worried about?
+- id: 401
+  text: What about your job, your health, your family members, your finances, or other smaller things like being late for
+    appointments?
+- id: 402
+  text: How much did you worry about (EVENTS OR ACTIVITIES)?
+- id: 403
+  text: What else have you worried about?
+- id: 404
+  text: Have you worried about (EVENTS OR ACTIVITIES) even when there was no reason?
+- id: 405
+  text: Have you worried more than most people would in your circumstances?
+- id: 406
+  text: Has anyone else thought you worried too much?
+- id: 407
+  text: Have you worried more than you should have given your actual circumstances?
+- id: 408
+  text: During the last 6 months, would you say that you have been worrying more days than not?
+- id: 409
+  text: When you're worrying this way, have you found that it's hard to stop yourself or to think about anything else?
+- id: 410
+  text: How about often feeling tired wnen you woke up because you didn't get a good night's sleep?
+- id: 411
+  text: 'IF UNCLEAR: What effect have (GAD SXS) had on your life?'
+- id: 412
+  text: How have (GAD SXS) affected your relationships or your interactions with other people?
+- id: 413
+  text: Have [GAD SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 414
+  text: How have (GAD SXS) affected your work/schoolwork?
+- id: 415
+  text: Have [GAD SXS] made it more difficult to do your work/schoolwork?
+- id: 416
+  text: Have [GAD SXS] affected the quality of your work/schoolwork?
+- id: 417
+  text: How have (GAD SXS) affected your ability to take care of things at home?
+- id: 418
+  text: Has your anxiety or worry affected any other important part of your life?
+- id: 419
+  text: 'IF UNKNOWN: When did your (GAD SXS) begin?'
+- id: 420
+  text: Just before you began having (GAD SXS), were you taking any drugs, caffeine, diet pills, or other medicines?
+- id: 421
+  text: Just before (GAD SXS) began, were you physically ill?
+- id: 422
+  text: What were they?
+- id: 423
+  text: How about having urges to do something that kept coming back to you even though you didn't want them to, like an urge
+    to harm a loved one?
+- id: 424
+  text: How about having images popping into your head that you didn't want, like violent or horrible scenes or something
+    of a sexual nature?
+- id: 425
+  text: What would you try to do?
+- id: 426
+  text: Tell me about that. (What did you have to do?
+- id: 427
+  text: 'IF UNCLEAR: Why did you have to do (COMPULSIVE ACT)?'
+- id: 428
+  text: What would happen if you didn't do it?
+- id: 429
+  text: 'IF UNCLEAR: How many times would you do (COMPULSIVE ACT)?'
+- id: 430
+  text: Are you doing (COMPULSIVE ACT) more than really makes sense?
+- id: 431
+  text: 'IF UNCLEAR: How much time have you spent on (OBSESSION OR COMPULSION)?'
+- id: 432
+  text: 'IF UNCLEAR: What effect did this these (OBSESSIONS OR COMPULSIONS) have on your life?'
+- id: 433
+  text: How have (OBSESSIONS OR COMPULSIONS) affected your relationships or your interactions with other people?
+- id: 434
+  text: Have [OBSESSIONS OR COMPULSIONS] caused you any problems in your relationships with your family, romantic partner,
+    roommates, or friends?
+- id: 435
+  text: How have (OBSESSIONS OR COMPULSIONS) affected your work/school?
+- id: 436
+  text: Have [OBSESSIONS OR COMPULSIONS] made it more difficult to do your work/schoolwork?
+- id: 437
+  text: Have [OBSESSIONS OR COMPULSIONS] affected the quality of your work/schoolwork?
+- id: 438
+  text: How have (OBSESSIONS OR COMPULSIONS) affected your ability to take care of things at home?
+- id: 439
+  text: Have (OBSESSIONS OR COMPULSIONS) affected any other important part of your life?
+- id: 440
+  text: Just before you began having (OBSESSIONS OR drug of abuse, a medication) or another medical COMPULSIONS), were you
+    taking any drugs or medicines?
+- id: 441
+  text: Just before the (OBSESSIONS OR COMPULSIONS) started, were you physically ill?
+- id: 442
+  text: Have you ever been in a life-threatening situation like a major disaster or fire, combat, or a serious car or work-related
+    accident?
+- id: 443
+  text: What about being physically or sexually assaulted or abused, or threatened with physical or sexual assault?
+- id: 444
+  text: How about seeing another person being physically or sexually assaulted or abused, or threatened with physical or sexual
+    assault?
+- id: 445
+  text: Have you ever seen another person killed or dead, or badly hurt?
+- id: 446
+  text: How about learning that one of these things happened to someone you are close to?
+- id: 447
+  text: 'IF UNKNOWN: Have you ever been the victim of a serious crime?'
+- id: 448
+  text: What happened?
+- id: 449
+  text: Were you afraid of dying or being seriously hurt?
+- id: 450
+  text: Were you seriously hurt?
+- id: 451
+  text: What did you see?
+- id: 452
+  text: How close were youto (TRAUMATIC EVENT)?
+- id: 453
+  text: Were you concerned about yourown safety?
+- id: 454
+  text: Who did it involve?
+- id: 455
+  text: How close [emotionally] were you to them?
+- id: 456
+  text: Did it involve violence, suicide, or a bad accident?
+- id: 457
+  text: 'IF UNKNOWN: How old were you at the time?'
+- id: 458
+  text: 'IF UNKNOWN: Did this happen more than once?'
+- id: 459
+  text: How close were you to (TRAUMATIC EVENT)?
+- id: 460
+  text: Were you concerned about your own safety?
+- id: 461
+  text: How often has this happened?
+- id: 462
+  text: What about having found yourself acting or feeling as if you were back in the situation?
+- id: 463
+  text: How about feeling tense or shaky?
+- id: 464
+  text: How long has this gone on?
+- id: 465
+  text: 'IF NO: How about doing things to avoid having feelings similar to those you had during (TRAUMATIC EVENT)?'
+- id: 466
+  text: Since (TRAUMATIC EVENT), how long has this gone on?
+- id: 467
+  text: Has it been almost all of the time during the past month?
+- id: 468
+  text: 'IF NO: How about avoiding certain activities, situations, or topics of conversation?'
+- id: 469
+  text: 'IF YES: Did you get a head injury during (TRAUMATIC EVENT)?'
+- id: 470
+  text: Were you drinking a lot or were taking any drugs at the time of (TRAUMATIC EVENT)?
+- id: 471
+  text: Have you felt this way world is completely dangerous," "My whole nervous almost all of the time for more than 1 month?
+- id: 472
+  text: 'IF NO: Has there been a change in how you see other people or the way the world works?'
+- id: 473
+  text: Tell me about that. How long have you thought this way?
+- id: 474
+  text: Have you thought this way almost all of the time for more than 1 month?
+- id: 475
+  text: How much of the time?
+- id: 476
+  text: Have you blamed yourself for the (TRAUMATIC EVENT) or how it affected your life?
+- id: 477
+  text: 'IF YES: Tell me about it. How long have you thought this way?'
+- id: 478
+  text: 'IF NO: Have you blamed someone else for (TRAUMATIC EVENT)?'
+- id: 479
+  text: Tell me about that. (What did they have to do with [TRAUMATIC EVENT]?
+- id: 480
+  text: How long have you felt this way?
+- id: 481
+  text: Have you felt this way almost all of the time for more than 1 month?
+- id: 482
+  text: 'IF YES: Is this different from the way you were before (TRAUMATIC EVENT)?'
+- id: 483
+  text: Have you been a lot less interested in things that you were interested in before (TRAUMATIC EVENT), like spending
+    time with family or friends, reading books, watching TV, cooking, or sports?
+- id: 484
+  text: Have you felt distant or disconnected from others or have you closed yourself off from other people?
+- id: 485
+  text: How long have you been unable to experience good feelings?
+- id: 486
+  text: Have you been unable to experience good feelings almost all of the time for more than 1 month?
+- id: 487
+  text: Tell me what happened. (Was it over something little or even nothing at all?
+- id: 488
+  text: 'IF NO: Since (TRAUMATIC EVENT), have you been more quick-tempered or had a shorter "fuse" than before?'
+- id: 489
+  text: How often?
+- id: 490
+  text: 'IF NO: How about hurting yourself on purpose or trying to kill yourself?'
+- id: 491
+  text: What are some examples?
+- id: 492
+  text: 'IF NO: Have you been extra aware of your surroundings and your environment?'
+- id: 493
+  text: Is this a change from before [TRAUMATIC EVENT]?
+- id: 494
+  text: 'IF UNCLEAR: What effect did (PTSD SXS) have on your life?'
+- id: 495
+  text: How have (PTSD SXS) affected your relationships or your If other reported traumatic events, consider returning to
+    interactions with other people?
+- id: 496
+  text: How have (PTSD SXS) affected your work/school?
+- id: 497
+  text: Have [PTSD SXS] made it more difficult to do your work/schoolwork?
+- id: 498
+  text: Have [PTSD SXS] affected the quality of your work/schoolwork?
+- id: 499
+  text: How have [PTSD SXS] affected your ability to take care of things at home?
+- id: 500
+  text: What about being involved in things that are important to you, like religious activities, physical exercise, or hobbies?
+- id: 501
+  text: Have (PTSD SXS) affected any other important part of your life?
+- id: 502
+  text: Have you been drinking a lot or using a lot of drugs since (TRAUMATIC EVENT)?
+- id: 503
+  text: How much have you been (drinking/using [DRUGS])?
+- id: 504
+  text: Over the past several years, have you been easily distracted or disorganized?
+- id: 505
+  text: 'IF NO: Over the past several years, have you had a lot of difficulty sitting still or waiting your turn?'
+- id: 506
+  text: Have other people complained that you don't pay enough attention to detail or that your work is careless?
+- id: 507
+  text: How often has this happened?
+- id: 508
+  text: Has this happened even when nothing else is going on...when there are no obvious distractions?
+- id: 509
+  text: Are your desk and closet so messy and disorganized that you have had trouble finding things?
+- id: 510
+  text: Have you had trouble managing your time so that you have been late a lot or missed appointments or failed to meet
+    deadlines?
+- id: 511
+  text: Have you often lost or misplaced things like your wallet, your glasses, your keys, or your cell phone? How about files
+    at work or tools you needed for work?
+- id: 512
+  text: 'IF NO: Have you often gotten distracted by your own thoughts that were unrelated to what you were doing?'
+- id: 513
+  text: Have you often fidgeted or squirmed or tapped your foot when you were in a situation where you have had to sit still,
+    like on a plane, in class, or at meetings?
+- id: 514
+  text: Have others said that you talk too much or that you make too much noise when you are supposed to be quiet?
+- id: 515
+  text: Have you been uncomfortable being still for any length of time?
+- id: 516
+  text: Have other people told you that being with you is exhausting or draining?
+- id: 517
+  text: Have other people complained that you talk too much?
+- id: 518
+  text: How often does this happen?
+- id: 519
+  text: Tell me about that. (Has it often been hard for you to wait your turn in conversations?
+- id: 520
+  text: Was this before you were 12?
+- id: 521
+  text: Tell me about that. (Did teachers complain that you were not paying attention or that you talked too much in class?
+- id: 522
+  text: Were you ever sent to the principal's office because of your behavior?
+- id: 523
+  text: Did your parents complain that you were not able to sit still, that you were very messy, or that you were never ready
+    on time?
+- id: 524
+  text: 'IF UNCLEAR: What effect have (ADHD SXS) had on your life in the past 6 months, since (6 MONTHS AGO)?'
+- id: 525
+  text: How have (ADHD SXS) affected your relationships or your interactions with other people?
+- id: 526
+  text: Have [ADHD SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 527
+  text: How have (ADHD SXS) affected your work/school?
+- id: 528
+  text: Have [ADHD SXS] made it more difficult to do your work/schoolwork?
+- id: 529
+  text: Have [ADHD SXS] affected the quality of your work/schoolwork?
+- id: 530
+  text: How have (ADHD SXS) affected your ability to take care of things at home?
+- id: 531
+  text: Have your (ADHD SXS) made it hard for you to do things that are important to you, like religious activities, physical
+    exercise, sports, or hobbies?
+- id: 532
+  text: Have (ADHD SXS) affected any other important part of your life?
+- id: 533
+  text: In the past 6 months, have you been especially anxious about being separated from people you're attached to (like
+    your parents, children, or partner)?
+- id: 534
+  text: In the past month, since (ONE MONTH AGO), have you found it difficult to throw out, sell, or give away things?
+- id: 535
+  text: In the past month, have you been very concerned that there is something wrong with your physical appearance or the
+    way one or more parts of your body look?
+- id: 536
+  text: In the past month, have you been repeatedly pulling out hair from anywhere on your body other than for cosmetic reasons?
+- id: 537
+  text: In the past month, have you been repeatedly picking at your skin with your fingernails, tweezers, pins, or other objects?
+- id: 538
+  text: Over the past 3 months, since (3 MONTHS AGO), has a major concern of yours been that you are not getting enough good
+    sleep or not feeling rested?
+- id: 539
+  text: In the past 3 months, have you had a time when you weighed much less than other people thought you ought to weigh?
+- id: 540
+  text: In the past 3 months, have you had eating binges, that is, times when you couldn't resist eating a lot of food or
+    NO stop eating once you started?
+- id: 541
+  text: In the past month, since (ONE MONTH AGO), have you been uninterested in food in general or have you kept forgetting
+    to eat?
+- id: 542
+  text: 'IF NO: In the past month, have you avoided eating a lot of foods because of the way they look or the AVOIDANT/ way
+    they feel in your mouth?'
+- id: 543
+  text: 'IF NO: In the past month, have you avoided eating a lot of different foods because you are afraid you won''t be able
+    to swallow or that you will choke, gag, or throw up?'
+- id: 544
+  text: Over the past 6 months, since (6 MONTHS AGO), have you been bothered by any physical symptoms?
+- id: 545
+  text: In the past 12 months, since (ONE YEAR AGO), have you had periods in which you frequently lost control of your temper
+    and ended up yelling or getting into arguments with others?
+- id: 546
+  text: 'IF NO: In the past year, have you lost your temper so that you shoved, hit, kicked, or threw something at a person
+    or an animal or damaged someone''s property?'
+- id: 547
+  text: 'IF UNKNOWN: Did anything happen to you before (SXS) began?'
+- id: 548
+  text: 'IF YES: Tell me about what happened. Do you think that (STRESSOR) had anything to do with your developing (SXS)?'
+- id: 549
+  text: Was it within 3 months?
+- id: 550
+  text: 'IF UNKNOWN: What effect did (SXS) have on your life?'
+- id: 551
+  text: How have (SXS) affected your relationships or your interactions with other people?
+- id: 552
+  text: Have [SXS] caused you any problems in your relationships with your family, romantic partner, or friends?
+- id: 553
+  text: How have (SXS) affected your work/school?
+- id: 554
+  text: Have [SXS] made it more difficult to do your work/schoolwork?
+- id: 555
+  text: Have [SXS] affected the quality of your work/schoolwork?
+- id: 556
+  text: How have (SXS) affected your ability to take care of things at home?
+- id: 557
+  text: Have (SXS) affected any other important part of your life?
+- id: 558
+  text: Were you having these [SXS] even before [STRESSOR] happened?
+- id: 559
+  text: 'IF UNKNOWN: Did someone close to you die just before (SXS)?'
+- id: 560
+  text: 'IF UNKNOWN: How long has it been since (STRESSOR AND ITS CONSEQUENCES) was over?'
+extraction_meta:
+  extracted_at_utc: '2026-02-27T11:06:11.053633+00:00'
+  method: pdftotext -layout + left-column parsing + question heuristics
+  manual_refinement:
+    applied: true
+    manually_corrected_item_ids:
+    - 35
+    - 36
+    - 39
+    - 56
+    - 136
+    - 187
+    - 425
+    - 480
+    - 485
+    - 507
+    - 509
+    - 511
+    reason: Fixed OCR bleed/truncated prompts and obvious typos after source comparison.
+verification:
+  method: whitespace-normalized exact match + ordered-token subsequence coverage against full source text
+  total_questions: 560
+  exact_whitespace_match_count: 412
+  token_subsequence_full_match_count: 560
+  token_subsequence_ge_0_95_count: 560
+  min_token_subsequence_coverage: 1.0
+  avg_token_subsequence_coverage: 1.0
+  low_confidence_examples: []

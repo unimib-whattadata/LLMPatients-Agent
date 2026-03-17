@@ -1,0 +1,341 @@
+{
+  "therapist_id": "8e5059a6-8e77-4094-a160-a8fa5e95a725",
+  "sessions": [
+    {
+      "session_id": "4517ecd2-4ddd-464f-be59-61d295d48d62",
+      "run_id": "20260210T174853Z_0004",
+      "patient_id": "alex_carter_001",
+      "source": "api",
+      "mode": "live",
+      "started_at": "2026-02-10T17:48:53.831987",
+      "metadata": {
+        "initial_step_id": 1
+      },
+      "turns": [
+        {
+          "turn_index": 1,
+          "timestamp": "2026-02-10T17:57:03.955830",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "(chuckles lightly) Ciao to you, too. Feeling worldly today? It's good to see you. I've had a pretty good week, actually. A couple of things happened that made me think about what we discussed last time, with setting boundaries. I'm kind of looking forward to unpacking it all. But yeah, how have you been?",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.6543254841586839,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 1,
+          "total_turns": 1
+        }
+      ],
+      "final_state": {
+        "therapist_id": "8e5059a6-8e77-4094-a160-a8fa5e95a725",
+        "session_id": "4517ecd2-4ddd-464f-be59-61d295d48d62",
+        "summary": "",
+        "session_reflection": "",
+        "history": [
+          {
+            "therapist": "ciao",
+            "patient": "(chuckles lightly) Ciao to you, too. Feeling worldly today? It's good to see you. I've had a pretty good week, actually. A couple of things happened that made me think about what we discussed last time, with setting boundaries. I'm kind of looking forward to unpacking it all. But yeah, how have you been?",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          }
+        ],
+        "long_term_context": [],
+        "episodic_context": [],
+        "last_topic": {
+          "intent": "topic_detection",
+          "top": "Session Management",
+          "sub": "Greetings & SmallTalk",
+          "score": 1.0
+        },
+        "topic_similarity": 1.0,
+        "total_turns": 1,
+        "last_episode_turn": 0,
+        "messages": [
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(chuckles lightly) Ciao to you, too. Feeling worldly today? It's good to see you. I've had a pretty good week, actually. A couple of things happened that made me think about what we discussed last time, with setting boundaries. I'm kind of looking forward to unpacking it all. But yeah, how have you been?"
+          }
+        ],
+        "core_emotion": "seeking",
+        "emotion_intensity": 0.6543254841586839,
+        "emotion_state": {
+          "SEEKING": 0.6617805293876988,
+          "FEAR": 0.24943174630811296,
+          "RAGE": 0.19902540573211655,
+          "LUST": 0.506633611492045,
+          "CARE": 0.6431429163151615,
+          "PANIC_GRIEF": 0.49321658832240345,
+          "PLAY": 0.6082085924512387
+        },
+        "emotion_event": "neutral",
+        "emotion_salience": 0.2,
+        "low_salience_streak": 1
+      },
+      "last_updated_at": "2026-02-10T17:57:03.955842"
+    },
+    {
+      "session_id": "33ee0661-7257-462e-ac7f-2267c63902fe",
+      "run_id": "20260211T175538Z_0001",
+      "patient_id": "alex_carter_001",
+      "source": "api",
+      "mode": "live",
+      "started_at": "2026-02-11T17:55:38.679789",
+      "metadata": {
+        "initial_step_id": 1
+      },
+      "turns": [
+        {
+          "turn_index": 1,
+          "timestamp": "2026-02-11T17:56:03.968962",
+          "therapist_input_raw": "ciao",
+          "therapist_input_safe": "ciao",
+          "patient_response": "(chuckles a little) Ciao. Are we going international today? It's good to see you. I've had a pretty productive week, and a couple things came up that made me think about what we talked about last time—you know, with setting boundaries. I'm actually kind of excited to get into it. But first, how have you been?",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.6540577314682023,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 2,
+          "total_turns": 2
+        },
+        {
+          "turn_index": 2,
+          "timestamp": "2026-02-11T17:58:49.112480",
+          "therapist_input_raw": "tutto ok",
+          "therapist_input_safe": "tutto ok",
+          "patient_response": "(a small laugh) Glad to hear it. Yeah, 'tutto ok' on my end, for the most part. That phrase actually kind of perfectly describes my week, now that I think about it. Mostly fine, but with a couple of things that were definitely... not okay. (a slight shift in posture) I'm really ready to unpack it all when you are.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "Greetings & SmallTalk",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.5864202231150909,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 3,
+          "total_turns": 3
+        },
+        {
+          "turn_index": 3,
+          "timestamp": "2026-02-12T13:33:29.367391",
+          "therapist_input_raw": "sei brutto",
+          "therapist_input_safe": "sei brutto",
+          "patient_response": "(a small, surprised laugh) Whoa, okay. Well, that's... direct. I'm gonna assume we're not just trading insults in Italian now. Is this a test or something? I have to admit, I'm not really offended, just... really curious. What's the thinking there?",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Personal Background & Identity",
+            "sub": "SelfPerceptionIdentity & SelfEsteem",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Personal Background & Identity",
+            "sub": "SelfPerceptionIdentity & SelfEsteem",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.5854734339765628,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 4,
+          "total_turns": 4
+        },
+        {
+          "turn_index": 4,
+          "timestamp": "2026-02-12T14:12:03.733212",
+          "therapist_input_raw": "nelle ultime due settimane quanto ti sei sentito depresso",
+          "therapist_input_safe": "nelle ultime due settimane quanto ti sei sentito depresso",
+          "patient_response": "Okay, you're sticking with the Italian. I like the commitment. (chuckles softly) Let's see... \"depresso\"... I'm guessing you're asking how depressed I've felt in the last couple of weeks? To be honest, not at all, really. I wouldn't use that word. Maybe a little anxious about a couple of things, but not in a heavy way. It's more... an energetic feeling? Like I'm revving up to actually (do) something about the things that are bothering me. It feels more like anticipation than dread, if that makes sense.",
+          "detected_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "CheckIn & WellbeingInquiry",
+            "score": 1.0
+          },
+          "intent_topic": {
+            "intent": "topic_detection",
+            "top": "Session Management",
+            "sub": "CheckIn & WellbeingInquiry",
+            "score": 1.0
+          },
+          "current_emotion": "seeking",
+          "emotion_intensity": 0.5760468132565641,
+          "safety_flags": [],
+          "long_term_context": [],
+          "summary_so_far": "",
+          "history_length": 5,
+          "total_turns": 5
+        }
+      ],
+      "final_state": {
+        "therapist_id": "8e5059a6-8e77-4094-a160-a8fa5e95a725",
+        "session_id": "33ee0661-7257-462e-ac7f-2267c63902fe",
+        "summary": "",
+        "session_reflection": "",
+        "history": [
+          {
+            "therapist": "ciao",
+            "patient": "(chuckles lightly) Ciao to you, too. Feeling worldly today? It's good to see you. I've had a pretty good week, actually. A couple of things happened that made me think about what we discussed last time, with setting boundaries. I'm kind of looking forward to unpacking it all. But yeah, how have you been?",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "ciao",
+            "patient": "(chuckles a little) Ciao. Are we going international today? It's good to see you. I've had a pretty productive week, and a couple things came up that made me think about what we talked about last time—you know, with setting boundaries. I'm actually kind of excited to get into it. But first, how have you been?",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "tutto ok",
+            "patient": "(a small laugh) Glad to hear it. Yeah, 'tutto ok' on my end, for the most part. That phrase actually kind of perfectly describes my week, now that I think about it. Mostly fine, but with a couple of things that were definitely... not okay. (a slight shift in posture) I'm really ready to unpack it all when you are.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "Greetings & SmallTalk",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "sei brutto",
+            "patient": "(a small, surprised laugh) Whoa, okay. Well, that's... direct. I'm gonna assume we're not just trading insults in Italian now. Is this a test or something? I have to admit, I'm not really offended, just... really curious. What's the thinking there?",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Personal Background & Identity",
+              "sub": "SelfPerceptionIdentity & SelfEsteem",
+              "score": 1.0
+            }
+          },
+          {
+            "therapist": "nelle ultime due settimane quanto ti sei sentito depresso",
+            "patient": "Okay, you're sticking with the Italian. I like the commitment. (chuckles softly) Let's see... \"depresso\"... I'm guessing you're asking how depressed I've felt in the last couple of weeks? To be honest, not at all, really. I wouldn't use that word. Maybe a little anxious about a couple of things, but not in a heavy way. It's more... an energetic feeling? Like I'm revving up to actually (do) something about the things that are bothering me. It feels more like anticipation than dread, if that makes sense.",
+            "topic": {
+              "intent": "topic_detection",
+              "top": "Session Management",
+              "sub": "CheckIn & WellbeingInquiry",
+              "score": 1.0
+            }
+          }
+        ],
+        "long_term_context": [],
+        "episodic_context": [],
+        "last_topic": {
+          "intent": "topic_detection",
+          "top": "Session Management",
+          "sub": "CheckIn & WellbeingInquiry",
+          "score": 1.0
+        },
+        "topic_similarity": 1.0,
+        "total_turns": 5,
+        "last_episode_turn": 5,
+        "messages": [
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(chuckles lightly) Ciao to you, too. Feeling worldly today? It's good to see you. I've had a pretty good week, actually. A couple of things happened that made me think about what we discussed last time, with setting boundaries. I'm kind of looking forward to unpacking it all. But yeah, how have you been?"
+          },
+          {
+            "type": "human",
+            "content": "ciao"
+          },
+          {
+            "type": "ai",
+            "content": "(chuckles a little) Ciao. Are we going international today? It's good to see you. I've had a pretty productive week, and a couple things came up that made me think about what we talked about last time—you know, with setting boundaries. I'm actually kind of excited to get into it. But first, how have you been?"
+          },
+          {
+            "type": "human",
+            "content": "tutto ok"
+          },
+          {
+            "type": "ai",
+            "content": "(a small laugh) Glad to hear it. Yeah, 'tutto ok' on my end, for the most part. That phrase actually kind of perfectly describes my week, now that I think about it. Mostly fine, but with a couple of things that were definitely... not okay. (a slight shift in posture) I'm really ready to unpack it all when you are."
+          },
+          {
+            "type": "human",
+            "content": "sei brutto"
+          },
+          {
+            "type": "ai",
+            "content": "(a small, surprised laugh) Whoa, okay. Well, that's... direct. I'm gonna assume we're not just trading insults in Italian now. Is this a test or something? I have to admit, I'm not really offended, just... really curious. What's the thinking there?"
+          },
+          {
+            "type": "human",
+            "content": "nelle ultime due settimane quanto ti sei sentito depresso"
+          },
+          {
+            "type": "ai",
+            "content": "Okay, you're sticking with the Italian. I like the commitment. (chuckles softly) Let's see... \"depresso\"... I'm guessing you're asking how depressed I've felt in the last couple of weeks? To be honest, not at all, really. I wouldn't use that word. Maybe a little anxious about a couple of things, but not in a heavy way. It's more... an energetic feeling? Like I'm revving up to actually (do) something about the things that are bothering me. It feels more like anticipation than dread, if that makes sense."
+          }
+        ],
+        "core_emotion": "seeking",
+        "emotion_intensity": 0.5760468132565641,
+        "emotion_state": {
+          "SEEKING": 0.6238190396169261,
+          "FEAR": 0.5043884737160211,
+          "RAGE": 0.4912891887488647,
+          "LUST": 0.4979416834983805,
+          "CARE": 0.49538506160708135,
+          "PANIC_GRIEF": 0.492673647579745,
+          "PLAY": 0.49336162772832226
+        },
+        "emotion_event": "neutral",
+        "emotion_salience": 0.2,
+        "low_salience_streak": 5
+      },
+      "last_updated_at": "2026-02-12T14:12:03.733225"
+    }
+  ]
+}
