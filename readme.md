@@ -1,177 +1,206 @@
 # LLMPatients-Agent
 
-Agente modulare e stateful per simulare un paziente in contesti di training psicoterapeutico.
+Stateful virtual patient agent backend for psychotherapy training, built with FastAPI, LangGraph, structured YAML clinical profiles and JSONL long-term memory.
 
-Il progetto combina:
-- orchestrazione conversazionale con LangGraph,
-- profili clinici strutturati,
-- dinamica emotiva simbolica (Panksepp),
-- memoria multi-sessione (episodica + reflection + summary lungo termine),
-- guardrail di sicurezza contro prompt injection e role-swap.
+![Status](https://img.shields.io/badge/status-prototype-orange)
+![Python](https://img.shields.io/badge/python-3.10%2B-green)
+![API](https://img.shields.io/badge/api-FastAPI-blue)
+![Workflow](https://img.shields.io/badge/workflow-LangGraph-blue)
 
-## Indice
+## Contents
 
-1. [Stato Progetto](#stato-progetto)
-2. [Setup Rapido](#setup-rapido)
-3. [Esecuzione](#esecuzione)
-4. [API Quick Reference](#api-quick-reference)
-5. [Runtime e Memoria](#runtime-e-memoria)
-6. [Inventario Completo File](#inventario-completo-file)
-7. [Note Tecniche Importanti](#note-tecniche-importanti)
-8. [Docker](#docker)
-9. [Troubleshooting](#troubleshooting)
-10. [Limitazioni Note](#limitazioni-note)
-11. [Contributing](#contributing)
+- [Overview](#overview)
+- [Core Features](#core-features)
+- [Tech Stack](#tech-stack)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Environment Variables](#environment-variables)
+- [Runtime Workflow](#runtime-workflow)
+- [Useful Commands](#useful-commands)
+- [Testing](#testing)
+- [Production](#production)
+- [Project Structure](#project-structure)
+- [Troubleshooting](#troubleshooting)
+- [Security](#security)
+- [Citation](#citation)
 
-## Stato progetto
+## Overview
 
-Stato corrente: prototipo di ricerca in sviluppo attivo.
+LLMPatients-Agent is the external patient/orchestrator service used by LLMPatients simulations. It loads a structured virtual patient profile, runs each therapist turn through a LangGraph pipeline, generates a patient response through either local vLLM or Vertex AI, and persists session memory for continuity across future sessions.
 
-Perimetro operativo attuale:
-- CLI interattiva e scripted (`main.py`, `scripts/chat_cli.py`)
-- API FastAPI (`agent/api/app.py`)
-- persistenza memoria in JSONL (`data/memory/*.jsonl`)
-- resume stato per terapeuta/paziente (`tests/runs/<therapist>.json`, generato a runtime)
-- documentazione centralizzata in questo unico `readme.md` (nessuna cartella `docs/`)
+The service is designed to pair with LLMPatients-App in remote API mode. The app can initialize patients through `/patients`, request patient turns through `/chat-response`, and close a session through `/session-end`.
 
-## Setup rapido
+Patient profiles are YAML files under `data/patients/`. Runtime memory is persisted as JSONL under `data/memory/`, while session run snapshots are stored under `tests/runs/` when generated locally.
 
-### Requisiti
-- Python 3.10+
-- ambiente virtuale consigliato
-- `model_provider=local`: GPU consigliata (`vllm`)
-- `model_provider=vertex_ai`: progetto GCP + credenziali valide
+## Core Features
 
-### Installazione
+- Structured YAML patient profiles with clinical details, objectives, difficulty, voice/avatar metadata and emotional trait baselines.
+- Multi-session conversation state with short-term messages, long-term summaries, session reflections and episodic memory.
+- LangGraph turn pipeline for profile loading, safety filtering, topic/emotion classification, prompt building, generation and memory updates.
+- Symbolic emotion dynamics inspired by Panksepp systems: `SEEKING`, `FEAR`, `RAGE`, `LUST`, `CARE`, `PANIC_GRIEF`, `PLAY`.
+- Local LLM provider through vLLM, with optional Intel XPU support.
+- Vertex AI provider for Gemini-based generation when Google Cloud credentials are available.
+- FastAPI endpoints compatible with external simulation clients.
+- Clinical questionnaire runner for YAML questionnaire definitions and persisted JSON results.
+- Export endpoint for run logs and therapist/patient memory files.
+- Dockerfile and Docker Compose support for API deployment.
+
+## Tech Stack
+
+- **Runtime**: Python 3.10+
+- **API**: FastAPI, Uvicorn, Pydantic
+- **Agent workflow**: LangGraph, LangChain Core
+- **LLM providers**: local vLLM or Google Vertex AI
+- **Embeddings**: SentenceTransformers `all-MiniLM-L6-v2`
+- **Data formats**: YAML patient/questionnaire definitions, JSON/JSONL runtime artifacts
+- **Container support**: Dockerfile plus Docker Compose service for the API
+
+## Requirements
+
+- Python 3.10 or newer. Python 3.11 is recommended for local tests.
+- `pip` and a virtual environment.
+- A valid `model_id` for `model_provider=local`.
+- GPU/XPU resources for local vLLM in realistic runs.
+- Optional Google Cloud project and credentials for `model_provider=vertex_ai`.
+- Optional Docker and Docker Compose for containerized API deployment.
+
+## Quick Start
+
+### 1. Clone and install
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/unimib-whattadata/LLMPatients-Agent.git
 cd LLMPatients-Agent
 
 python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 
 pip install --upgrade pip
 pip install -r agent/requirements.txt
 ```
 
-### Configurazione (`config/.env`)
+### 2. Create `config/.env`
 
-```dotenv
+```bash
+mkdir -p config
+touch config/.env
+```
+
+Minimum local configuration:
+
+```env
 model_provider=local
 model_id=meta-llama/Llama-2-7b-chat-hf
 temperature=0.7
 max_tokens=512
 max_model_len=8192
 cache_path=/absolute/path/to/hf-cache
+```
 
-# Solo per Vertex AI
+Vertex AI configuration:
+
+```env
+model_provider=vertex_ai
+model_id=gemini-2.5-flash
 GCP_PROJECT=your-gcp-project
 GCP_LOCATION=us-central1
 GOOGLE_APPLICATION_CREDENTIALS=config/vertex-ai-api-key.json
 ```
 
-Note:
-- i parametri modello sono letti con nomi lowercase (`model_provider`, `model_id`, ...);
-- `max_tokens` limita i token di output per singola generazione, mentre `max_model_len` controlla la finestra totale prompt+output (utile per questionari lunghi come SNAP-2);
-- al primo avvio viene scaricato `all-MiniLM-L6-v2` per embedding topic/memory retrieval.
-
-## Esecuzione
-
-### CLI interattiva minima
+### 3. Run the API
 
 ```bash
-PYTHONPATH=. python3 scripts/chat_cli.py --patient juanita_delgado_001 --therapist therapist0
+PYTHONPATH=. uvicorn agent.api.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### CLI completa (interactive + scripted)
+Open [http://localhost:8000/docs](http://localhost:8000/docs) for FastAPI docs.
+
+### 4. Run a CLI session
 
 ```bash
-PYTHONPATH=. python3 main.py --patient juanita_delgado_001 --therapist therapist0
+PYTHONPATH=. python3 scripts/chat_cli.py \
+  --patient juanita_delgado_001 \
+  --therapist therapist0
 ```
 
-Opzioni utili (`main.py`):
-- `--session <id>`
-- `--messages "..." "..."`
-- `--messages-file <path>`
-
-### API server
-
-```bash
-PYTHONPATH=. uvicorn agent.api.app:app --reload --port 8000
-```
-
-Endpoint esposti:
-- `POST /patients`
-- `POST /chat-response`
-- `POST /session-end`
-
-## API quick reference
-
-### Endpoints
-
-| Endpoint | Metodo | Scopo |
-|---|---|---|
-| `/patients` | `POST` | Crea/inizializza un profilo paziente JSON in `data/patients/`. |
-| `/chat-response` | `POST` | Invia un turno terapeuta e riceve la risposta paziente. |
-| `/session-end` | `POST` | Finalizza memoria sessione (reflection + summary lungo termine). |
-
-### Esempi `curl`
-
-#### 1) Creazione paziente
-
-```bash
-curl -X POST http://localhost:8000/patients \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "alex_martinez_001",
-    "name": "Alex Martinez",
-    "age": 32,
-    "gender": "male",
-    "diagnosis": "Generalized anxiety disorder",
-    "difficulty_level": 2,
-    "psychological_profile": "Alex reports chronic worry about work performance and finances.",
-    "background": "Software engineer under sustained job pressure",
-    "current_medications": ["sertraline 50mg"],
-    "therapy_goals": ["Reduce worry", "Improve sleep"],
-    "previous_sessions": 0,
-    "session_id": "intake-session"
-  }'
-```
-
-#### 2) Chat turn
+### 5. Send a chat turn through the API
 
 ```bash
 curl -X POST http://localhost:8000/chat-response \
   -H "Content-Type: application/json" \
   -d '{
-    "external_patient_id": "alex_martinez_001",
+    "external_patient_id": "juanita_delgado_001",
     "user_message": "How have you been sleeping this week?",
-    "session_id": "intake-session",
+    "session_id": "demo-session",
     "step_id": 1,
     "therapist_id": "therapist0"
   }'
 ```
 
-#### 3) Fine sessione
+### 6. Close the session
 
 ```bash
 curl -X POST http://localhost:8000/session-end \
   -H "Content-Type: application/json" \
   -d '{
-    "external_patient_id": "alex_martinez_001",
-    "session_id": "intake-session",
+    "external_patient_id": "juanita_delgado_001",
+    "session_id": "demo-session",
     "therapist_id": "therapist0"
   }'
 ```
 
-Regola operativa critica:
-- mantenere stabili `therapist_id` e `session_id` durante la sessione;
-- chiamare sempre `/session-end` a fine sessione.
+Keep `therapist_id`, `external_patient_id` and `session_id` stable during a session. Call `/session-end` when the simulation ends so memory is finalized.
 
-## Runtime e memoria
+## Environment Variables
 
-### Pipeline LangGraph per turno
+| Variable | Required | Description |
+| --- | --- | --- |
+| `model_provider` | Yes | `local` or `vertex_ai`. Defaults to `local`. |
+| `model_id` | Yes | Local model id or Vertex/Gemini model id. |
+| `temperature` | Optional | Generation temperature. Defaults to `0.7`. |
+| `max_tokens` | Optional | Maximum output tokens per generation. Defaults to `512`. |
+| `max_model_len` | Local only | Total context length for vLLM. Useful for long questionnaire prompts. |
+| `cache_path` | Optional | HuggingFace model cache used by local vLLM. |
+| `HF_HOME` | Optional | Fallback HuggingFace cache directory. |
+| `GCP_PROJECT` | Vertex only | Google Cloud project for Vertex AI. |
+| `GCP_LOCATION` | Vertex only | Vertex AI location. Defaults to `us-central1`. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Vertex only | Credentials path, relative paths resolve from the repository root. |
+| `VERTEX_MAX_ATTEMPTS` | Optional | Retry attempts for Vertex generation. |
+| `VERTEX_RETRY_BASE_DELAY_SECONDS` | Optional | Base retry delay for Vertex transient errors. |
+| `VERTEX_RETRY_MAX_DELAY_SECONDS` | Optional | Maximum retry delay. |
+| `VERTEX_RATE_LIMIT_COOLDOWN_SECONDS` | Optional | Shared cooldown after rate limiting. |
+| `VERTEX_MIN_REQUEST_INTERVAL_SECONDS` | Optional | Minimum interval between Vertex requests. |
+| `QUESTIONNAIRE_MODEL_PROVIDER` | Optional | Provider override for questionnaire runs. |
+| `QUESTIONNAIRE_MODEL_ID` | Optional | Model override for questionnaire runs. |
+| `QUESTIONNAIRE_TEMPERATURE` | Optional | Temperature override for questionnaire runs. |
+| `QUESTIONNAIRE_MAX_TOKENS` | Optional | Max token override for questionnaire runs. |
+| `QUESTIONNAIRE_INTER_BATCH_DELAY_SECONDS` | Optional | Delay between questionnaire batches. |
+| `DEFAULT_PATIENT_ID` | Optional | CLI default patient id. |
+| `DEFAULT_THERAPIST_ID` | Optional | CLI default therapist id. |
+| `LOG_LEVEL` | Optional | CLI logging level. Defaults to `INFO`. |
+| `PSYLLM_EXPORT_TOKEN` | Optional | If set, `/export-logs` requires `X-Export-Token`. |
+
+### Docker Compose Variables
+
+The Compose file reads uppercase convenience variables and maps them into the lowercase names used by the Python runtime.
+
+| Variable | Description |
+| --- | --- |
+| `LLMPATIENTS_BASE_IMAGE` | Docker base image. Defaults to `intel/vllm`. |
+| `LLMPATIENTS_PORT` | Host port mapped to container port `8000`. Defaults to `8000`. |
+| `LLMPATIENTS_RENDER_GROUP` | Linux render group id for `/dev/dri`. Defaults to `109`. |
+| `MODEL_PROVIDER` | Compose-facing value mapped to `model_provider`. |
+| `MODEL_ID` | Compose-facing value mapped to `model_id`. |
+| `TEMPERATURE` | Compose-facing value mapped to `temperature`. |
+| `MAX_TOKENS` | Compose-facing value mapped to `max_tokens`. |
+| `MAX_MODEL_LEN` | Compose-facing value mapped to `max_model_len`. |
+| `CLI_ARGS` | Optional extra runtime metadata. |
+
+## Runtime Workflow
+
+### Conversation Turn Pipeline
+
+Each `/chat-response` or CLI turn runs through the LangGraph state machine:
 
 1. `load_profile`
 2. `sanitize_input`
@@ -185,155 +214,245 @@ Regola operativa critica:
 10. `update_memory`
 11. `display`
 
-### Tipi di memoria persistiti
+### Memory Artifacts
 
-- `episode_summary`
-- `session_reflection`
-- `long_term_summary`
+| Artifact | Location | Purpose |
+| --- | --- | --- |
+| `episode_summary` | `data/memory/<therapist_id>__<patient_id>.jsonl` | Compact summaries of conversation chunks. |
+| `session_reflection` | `data/memory/<therapist_id>__<patient_id>.jsonl` | End-of-session reflection used on future resumes. |
+| `long_term_summary` | `data/memory/<therapist_id>__<patient_id>.jsonl` | Rolling summary for continuity across sessions. |
+| Run snapshots | `tests/runs/<therapist_id>.json` | Session ledger and final state snapshots used by `RunLogger`. |
 
-Path memoria:
-- `data/memory/<therapist_id>__<patient_id>.jsonl`
+### Questionnaire Workflow
 
-## Inventario completo file
+Questionnaire definitions live in `data/questionnaires/`. Runnable questionnaires can be listed and executed from the CLI.
 
-Inventario aggiornato ai file presenti nel workspace.
+```bash
+PYTHONPATH=. python3 scripts/run_questionnaire.py --list
+PYTHONPATH=. python3 scripts/run_questionnaire.py --patient juanita_delgado_001 --questionnaire phq9
+PYTHONPATH=. python3 scripts/run_questionnaire.py --patient juanita_delgado_001 --questionnaire phq9 --show
+```
 
-### Root
+Results are written to:
 
-| File | Ruolo |
-|---|---|
-| `.gitignore` | Regole ignore locali (`config/`, `.env`, `tests/`, e alcuni script). |
-| `Dockerfile` | Build immagine API (`uvicorn agent.api.app:app`). |
-| `main.py` | CLI principale: interactive + scripted + finalize session memory. |
-| `readme.md` | Documentazione unica del progetto. |
+```txt
+data/questionnaire_results/<patient_id>/<questionnaire_id>.json
+```
 
-### CI / automazione
+SCID extracts are present as structured YAML data but are marked non-runnable because they are not self-report questionnaires.
 
-| File | Ruolo |
-|---|---|
-| `.github/workflows/eval-suite.yml` | Workflow settimanale/manuale per evaluation scripts e report. |
+## Useful Commands
 
-### Config IDE / metadati locali
+| Command | Purpose |
+| --- | --- |
+| `PYTHONPATH=. uvicorn agent.api.app:app --reload --port 8000` | Start the FastAPI server in development. |
+| `PYTHONPATH=. python3 scripts/chat_cli.py --patient juanita_delgado_001` | Start the minimal interactive CLI. |
+| `PYTHONPATH=. python3 main.py --patient juanita_delgado_001 --therapist therapist0` | Start the full CLI with scripted-message support. |
+| `PYTHONPATH=. python3 main.py --messages "Hello" "Tell me more"` | Run a scripted conversation. |
+| `PYTHONPATH=. python3 scripts/run_questionnaire.py --list` | List questionnaire definitions. |
+| `PYTHONPATH=. python3 scripts/run_questionnaire.py --patient juanita_delgado_001 --questionnaire phq9` | Run one questionnaire. |
+| `bash scripts/run_all_questionnaires.sh` | Run all runnable questionnaires for canonical `_001` patients. |
+| `curl -H "X-Export-Token: $PSYLLM_EXPORT_TOKEN" http://localhost:8000/export-logs -o logs.tar.gz` | Export run logs and memory files when token protection is enabled. |
+| `docker compose up -d --build llmpatients-api` | Build and start the API container. |
+| `docker compose logs -f llmpatients-api` | Follow API container logs. |
+| `docker compose down` | Stop the Compose stack. |
 
-| File | Ruolo |
-|---|---|
-| `.vscode/settings.json` | Config VS Code (`git.ignoreLimitWarning`). |
-| `agent/.DS_Store` | Metadato macOS, non funzionale. |
-| `data/.DS_Store` | Metadato macOS, non funzionale. |
+## Testing
 
-### Package `agent/`
+Recommended local validation before pushing:
 
-| File | Ruolo |
-|---|---|
-| `agent/__init__.py` | Marker package (vuoto). |
-| `agent/requirements.txt` | Dipendenze Python pinned. |
-| `agent/api/__init__.py` | Marker subpackage (vuoto). |
-| `agent/api/app.py` | FastAPI app e contratti API. |
-| `agent/core/__init__.py` | Marker subpackage (vuoto). |
-| `agent/core/langgraph_builder.py` | Stato LangGraph, nodi pipeline, retrieval, memoria async, finalize. |
-| `agent/core/prompt_builder.py` | Composizione prompt (identità, memoria, topic sections, safety, affect). |
-| `agent/core/patient_profile.py` | Modello Pydantic paziente + normalizzazione input JSON. |
-| `agent/core/emotion_model.py` | Dinamica emotiva: baseline + rumore + modificatori + smoothing. |
-| `agent/core/safety.py` | Guardrail + regex injection/role-swap + keyword contestuali. |
-| `agent/core/llm_runner.py` | Provider abstraction (`local` vLLM, `vertex_ai` Gemini). |
-| `agent/core/memory_store.py` | Store append-only JSONL con locking POSIX opzionale. |
-| `agent/utils/run_logger.py` | Logging sessioni e snapshot stato per resume. |
-| `agent/utils/session_opening.py` | Greeting contestuale su stato restaurato. |
+```bash
+python -m py_compile \
+  filter_reqs.py \
+  agent/api/app.py \
+  agent/core/emotion_model.py \
+  agent/core/langgraph_builder.py \
+  agent/core/llm_runner.py
 
-### `data/`
+python -m unittest discover -s tests -p 'test_*.py'
+```
 
-| File | Ruolo |
-|---|---|
-| `data/topics_tree.json` | Tassonomia topic e mapping `profile_fields` per prompt dinamico. |
-| `data/eval/scenarios.json` | Scenari goal/red-team per evaluation suite. |
-| `data/icd11_templates/6D11_5.json` | Template clinico ICD-11 (Borderline pattern). |
-| `data/patients/juanita_delgado_001.json` | Profilo paziente runtime-ready (caricato dal codice). |
-| `data/patients/juanita_delgado_001.yaml` | Variante YAML del caso Juanita (supporto). |
-| `data/patients/crystal_smith_001.yaml` | Caso aggiuntivo YAML. |
-| `data/patients/normal_user_001.yaml` | Profilo non-clinico YAML. |
-| `data/memory/therapist0__juanita_delgado_001.jsonl` | Memoria persistita campione (`therapist0`). |
-| `data/memory/therapist23__juanita_delgado_001.jsonl` | Memoria persistita campione (`therapist23`). |
-| `data/memory/therapist77__juanita_delgado_001.jsonl` | Memoria persistita campione (`therapist77`). |
-| `data/memory/therapist234__juanita_delgado_001.jsonl` | Memoria persistita campione (`therapist234`). |
-| `data/memory/therapist2345__juanita_delgado_001.jsonl` | Memoria persistita campione (`therapist2345`). |
+The automated unit tests cover:
 
-### `scripts/`
+- emotion salience and smoothing behavior;
+- prompt identity facts;
+- questionnaire catalog and questionnaire runner environment helpers.
 
-| File | Ruolo |
-|---|---|
-| `scripts/chat_cli.py` | REPL conversazionale minimale. |
-| `scripts/run_eval_suite.py` | Runner scenari evaluation (richiede modulo `agent.eval`). |
-| `scripts/eval_report.py` | Report/benchmark confronto summary evaluation. |
+Notes:
 
-### `tests/`
+- Use Python 3.10+ for tests because the codebase uses modern type syntax.
+- The full dependency set is in `agent/requirements.txt`.
+- `tests/api-google-test.py` is a manual smoke test for provider initialization and generation, not part of the `unittest discover` pattern.
 
-| File | Ruolo |
-|---|---|
-| `tests/api-google-test.py` | Smoke test manuale per `create_llm_runner()` e generazione. |
+## Production
 
-### `notebooks/`
+### Start without Docker
 
-| File | Ruolo |
-|---|---|
-| `notebooks/data_management.ipynb` | Parsing HTML DSM + produzione JSON elaborato. |
-| `notebooks/inference.ipynb` | Notebook sperimentale di inferenza/generazione. |
-| `notebooks/data/source/depression_dsm_cases.html` | Sorgente HTML DSM (depressione). |
-| `notebooks/data/source/anxiety_dsm_cases.html` | Sorgente HTML DSM (ansia). |
-| `notebooks/data/source/test.json` | Dataset test persona CBT sintetiche. |
-| `notebooks/data/processed/extracted_conditions.json` | Output elaborato data-management. |
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r agent/requirements.txt
 
-## Note tecniche importanti
+PYTHONPATH=. uvicorn agent.api.app:app --host 0.0.0.0 --port 8000
+```
 
-- Runtime profili paziente:
-  il caricamento in `agent/utils/session_opening.py` usa `data/patients/<id>.json`; i file YAML non vengono caricati direttamente dalla pipeline.
+Set `config/.env` before starting the service. For production, keep secrets out of the repository and use a process manager such as systemd, launchd, Docker, or your deployment platform.
 
-- Coerenza label emozionali:
-  il runtime usa `SEEKING, FEAR, RAGE, LUST, CARE, PANIC_GRIEF, PLAY`; nei YAML di esempio compaiono anche label legacy (`ANGER`, `SADNESS`) che non entrano direttamente nel set finale.
-
-- Evaluation suite:
-  `scripts/run_eval_suite.py` importa `agent.eval` (modulo non presente nella tree corrente).
-
-- `.gitignore` e file tracciati:
-  anche se `.gitignore` include `tests/` e alcuni script, i file già versionati continuano a funzionare.
-
-- Smoke test API:
-  `tests/api-google-test.py` modifica `sys.path` per importare `core.llm_runner` da `agent/`; è un test manuale rapido, non una suite automatica completa.
-
-- Logging CLI:
-  le CLI stampano output con icone/telemetria; è solo osservabilità, non logica di business.
-
-## Docker
+### Docker image
 
 ```bash
 docker build -t llmpatients-agent .
-docker run --rm -p 8000:8000 -e PYTHONPATH=/app llmpatients-agent
 ```
 
-Se usi Vertex AI nel container, monta/inietta credenziali e variabili ambiente.
+Run with local data mounted:
+
+```bash
+docker run --rm \
+  --env-file config/.env \
+  -p 8000:8000 \
+  -v "$PWD/data:/app/data" \
+  -v "$PWD/tests/runs:/app/tests/runs" \
+  llmpatients-agent
+```
+
+For Vertex AI, mount the credentials file into `/app/config/` or inject credentials through your platform secret manager.
+
+### Docker Compose API service
+
+The current `docker-compose.yml` manages the API service and mounts local runtime data:
+
+```bash
+docker compose up -d --build llmpatients-api
+docker compose logs -f llmpatients-api
+docker compose down
+```
+
+Compose mounts:
+
+```txt
+./data       -> /app/data
+./config     -> /app/config:ro
+./tests/runs -> /app/tests/runs
+```
+
+It also creates a named `huggingface-cache` volume for downloaded models.
+
+### Deployment Notes
+
+- Keep `model_provider`, `model_id`, token limits and credential paths explicit in the runtime environment.
+- Call `/session-end` from the client when a simulation ends; otherwise the latest reflection/summary may not be finalized.
+- Treat `data/memory/`, `tests/runs/` and exported log archives as sensitive simulation data.
+- The Compose file includes Linux `/dev/dri` devices for Intel XPU deployments. Remove or override those entries on hosts without that device path.
+- Do not bake cloud credentials, `.env` files, patient data or memory exports into Docker images.
+
+## Project Structure
+
+```txt
+agent/api/                 FastAPI app, request/response schemas and endpoints
+agent/core/                LangGraph workflow, LLM providers, prompt building, safety and memory logic
+agent/utils/               Session logging and contextual opening helpers
+data/patients/             YAML virtual patient profiles
+data/memory/               JSONL therapist/patient memory records
+data/questionnaires/       YAML questionnaire definitions
+data/questionnaire_results/ Persisted questionnaire outputs
+data/questionnaires pdf/   Source questionnaire PDFs
+data/eval/                 Evaluation scenarios
+scripts/                   CLI chat, evaluation and questionnaire scripts
+tests/                     Unit tests, manual API smoke test and run ledgers
+notebooks/                 Experimental data management and inference notebooks
+Dockerfile                 API image build
+docker-compose.yml         API service with local mounts and HF cache volume
+filter_reqs.py             Requirement filter for preloaded vLLM/XPU images
+main.py                    Full CLI entrypoint
+readme.md                  Project documentation
+```
 
 ## Troubleshooting
 
-- `Missing model_id for LocalLLMRunner`:
-  manca `model_id` in env/.env.
+### `Missing model_id for LocalLLMRunner`
 
-- Errori Vertex:
-  verificare `GCP_PROJECT`, `GCP_LOCATION`, `GOOGLE_APPLICATION_CREDENTIALS`.
+Set `model_id` in `config/.env` or switch to Vertex AI:
 
-- Prima risposta lenta:
-  download iniziale embeddings/modello.
+```env
+model_provider=local
+model_id=your-local-model-id
+```
 
-- Continuità sessione assente:
-  controllare coerenza `therapist_id`, `session_id` e chiamata `/session-end`.
+### `vllm module is not installed`
 
-## Limitazioni note
+Local generation requires vLLM and compatible Torch packages. Use the Docker image based on `intel/vllm`, install vLLM in a compatible Python environment, or switch to:
 
-- Non c'è file `LICENSE` nel repository.
-- I file in `data/memory/` sono esempi reali di memoria persistita: trattarli come dati sensibili di simulazione.
-- Le pipeline notebook sono sperimentali e non fanno parte del runtime API/CLI.
+```env
+model_provider=vertex_ai
+```
 
-## Contributing
+### Vertex AI errors
 
-1. Aprire branch dedicato.
-2. Mantenere questo README allineato ai cambiamenti file-level.
-3. Eseguire smoke test CLI/API prima della PR.
-4. Documentare nuove variabili ambiente e nuovi path dati.
+Check:
+
+```env
+GCP_PROJECT=...
+GCP_LOCATION=...
+GOOGLE_APPLICATION_CREDENTIALS=config/vertex-ai-api-key.json
+```
+
+The credentials path is resolved from the repository root when it is relative.
+
+### Patient profile not found
+
+Patient ids resolve to YAML files under `data/patients/`:
+
+```txt
+data/patients/juanita_delgado_001.yaml
+```
+
+JSON patient profiles are not part of the current runtime profile loader.
+
+### Session continuity is missing
+
+Use the same `therapist_id`, `external_patient_id` and `session_id` for all turns, then call `/session-end` once the session is complete.
+
+### `docker compose up` fails on `/dev/dri`
+
+The Compose file targets Intel XPU/Linux hosts. On machines without `/dev/dri`, remove or override the `devices`, `group_add`, `ipc` and XPU-specific environment settings.
+
+### Docker cannot connect to the daemon
+
+Start Docker Desktop or the Docker service before running build/check/compose commands.
+
+### First response is slow
+
+The first run may download the embedding model and/or local LLM weights into the HuggingFace cache.
+
+### Questionnaire is marked non-runnable
+
+Some YAML files, such as SCID extracts, are reference interview prompts rather than runnable self-report questionnaires. Use:
+
+```bash
+PYTHONPATH=. python3 scripts/run_questionnaire.py --list
+```
+
+to see which questionnaires can run.
+
+## Security
+
+- Never commit `config/.env`, cloud credentials, API keys, model provider secrets or exported log archives.
+- Treat `data/memory/`, `tests/runs/` and `data/questionnaire_results/` as sensitive simulation artifacts.
+- Rotate any credential that appears in logs, screenshots or shared messages.
+- Use `PSYLLM_EXPORT_TOKEN` before exposing `/export-logs` beyond local development.
+- Do not mount broad host directories into the container when a narrower `data`, `config` or cache mount is sufficient.
+
+## Citation
+
+If you use LLMPatients for research, cite the reference paper or project record used by your group:
+
+```bibtex
+@article{llmpatient2025,
+  title={LLMPatient: un sistema esperto ibrido per la simulazione multi-sessione di pazienti virtuali nella formazione psicoterapeutica},
+  author={UNIMIB Team},
+  journal={TBD},
+  year={2025},
+  url={https://github.com/unimib-whattadata/LLMPatients-Agent}
+}
+```

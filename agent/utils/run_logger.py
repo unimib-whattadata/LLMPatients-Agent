@@ -2,6 +2,7 @@
 
 import copy
 import json
+import logging
 from datetime import datetime
 from itertools import count
 from pathlib import Path
@@ -9,8 +10,15 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
+logger = logging.getLogger(__name__)
+
+DEFAULT_THERAPIST_ID = "therapist0"
 RUNS_BASE_DIR = Path("tests") / "runs"
 RUNS_BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _utc_now() -> str:
+    return datetime.utcnow().isoformat()
 
 
 def _serialize_message(msg: BaseMessage) -> Dict[str, str]:
@@ -83,13 +91,14 @@ def migrate_legacy_runs(base_dir: Path) -> None:
     for legacy_path in list(base_dir.glob("*.json")):
         try:
             data = json.loads(legacy_path.read_text(encoding="utf-8"))
-        except Exception:
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Skipping unreadable legacy run file %s: %s", legacy_path, exc)
             continue
         if "sessions" in data and "therapist_id" in data:
             continue
         if "run_id" not in data:
             continue
-        therapist_id = data.get("therapist_id", "therapist0")
+        therapist_id = data.get("therapist_id", DEFAULT_THERAPIST_ID)
         session = {
             "session_id": data.get("session_id") or data["run_id"],
             "run_id": data.get("run_id"),
@@ -106,7 +115,8 @@ def migrate_legacy_runs(base_dir: Path) -> None:
         if dest_path.exists():
             try:
                 dest_data = json.loads(dest_path.read_text(encoding="utf-8"))
-            except Exception:
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning("Could not read consolidated run file %s: %s", dest_path, exc)
                 dest_data = {"therapist_id": therapist_id, "sessions": []}
         else:
             dest_data = {"therapist_id": therapist_id, "sessions": []}
@@ -123,8 +133,9 @@ class RunLogger:
     _counter = count(1)
 
     def __init__(self, therapist_id: str, base_dir: Optional[Path] = None):
-        self.therapist_id = therapist_id or "therapist0"
+        self.therapist_id = therapist_id or DEFAULT_THERAPIST_ID
         self.base_dir = Path(base_dir or RUNS_BASE_DIR)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
         self.file_path = self.base_dir / f"{self.therapist_id}.json"
         self.data = self._load()
         self.current_session_index: Optional[int] = None
@@ -134,8 +145,8 @@ class RunLogger:
         if self.file_path.exists():
             try:
                 return json.loads(self.file_path.read_text(encoding="utf-8"))
-            except Exception:
-                pass
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning("Could not read run log %s: %s", self.file_path, exc)
         return {"therapist_id": self.therapist_id, "sessions": []}
 
     def start_run(
@@ -155,7 +166,7 @@ class RunLogger:
             "patient_id": patient_id,
             "source": source,
             "mode": mode,
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": _utc_now(),
             "metadata": metadata or {},
             "turns": [],
             "final_state": {},
@@ -172,7 +183,7 @@ class RunLogger:
         session = self.data["sessions"][self.current_session_index]
         turn_entry = {
             "turn_index": len(session["turns"]) + 1,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": _utc_now(),
             "therapist_input_raw": therapist_input,
             "therapist_input_safe": state.get("safe_user_input"),
             "patient_response": state.get("response"),
@@ -189,7 +200,7 @@ class RunLogger:
             "total_turns": state.get("total_turns"),
         }
         session["turns"].append(turn_entry)
-        session["last_updated_at"] = datetime.utcnow().isoformat()
+        session["last_updated_at"] = _utc_now()
         session["final_state"] = _state_snapshot(state)
         self._persist()
 
@@ -198,7 +209,7 @@ class RunLogger:
         if self.current_session_index is None:
             return
         session = self.data["sessions"][self.current_session_index]
-        session["ended_at"] = datetime.utcnow().isoformat()
+        session["ended_at"] = _utc_now()
         if state:
             session["final_state"] = _state_snapshot(state)
             session["final_summary"] = state.get("summary", "")

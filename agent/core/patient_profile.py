@@ -570,15 +570,11 @@ def _prepare_payload(raw: dict, path: str) -> dict:
     payload["estimatedDuration"] = payload.get("estimatedDuration") or payload.get("estimated_duration")
     payload["emotionTraits"] = _build_emotion_traits(payload)
 
-    # ---- DETAILS NORMALIZATION ----
     if not isinstance(payload.get("details"), dict):
         payload["details"] = {}
-    payload["details"].setdefault("demographicAndSocioculturalInformation", {})
 
-    # 👇 THIS IS THE IMPORTANT LINE
-    payload["details"]["demographicAndSocioculturalInformation"].setdefault(
-        "name", payload["name"]
-    )
+    demographics = payload["details"].setdefault("demographicAndSocioculturalInformation", {})
+    demographics.setdefault("name", payload["name"])
 
     return payload
 

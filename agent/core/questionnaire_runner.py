@@ -42,6 +42,7 @@ MAX_RETRIES = 3
 ORDINAL_CHOICE_MAX_TOKENS = 256
 SINGLE_CHOICE_MAX_TOKENS = 256
 CHOICE_BATCH_MIN_MAX_TOKENS = 1024
+PROGRESS_SEPARATOR_WIDTH = 60
 
 
 def is_questionnaire_eligible_patient_id(patient_id: str) -> bool:
@@ -125,6 +126,8 @@ def questionnaire_llm_overrides() -> Dict[str, Any]:
 
 
 class QuestionnaireRunner:
+    """Run one questionnaire for one canonical patient and persist resumable results."""
+
     def __init__(self, questionnaire_id: str, patient_id: str, force: bool = False):
         if not is_questionnaire_eligible_patient_id(patient_id):
             raise ValueError(
@@ -175,53 +178,34 @@ class QuestionnaireRunner:
 
     def run(self) -> dict:
         """Execute the questionnaire and return the result dict."""
-        # Idempotency guard
         if self.result_path.exists() and not self.force:
             result = json.loads(self.result_path.read_text(encoding="utf-8"))
-            print(f"[Already complete] {self.result_path}")
-            print(f"Scores: {json.dumps(result.get('scores', {}), indent=2)}")
+            self._print_existing_result(result)
             return result
 
-        # Resume from partial progress if available
-        answers: Dict[str, Any] = {}
-        if self.partial_path.exists():
-            try:
-                partial = json.loads(self.partial_path.read_text(encoding="utf-8"))
-                answers = partial.get("answers", {})
-                print(f"[Resuming] Loaded {len(answers)} answers from partial save.")
-            except json.JSONDecodeError:
-                logger.warning("Partial file corrupt; starting fresh.")
-                answers = {}
-
-        # Build patient context once (reuses the same profile fields as build_prompt)
+        answers = self._load_partial_answers()
         patient_context = self._build_patient_context()
         patient_name = self.profile.name
-
-        # Prepare item chunks
         items: List[dict] = self.q_def.get("items", [])
         batch_size: int = self.q_def.get("batch_size", 1)
         remaining = [it for it in items if str(it["id"]) not in answers]
         chunks = [remaining[i : i + batch_size] for i in range(0, len(remaining), batch_size)]
-
         total_items = len(items)
         done_count = len(answers)
 
-        print(f"\n{'=' * 60}")
-        print(f"Questionnaire : {self.q_def['name']}")
-        print(f"Patient       : {patient_name} ({self.patient_id})")
-        print(f"Items         : {total_items} total | {done_count} already done | {len(remaining)} remaining")
-        print(f"Batches       : {len(chunks)} (batch_size={batch_size})")
-        print(f"{'=' * 60}\n")
+        self._print_run_header(
+            patient_name=patient_name,
+            total_items=total_items,
+            done_count=done_count,
+            remaining_count=len(remaining),
+            batch_count=len(chunks),
+            batch_size=batch_size,
+        )
 
         for i, chunk in enumerate(chunks):
             batch_answers = self._prompt_and_validate(chunk, patient_context, patient_name)
             answers.update(batch_answers)
-
-            # Persist partial progress after every batch
-            self.partial_path.write_text(
-                json.dumps({"answers": answers, "last_item": chunk[-1]["id"]}, indent=2),
-                encoding="utf-8",
-            )
+            self._write_partial_answers(answers, last_item=chunk[-1]["id"])
 
             completed = done_count + sum(len(c) for c in chunks[: i + 1])
             print(f"  [{min(completed, total_items):>4}/{total_items}]  batch {i + 1}/{len(chunks)}", flush=True)
@@ -229,7 +213,30 @@ class QuestionnaireRunner:
             if self.inter_batch_delay_seconds > 0 and i < len(chunks) - 1:
                 time.sleep(self.inter_batch_delay_seconds)
 
-        # Score and finalise
+        return self._finalize_result(answers)
+
+    def _load_partial_answers(self) -> Dict[str, Any]:
+        """Resume answers from a partial run when possible."""
+        if not self.partial_path.exists():
+            return {}
+        try:
+            partial = json.loads(self.partial_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            logger.warning("Partial file corrupt; starting fresh: %s", self.partial_path)
+            return {}
+        answers = partial.get("answers", {})
+        print(f"[Resuming] Loaded {len(answers)} answers from partial save.")
+        return answers
+
+    def _write_partial_answers(self, answers: Dict[str, Any], *, last_item: str) -> None:
+        """Persist progress after every successful batch."""
+        self.partial_path.write_text(
+            json.dumps({"answers": answers, "last_item": last_item}, indent=2),
+            encoding="utf-8",
+        )
+
+    def _finalize_result(self, answers: Dict[str, Any]) -> dict:
+        """Compute scores, write final JSON and remove resumable partial state."""
         scores = self._compute_scores(answers)
         result = {
             "questionnaire_id": self.questionnaire_id,
@@ -244,9 +251,34 @@ class QuestionnaireRunner:
         if self.partial_path.exists():
             self.partial_path.unlink()
 
+        self._print_final_result(scores)
+        return result
+
+    def _print_existing_result(self, result: dict) -> None:
+        print(f"[Already complete] {self.result_path}")
+        print(f"Scores: {json.dumps(result.get('scores', {}), indent=2)}")
+
+    def _print_run_header(
+        self,
+        *,
+        patient_name: str,
+        total_items: int,
+        done_count: int,
+        remaining_count: int,
+        batch_count: int,
+        batch_size: int,
+    ) -> None:
+        separator = "=" * PROGRESS_SEPARATOR_WIDTH
+        print(f"\n{separator}")
+        print(f"Questionnaire : {self.q_def['name']}")
+        print(f"Patient       : {patient_name} ({self.patient_id})")
+        print(f"Items         : {total_items} total | {done_count} already done | {remaining_count} remaining")
+        print(f"Batches       : {batch_count} (batch_size={batch_size})")
+        print(f"{separator}\n")
+
+    def _print_final_result(self, scores: dict) -> None:
         print(f"\n[Done] Saved to {self.result_path}")
         print(f"Scores:\n{json.dumps(scores, indent=2)}")
-        return result
 
     # ------------------------------------------------------------------
     # Patient context builder

@@ -1,6 +1,7 @@
 """FastAPI entrypoint that exposes the simulated patient via /api/message."""
 
 import json
+import logging
 import os
 import re
 import tarfile
@@ -19,11 +20,17 @@ from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
 from agent.core.langgraph_builder import build_graph, finalize_session_memory
 
+logger = logging.getLogger(__name__)
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
 RUNS_DIR = ROOT_DIR / "tests" / "runs"
 MEMORY_DIR = ROOT_DIR / "data" / "memory"
 EXPORT_TOKEN = os.getenv("PSYLLM_EXPORT_TOKEN")
+DEFAULT_THERAPIST_ID = "therapist0"
+DEFAULT_TOPIC = "general"
+DEFAULT_EMOTION = "seeking"
+MAX_EMOTION_TIMELINE_POINTS = 60
 
 app = FastAPI(title="LLMPatients-Agent API")
 
@@ -33,12 +40,12 @@ session_loggers: dict[tuple[str, str, str], dict] = {}
 
 def _runtime_session_key(therapist_id: str, patient_id: str, session_id: str) -> tuple[str, str, str]:
     """Isolate in-memory sessions by therapist, patient, and client session id."""
-    return (therapist_id or "therapist0", patient_id, session_id)
+    return (therapist_id or DEFAULT_THERAPIST_ID, patient_id, session_id)
 
 
 def _runtime_thread_id(therapist_id: str, patient_id: str, session_id: str) -> str:
     """Build a checkpointer thread id that cannot collide across patients."""
-    return f"{therapist_id or 'therapist0'}::{patient_id}::{session_id}"
+    return f"{therapist_id or DEFAULT_THERAPIST_ID}::{patient_id}::{session_id}"
 
 # === Request Schema ===
 class MessageRequest(BaseModel):
@@ -136,6 +143,23 @@ def _profile_value(profile, *keys, default=None):
     return default
 
 
+def _clamp01(value: float) -> float:
+    """Clamp chart-facing numeric values into the valid [0, 1] range."""
+    return max(0.0, min(1.0, value))
+
+
+def _safe_float(value, default: float = 0.0) -> float:
+    """Best-effort float conversion for values returned by graph state."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _utc_now() -> str:
+    return datetime.utcnow().isoformat()
+
+
 def _normalize_emotion_vector(raw_vector) -> dict[str, float]:
     """Clamp and normalize raw emotion vectors into chart-safe floats."""
     if not isinstance(raw_vector, dict):
@@ -148,7 +172,7 @@ def _normalize_emotion_vector(raw_vector) -> dict[str, float]:
             numeric = float(value)
         except (TypeError, ValueError):
             continue
-        normalized[key.upper()] = max(0.0, min(1.0, numeric))
+        normalized[key.upper()] = _clamp01(numeric)
     return normalized
 
 
@@ -179,7 +203,7 @@ def _build_emotion_description(
     )
 
 
-def _build_emotion_timeline(run_logger: RunLogger, *, max_points: int = 60) -> list[dict]:
+def _build_emotion_timeline(run_logger: RunLogger, *, max_points: int = MAX_EMOTION_TIMELINE_POINTS) -> list[dict]:
     """Extract a compact turn-by-turn timeline from the active run logger."""
     idx = run_logger.current_session_index
     if idx is None:
@@ -201,17 +225,13 @@ def _build_emotion_timeline(run_logger: RunLogger, *, max_points: int = 60) -> l
             turn_index = int(turn.get("turn_index", len(points) + 1))
         except (TypeError, ValueError):
             turn_index = len(points) + 1
-        timestamp = str(turn.get("timestamp") or datetime.utcnow().isoformat())
+        timestamp = str(turn.get("timestamp") or _utc_now())
         emotion = str(turn.get("current_emotion") or "unknown")
-        try:
-            intensity = float(turn.get("emotion_intensity", 0.0))
-        except (TypeError, ValueError):
-            intensity = 0.0
         points.append({
             "turn_index": turn_index,
             "timestamp": timestamp,
             "emotion": emotion,
-            "intensity": max(0.0, min(1.0, intensity)),
+            "intensity": _clamp01(_safe_float(turn.get("emotion_intensity", 0.0))),
         })
     return points
 
@@ -328,47 +348,61 @@ def _cleanup_path(path: Path) -> None:
     if path.exists():
         try:
             path.unlink()
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.warning("Could not delete temporary export archive %s: %s", path, exc)
 
 
-@app.post("/chat-response", response_model=MessageResponse)
-async def send_message(req: MessageRequest):
-    """Main conversational endpoint."""
+def _restore_base_state(run_logger: RunLogger, patient_id: str) -> dict | None:
+    """Load resumable graph state without letting corrupt logs break a new session."""
+    try:
+        return run_logger.restore_state(patient_id)
+    except Exception as exc:
+        logger.warning("Could not restore state for patient %s: %s", patient_id, exc)
+        return None
 
-    patient_id = req.external_patient_id
-    therapist_id = req.therapist_id or "therapist0"
-    session_key = _runtime_session_key(therapist_id, patient_id, req.session_id)
 
-    config = {"configurable": {"thread_id": _runtime_thread_id(therapist_id, patient_id, req.session_id)}}
-
-    # === Track reasoning time ===
-    start_time = time.time()
-
-    # === Ensure run logger for this therapist/session ===
+def _get_or_start_session(
+    *,
+    req: MessageRequest,
+    patient_id: str,
+    therapist_id: str,
+    session_key: tuple[str, str, str],
+) -> dict:
+    """Return the active session logger entry, creating it on first turn."""
     entry = session_loggers.get(session_key)
-    if not entry:
-        run_logger = RunLogger(therapist_id)
-        try:
-            base_state = run_logger.restore_state(patient_id)
-        except Exception as e:
-            base_state = None
-            print(f"[WARN] restore_state failed: {e}")
-        run_logger.start_run(
-            patient_id=patient_id,
-            session_id=req.session_id,
-            source="api",
-            mode="live",
-            metadata={"initial_step_id": req.step_id},
-        )
-        entry = {"logger": run_logger, "base_state": base_state}
-        session_loggers[session_key] = entry
-    run_logger = entry["logger"]
+    if entry:
+        return entry
+
+    run_logger = RunLogger(therapist_id)
+    base_state = _restore_base_state(run_logger, patient_id)
+    run_logger.start_run(
+        patient_id=patient_id,
+        session_id=req.session_id,
+        source="api",
+        mode="live",
+        metadata={"initial_step_id": req.step_id},
+    )
+    entry = {"logger": run_logger, "base_state": base_state}
+    session_loggers[session_key] = entry
+    return entry
+
+
+def _consume_base_state(entry: dict) -> dict | None:
+    """Use restored state exactly once at the start of a live API session."""
     base_state = entry.get("base_state")
     if base_state:
         entry["base_state"] = None
+    return base_state
 
-    # === Run the agent ===
+
+def _build_graph_payload(
+    *,
+    req: MessageRequest,
+    patient_id: str,
+    therapist_id: str,
+    base_state: dict | None,
+) -> dict:
+    """Merge restored state with the current request while preserving live identifiers."""
     payload = {
         "user_input": req.user_message,
         "patient_id": patient_id,
@@ -376,93 +410,117 @@ async def send_message(req: MessageRequest):
         "session_id": req.session_id,
     }
     if base_state:
-        payload.update(base_state)
-        # Restored context may contain identifiers from a previous session; keep the live request authoritative.
-        payload["patient_id"] = patient_id
-        payload["therapist_id"] = therapist_id
-        payload["session_id"] = req.session_id
-    result = graph.invoke(payload, config=config)
+        payload = {**base_state, **payload}
+    return payload
 
-    reasoning_time = round(time.time() - start_time, 3)
 
-    # === Extract relevant info ===
-    message = result.get("response", "...")
-    patient_profile = result.get("patient_profile", {})
+def _topic_from_result(result: dict) -> str:
+    topic_info = result.get("last_topic", {})
+    if isinstance(topic_info, dict):
+        return topic_info.get("sub") or DEFAULT_TOPIC
+    return DEFAULT_TOPIC
 
+
+def _emotion_snapshot_from_result(result: dict, patient_profile) -> tuple[str, EmotionSnapshot]:
+    """Build both the public emotion label and the structured chart snapshot."""
     emotion = str(
         _profile_value(patient_profile, "current_emotional_state", default=None)
         or result.get("core_emotion")
-        or "seeking"
+        or DEFAULT_EMOTION
     ).lower()
-    topic_info = result.get("last_topic", {})
-    topic = topic_info.get("sub", "general") if isinstance(topic_info, dict) else "general"
-
     emotion_vector = _normalize_emotion_vector(
         result.get("emotion_state")
         or _profile_value(patient_profile, "emotion_state", default={})
     )
-    try:
-        intensity = float(
+    intensity = _clamp01(
+        _safe_float(
             result.get("emotion_intensity")
             or _profile_value(patient_profile, "emotion_intensity", default=0.0)
-            or 0.0
         )
-    except (TypeError, ValueError):
-        intensity = 0.0
-    intensity = max(0.0, min(1.0, intensity))
-
-    salience = result.get("emotion_salience")
-    try:
-        salience_value = max(0.0, min(1.0, float(salience))) if salience is not None else None
-    except (TypeError, ValueError):
-        salience_value = None
-
-    emotion_snapshot = EmotionSnapshot(
+    )
+    raw_salience = result.get("emotion_salience")
+    salience = _clamp01(_safe_float(raw_salience)) if raw_salience is not None else None
+    snapshot = EmotionSnapshot(
         dominant=emotion,
         intensity=intensity,
         vector=emotion_vector,
         event=result.get("emotion_event"),
-        salience=salience_value,
+        salience=salience,
         description=_build_emotion_description(
             dominant=emotion,
             intensity=intensity,
             vector=emotion_vector,
         ),
     )
+    return emotion, snapshot
 
-    patient_name = _profile_value(patient_profile, "name", default=None)
-    avatar_url = _profile_value(patient_profile, "avatar_url", "avatarUrl", default=None)
 
-    # === Persist run info ===
-    run_logger.log_turn(result, req.user_message)
-    entry["latest_state"] = result
-    emotion_timeline = _build_emotion_timeline(run_logger)
-
-    # === Return unified JSON ===
+def _message_response(
+    *,
+    result: dict,
+    run_logger: RunLogger,
+    reasoning_time: float,
+) -> MessageResponse:
+    """Translate internal graph state into the stable API response model."""
+    patient_profile = result.get("patient_profile", {})
+    emotion, emotion_snapshot = _emotion_snapshot_from_result(result, patient_profile)
     return MessageResponse(
-        message=message,
+        message=result.get("response", "..."),
         reasoning_time=reasoning_time,
         emotion=emotion,
-        topic=topic,
-        timestamp=datetime.utcnow().isoformat(),
-        patient_name=patient_name,
-        avatar_url=avatar_url,
+        topic=_topic_from_result(result),
+        timestamp=_utc_now(),
+        patient_name=_profile_value(patient_profile, "name", default=None),
+        avatar_url=_profile_value(patient_profile, "avatar_url", "avatarUrl", default=None),
         emotion_snapshot=emotion_snapshot,
-        emotion_timeline=emotion_timeline,
+        emotion_timeline=_build_emotion_timeline(run_logger),
     )
+
+
+@app.post("/chat-response", response_model=MessageResponse)
+async def send_message(req: MessageRequest):
+    """Main conversational endpoint."""
+
+    patient_id = req.external_patient_id
+    therapist_id = req.therapist_id or DEFAULT_THERAPIST_ID
+    session_key = _runtime_session_key(therapist_id, patient_id, req.session_id)
+
+    config = {"configurable": {"thread_id": _runtime_thread_id(therapist_id, patient_id, req.session_id)}}
+
+    start_time = time.time()
+    entry = _get_or_start_session(
+        req=req,
+        patient_id=patient_id,
+        therapist_id=therapist_id,
+        session_key=session_key,
+    )
+    run_logger = entry["logger"]
+
+    payload = _build_graph_payload(
+        req=req,
+        patient_id=patient_id,
+        therapist_id=therapist_id,
+        base_state=_consume_base_state(entry),
+    )
+    result = graph.invoke(payload, config=config)
+    reasoning_time = round(time.time() - start_time, 3)
+
+    run_logger.log_turn(result, req.user_message)
+    entry["latest_state"] = result
+    return _message_response(result=result, run_logger=run_logger, reasoning_time=reasoning_time)
 
 
 @app.post("/session-end", response_model=SessionEndResponse)
 async def end_session(req: SessionEndRequest):
     """Finalize memory and logs for a therapist/patient session."""
-    therapist_id = req.therapist_id or "therapist0"
+    therapist_id = req.therapist_id or DEFAULT_THERAPIST_ID
     session_key = _runtime_session_key(therapist_id, req.external_patient_id, req.session_id)
     entry = session_loggers.get(session_key)
     if not entry:
         return SessionEndResponse(
             status="not_found",
             message="No active session found for this therapist/session id.",
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=_utc_now(),
         )
 
     run_logger = entry.get("logger")
@@ -478,7 +536,7 @@ async def end_session(req: SessionEndRequest):
     return SessionEndResponse(
         status="finalized",
         message="Session memory finalized.",
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=_utc_now(),
     )
 
 
@@ -500,7 +558,7 @@ async def create_patient(req: PatientInitRequest):
             code="PATIENT_EXISTS",
             external_patient_id=patient_id,
             message="Paziente già presente nel sistema esterno",
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=_utc_now(),
         )
 
     PATIENTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -513,7 +571,7 @@ async def create_patient(req: PatientInitRequest):
         code="PATIENT_CREATED",
         external_patient_id=patient_id,
         message="Paziente inizializzato correttamente nel sistema esterno",
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=_utc_now(),
     )
 
 

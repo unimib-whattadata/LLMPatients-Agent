@@ -86,6 +86,36 @@ LATEST_SUMMARY_CACHE: Dict[tuple[str, str], str] = {}
 LATEST_REFLECTION_CACHE: Dict[tuple[str, str], str] = {}
 
 DEFAULT_TRAIT_BASELINE = {emotion: 0.5 for emotion in EMOTIONS}
+PANKSEPP_LABELS = tuple(EMOTIONS)
+TOPIC_LABEL_SEPARATOR = " → "
+UNKNOWN_TOPIC = {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0}
+TOPIC_FILLER_PHRASES = (
+    "hi",
+    "hey",
+    "hello",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "how are you",
+    "how are things",
+    "checking in",
+    "how have you been",
+    "how's it going",
+    "you ok",
+    "you okay",
+    "thanks",
+    "thank you",
+)
+GREETING_PREFIXES = ("hi", "hey", "hello", "good morning", "good afternoon", "good evening")
+CHECKIN_CUES = (
+    "how are you",
+    "how are things",
+    "checking in",
+    "how have you been",
+    "how's it going",
+    "you ok",
+    "you okay",
+)
 
 
 
@@ -427,12 +457,7 @@ def _build_topic_text(state) -> str:
             return ""
         cleaned = text.lower().strip()
         cleaned = re.sub(r"[^\w\s'-]+", " ", cleaned)
-        filler = [
-            "hi", "hey", "hello", "good morning", "good afternoon", "good evening",
-            "how are you", "how are things", "checking in", "how have you been",
-            "how's it going", "you ok", "you okay", "thanks", "thank you"
-        ]
-        for phrase in filler:
+        for phrase in TOPIC_FILLER_PHRASES:
             cleaned = cleaned.replace(phrase, " ")
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         return cleaned
@@ -457,9 +482,6 @@ def _build_topic_text(state) -> str:
             pieces.append(_clean_topic_text(last_patient))
 
     return " ".join(piece for piece in pieces if piece).strip()
-
-
-PANKSEPP_LABELS = ["SEEKING", "FEAR", "RAGE", "LUST", "CARE", "PANIC_GRIEF", "PLAY"]
 
 
 def _embed_texts(texts):
@@ -674,7 +696,7 @@ def flatten_topics(topics_json):
 
 # === Build embeddings ===
 TOPIC_RECORDS = flatten_topics(TOPIC_TREE)
-TOPIC_LABELS = [f"{t['top']} → {t['sub']}" for t in TOPIC_RECORDS]
+TOPIC_LABELS = [f"{t['top']}{TOPIC_LABEL_SEPARATOR}{t['sub']}" for t in TOPIC_RECORDS]
 
 
 def _coerce_topic_label(label: str) -> str:
@@ -685,14 +707,14 @@ def _coerce_topic_label(label: str) -> str:
         return "unknown"
     if cleaned in TOPIC_LABELS:
         return cleaned
-    normalized = " → ".join(p.strip() for p in re.split(r"[→>]", cleaned) if p.strip())
+    normalized = TOPIC_LABEL_SEPARATOR.join(p.strip() for p in re.split(r"[→>]", cleaned) if p.strip())
     return normalized if normalized in TOPIC_LABELS else "unknown"
 
 
 def _label_to_topic(label: str, fallback: Optional[dict]) -> dict:
     if not label or label.lower() == "unknown":
-        return fallback or {"intent": "topic_detection", "top": "unknown", "sub": "unknown", "score": 0.0}
-    if "→" in label:
+        return fallback or dict(UNKNOWN_TOPIC)
+    if TOPIC_LABEL_SEPARATOR.strip() in label:
         parts = [p.strip() for p in label.split("→")]
     elif ">" in label:
         parts = [p.strip() for p in label.split(">")]
@@ -764,7 +786,7 @@ def classify_topic_and_emotion(
 # === LangGraph State ===
 class State(BaseModel):
     """Central LangGraph state container passed between nodes."""
-    patient_id: Optional[str] = None  # NEW
+    patient_id: Optional[str] = None
     therapist_id: Optional[str] = None
     session_id: Optional[str] = None
     user_input: Optional[str] = None
@@ -870,6 +892,65 @@ def load_profile(state):
     return updates
 
 
+def _prior_bias_vector(label: Optional[str], baseline: Dict[str, float]) -> Optional[Dict[str, float]]:
+    """Bias the previous vector toward the classifier signal without overwriting state."""
+    if not label:
+        return None
+    key = _normalize_emotion_key(label)
+    if key not in EMOTIONS:
+        return None
+    biased = dict(baseline)
+    biased[key] = max(baseline.get(key, 0.5), 0.7)
+    return biased
+
+
+def _blend_emotion_bias(
+    snapshot: Dict[str, float],
+    prior_bias: Dict[str, float],
+    baseline: Dict[str, float],
+    *,
+    weight: float = 0.15,
+) -> Dict[str, float]:
+    """Blend classifier bias into the computed emotion vector while keeping values bounded."""
+    blended_snapshot = {}
+    for emotion, value in snapshot.items():
+        biased_value = prior_bias.get(emotion, baseline.get(emotion, 0.5))
+        blended_snapshot[emotion] = max(0.0, min(1.0, (1 - weight) * value + weight * biased_value))
+    return blended_snapshot
+
+
+def _next_low_salience_streak(current_streak: int, salience: float) -> int:
+    """Track repeated low-salience turns so emotions can drift back toward baseline."""
+    if salience < 0.3:
+        return (current_streak or 0) + 1
+    return 0
+
+
+def _apply_low_salience_decay(
+    snapshot: Dict[str, float],
+    baseline: Dict[str, float],
+    *,
+    low_salience_streak: int,
+) -> Dict[str, float]:
+    """Gently decay emotion values toward baseline after multiple neutral turns."""
+    if low_salience_streak < 2:
+        return snapshot
+    decayed = {}
+    for emotion, value in snapshot.items():
+        delta = value - baseline.get(emotion, 0.5)
+        decayed[emotion] = max(0.0, min(1.0, value - 0.05 * delta))
+    return decayed
+
+
+def _dominant_emotion_metrics(snapshot: Dict[str, float]) -> tuple[str, float, float]:
+    """Return primary emotion, peak value and blended display intensity."""
+    ranked = sorted(snapshot.items(), key=lambda item: item[1], reverse=True)
+    primary_emotion, peak_value = ranked[0]
+    secondary_value = ranked[1][1] if len(ranked) > 1 else peak_value
+    intensity = 0.6 * peak_value + 0.4 * secondary_value
+    return primary_emotion, peak_value, intensity
+
+
 def update_emotional_state(state):
     """Synthesize momentary emotion vector from baseline, volatility, and context event."""
     profile = state.patient_profile
@@ -881,45 +962,25 @@ def update_emotional_state(state):
     event, salience = _detect_context_event(therapist_text, state.safety_flags, topic_changed)
     baseline = _trait_baseline_from_profile(profile)
     volatility = _volatility_from_profile(profile)
-    def _prior_bias_vector(label: Optional[str], baseline_vec: Dict[str, float]) -> Optional[Dict[str, float]]:
-        if not label:
-            return None
-        key = _normalize_emotion_key(label)
-        if key not in EMOTIONS:
-            return None
-        biased = dict(baseline_vec)
-        biased[key] = max(baseline_vec.get(key, 0.5), 0.7)
-        return biased
 
     previous = state.emotion_state or getattr(profile, "emotion_state", None)
     prior_bias = _prior_bias_vector(getattr(state, "classified_emotion", None), baseline)
-    previous_state = prior_bias or previous
     snapshot = compute_emotional_state(
         baseline,
         volatility_level=volatility,
         event=event,
-        previous_state=previous_state,
+        previous_state=prior_bias or previous,
     )
     if prior_bias:
-        blend_weight = 0.15
-        for emotion in snapshot:
-            blended = (1 - blend_weight) * snapshot[emotion] + blend_weight * prior_bias.get(emotion, baseline.get(emotion, 0.5))
-            snapshot[emotion] = max(0.0, min(1.0, blended))
+        snapshot = _blend_emotion_bias(snapshot, prior_bias, baseline)
 
-    # Gentle decay toward baseline when multiple low-salience turns occur.
-    if salience < 0.3:
-        state.low_salience_streak = (state.low_salience_streak or 0) + 1
-    else:
-        state.low_salience_streak = 0
-    if state.low_salience_streak >= 2:
-        for emotion in snapshot:
-            delta = snapshot[emotion] - baseline.get(emotion, 0.5)
-            snapshot[emotion] = max(0.0, min(1.0, snapshot[emotion] - 0.05 * delta))
-
-    dominant = sorted(snapshot.items(), key=lambda item: item[1], reverse=True)
-    primary_emotion, peak_value = dominant[0]
-    secondary = dominant[1][1] if len(dominant) > 1 else primary_emotion
-    intensity = 0.6 * peak_value + 0.4 * (secondary if isinstance(secondary, (int, float)) else peak_value)
+    low_salience_streak = _next_low_salience_streak(state.low_salience_streak, salience)
+    snapshot = _apply_low_salience_decay(
+        snapshot,
+        baseline,
+        low_salience_streak=low_salience_streak,
+    )
+    primary_emotion, peak_value, intensity = _dominant_emotion_metrics(snapshot)
 
     profile.emotion_state = snapshot
     state.core_emotion = primary_emotion.lower()
@@ -927,6 +988,7 @@ def update_emotional_state(state):
     state.emotion_event = event
     state.emotion_salience = salience
     state.emotion_intensity = intensity
+    state.low_salience_streak = low_salience_streak
     profile.__dict__["emotion_intensity"] = intensity
 
     logger.info(
@@ -946,11 +1008,9 @@ def update_emotional_state(state):
 def _is_greeting_or_checkin(text: str) -> bool:
     """Quick check for greeting/check-in phrases that should not force a new topic."""
     lowered = text.lower()
-    simple = {"hi", "hey", "hello", "good morning", "good afternoon", "good evening"}
-    if any(lowered.startswith(g) for g in simple):
+    if any(lowered.startswith(greeting) for greeting in GREETING_PREFIXES):
         return True
-    cues = ["how are you", "how are things", "checking in", "how have you been", "how's it going", "you ok", "you okay"]
-    return any(cue in lowered for cue in cues)
+    return any(cue in lowered for cue in CHECKIN_CUES)
 
 
 

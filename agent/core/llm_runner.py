@@ -4,6 +4,7 @@ import random
 import threading
 import time
 
+from dataclasses import dataclass
 from typing import Optional
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
@@ -63,6 +64,14 @@ DEFAULT_VERTEX_RATE_LIMIT_COOLDOWN_SECONDS = 15.0
 DEFAULT_VERTEX_MIN_REQUEST_INTERVAL_SECONDS = 0.0
 VERTEX_NO_TEXT_RECOVERY_MIN_TOKENS = 256
 VERTEX_NO_TEXT_RECOVERY_MAX_TOKENS = 512
+DEFAULT_PROVIDER = "local"
+DEFAULT_TEMPERATURE = 0.7
+DEFAULT_MAX_TOKENS = 512
+DEFAULT_VERTEX_LOCATION = "us-central1"
+DEFAULT_HF_CACHE_DIR = "~/.cache/huggingface"
+STOP_SEQUENCES = ["\nTherapist:", "Therapist:"]
+VERTEX_TOP_P = 0.95
+VERTEX_TOP_K = 40
 
 # === Load Environment ===
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../../config/.env"))
@@ -76,6 +85,18 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = abs_path
 _VERTEX_RATE_LIMIT_LOCK = threading.Lock()
 _VERTEX_NEXT_REQUEST_AT = 0.0
 _VERTEX_LAST_REQUEST_AT = 0.0
+
+
+@dataclass(frozen=True)
+class LLMRunnerConfig:
+    """Resolved provider configuration used to instantiate an LLM runner."""
+
+    provider: str
+    model_id: Optional[str]
+    temperature: float
+    max_tokens: int
+    cache_path: Optional[str] = None
+    max_model_len: Optional[int] = None
 
 
 def _env_positive_int(name: str, default: int) -> int:
@@ -105,6 +126,77 @@ def _env_non_negative_float(name: str, default: float) -> float:
         logger.warning("Ignoring invalid %s=%r. Using %.2f.", name, raw_value, default)
         return default
 
+
+def _parse_optional_positive_int(name: str, raw_value: Optional[str]) -> Optional[int]:
+    """Parse an optional positive integer, logging and ignoring invalid values."""
+    if not raw_value:
+        return None
+    try:
+        value = int(raw_value)
+        if value <= 0:
+            raise ValueError
+        return value
+    except ValueError:
+        logger.warning("Ignoring invalid %s=%r. Use a positive integer.", name, raw_value)
+        return None
+
+
+def _parse_float(name: str, raw_value: Optional[str], default: float) -> float:
+    if raw_value is None:
+        return default
+    try:
+        return float(raw_value)
+    except ValueError:
+        logger.warning("Ignoring invalid %s=%r. Using %.2f.", name, raw_value, default)
+        return default
+
+
+def _resolve_runner_config(
+    *,
+    provider: Optional[str],
+    model_id: Optional[str],
+    temperature: Optional[float],
+    max_tokens: Optional[int],
+    max_model_len: Optional[int],
+    cache_path: Optional[str],
+) -> LLMRunnerConfig:
+    """Merge explicit overrides with environment variables into one typed config."""
+    resolved_provider = (provider or os.getenv("model_provider", DEFAULT_PROVIDER)).strip().lower()
+    resolved_model_id = model_id if model_id is not None else os.getenv("model_id")
+    resolved_temperature = (
+        temperature
+        if temperature is not None
+        else _parse_float("temperature", os.getenv("temperature"), DEFAULT_TEMPERATURE)
+    )
+    resolved_max_tokens = max_tokens if max_tokens is not None else _env_positive_int("max_tokens", DEFAULT_MAX_TOKENS)
+    resolved_max_model_len = (
+        max_model_len
+        if max_model_len is not None
+        else _parse_optional_positive_int("max_model_len", os.getenv("max_model_len"))
+    )
+    resolved_cache_path = cache_path if cache_path is not None else os.getenv("cache_path")
+    return LLMRunnerConfig(
+        provider=resolved_provider,
+        model_id=resolved_model_id,
+        temperature=resolved_temperature,
+        max_tokens=resolved_max_tokens,
+        cache_path=resolved_cache_path,
+        max_model_len=resolved_max_model_len,
+    )
+
+
+def _preferred_local_device() -> tuple[int, str]:
+    """Return tensor parallel count and vLLM device for the available accelerator."""
+    if torch is not None and hasattr(torch, "xpu") and torch.xpu.is_available():
+        n_devices = torch.xpu.device_count()
+        logger.info("Intel XPU detected. Using %s XPU(s).", n_devices)
+        return n_devices, "xpu"
+
+    cuda_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    n_devices = 1 if not cuda_devices else cuda_devices.count(",") + 1
+    logger.info("Using %s GPU(s) (CUDA_VISIBLE_DEVICES=%s)", n_devices, cuda_devices)
+    return n_devices, "auto"
+
 # === Base LLM Runner ===
 class LLMRunnerBase(ABC):
     """Minimal interface all backing LLM providers must implement."""
@@ -129,7 +221,10 @@ class LocalLLMRunner(LLMRunnerBase):
         max_model_len: Optional[int] = None,
     ):
         if not VLLM_AVAILABLE:
-            raise ImportError("Checking for execution: 'vllm' module is not installed. This installation requires Python <= 3.12 (approx) and compatible 'torch' version. Please use 'vertex_ai' provider or install 'vllm' manually in a compatible environment.")
+            raise ImportError(
+                "Local provider requires the `vllm` package plus compatible `torch`. "
+                "Install a matching local stack, use the Docker image, or set model_provider=vertex_ai."
+            )
         
         super().__init__(temperature, max_tokens)
 
@@ -156,19 +251,11 @@ class LocalLLMRunner(LLMRunnerBase):
         try:
             download_dir = (
                 self.cache_path if self.cache_path and os.path.isdir(self.cache_path)
-                else os.getenv("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+                else os.getenv("HF_HOME", os.path.expanduser(DEFAULT_HF_CACHE_DIR))
             )
             os.makedirs(download_dir, exist_ok=True)
 
-            if torch is not None and hasattr(torch, "xpu") and torch.xpu.is_available():
-                n_gpus = torch.xpu.device_count()
-                device = "xpu"
-                logger.info(f"Intel XPU detected. Using {n_gpus} XPU(s).")
-            else:
-                cuda_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "")
-                n_gpus = 1 if not cuda_devices else cuda_devices.count(",") + 1
-                device = "auto"
-                logger.info(f"Using {n_gpus} GPU(s) (CUDA_VISIBLE_DEVICES={cuda_devices})")
+            n_gpus, device = _preferred_local_device()
             logger.info(f"Download dir: {download_dir}")
             logger.info(f"Loading model: {self.model_id}")
 
@@ -195,7 +282,7 @@ class LocalLLMRunner(LLMRunnerBase):
             sampling_params = SamplingParams(
                 temperature=temp,
                 max_tokens=max_tok,
-                stop=["\nTherapist:", "Therapist:"]
+                stop=STOP_SEQUENCES,
             )
             outputs = self.llm.generate(prompt, sampling_params=sampling_params)
             return outputs[0].outputs[0].text.strip() if outputs and outputs[0].outputs else "[NO RESPONSE]"
@@ -217,7 +304,7 @@ class VertexLLMRunner(LLMRunnerBase):
             )
 
         project = os.getenv("GCP_PROJECT")
-        location = os.getenv("GCP_LOCATION", "us-central1")
+        location = os.getenv("GCP_LOCATION", DEFAULT_VERTEX_LOCATION)
 
         if not model_id or not project:
             raise ValueError("Missing required Vertex AI configuration.")
@@ -394,9 +481,9 @@ class VertexLLMRunner(LLMRunnerBase):
                     generation_config={
                         "temperature": temp,
                         "max_output_tokens": current_max_tok,
-                        "stop_sequences": ["\nTherapist:", "Therapist:"],
-                        "top_p": 0.95,
-                        "top_k": 40,
+                        "stop_sequences": STOP_SEQUENCES,
+                        "top_p": VERTEX_TOP_P,
+                        "top_k": VERTEX_TOP_K,
                     },
                     safety_settings=self.safety_settings
                 )
@@ -487,35 +574,23 @@ def create_llm_runner(
     cache_path: Optional[str] = None,
 ) -> LLMRunnerBase:
     """Factory that instantiates the correct runner based on environment configuration."""
-    resolved_provider = (provider or os.getenv("model_provider", "local")).lower()
-    resolved_model_id = model_id if model_id is not None else os.getenv("model_id")
-    resolved_temperature = temperature if temperature is not None else float(os.getenv("temperature", 0.7))
-    resolved_max_tokens = max_tokens if max_tokens is not None else int(os.getenv("max_tokens", 512))
-    resolved_cache_path = cache_path if cache_path is not None else os.getenv("cache_path")
-    resolved_max_model_len = max_model_len
+    config = _resolve_runner_config(
+        provider=provider,
+        model_id=model_id,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        max_model_len=max_model_len,
+        cache_path=cache_path,
+    )
 
-    if resolved_max_model_len is None:
-        max_model_len_raw = os.getenv("max_model_len")
-        if max_model_len_raw:
-            try:
-                parsed_max_model_len = int(max_model_len_raw)
-                if parsed_max_model_len <= 0:
-                    raise ValueError
-                resolved_max_model_len = parsed_max_model_len
-            except ValueError:
-                logger.warning(
-                    "Ignoring invalid max_model_len=%r. Use a positive integer (e.g. 8192).",
-                    max_model_len_raw,
-                )
-
-    if resolved_provider == "local":
+    if config.provider == "local":
         return LocalLLMRunner(
-            resolved_model_id,
-            resolved_cache_path,
-            resolved_temperature,
-            resolved_max_tokens,
-            max_model_len=resolved_max_model_len,
+            config.model_id,
+            config.cache_path,
+            config.temperature,
+            config.max_tokens,
+            max_model_len=config.max_model_len,
         )
-    if resolved_provider == "vertex_ai":
-        return VertexLLMRunner(resolved_model_id, resolved_temperature, resolved_max_tokens)
-    raise ValueError(f"Unsupported model provider: {resolved_provider}")
+    if config.provider == "vertex_ai":
+        return VertexLLMRunner(config.model_id, config.temperature, config.max_tokens)
+    raise ValueError(f"Unsupported model provider: {config.provider}")

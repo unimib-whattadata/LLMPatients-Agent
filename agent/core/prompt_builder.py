@@ -59,10 +59,12 @@ def _select_emotion_bands(emotion_state: dict):
     return sorted(filtered, key=lambda x: x[1], reverse=True)[:3]
 
 
-def add_section(always_sections: list, title: str, text: str | None):
+def _append_prompt_section(sections: list[str], title: str, text: str | None) -> list[str]:
+    """Append a titled prompt section when it has content."""
     if text:
-        always_sections.append(f"---\n{title}\n{text}")
-    return always_sections
+        sections.append(f"---\n{title}\n{text}")
+    return sections
+
 
 def _ensure_details(raw):
     if isinstance(raw, dict):
@@ -101,6 +103,27 @@ def _compress_text(text: str, max_len: int, threshold: int) -> str:
     combined = f"{head} ... {tail}".strip()
     return _truncate_text(combined, max_len)
 
+
+def _resolve_profile_field(profile, field_name: str):
+    """Resolve topic metadata field names against the profile details model."""
+    details = getattr(profile, "details", None)
+    if not details:
+        return getattr(profile, field_name, None)
+
+    details_fields = {
+        "demographicAndSocioculturalInformation",
+        "familyHistory",
+        "educationAndEmployment",
+        "socialRelationshipsAndInteractions",
+        "treatmentsAndInterventions",
+        "medicalAndPhysicalHistory",
+        "behaviorDuringTestAdministration",
+        "clinicalFunctioning",
+    }
+    if field_name in details_fields:
+        return getattr(details, field_name, None)
+    return getattr(profile, field_name, None)
+
 # ------------------------------------------------------------------
 # Prompt builder
 # ------------------------------------------------------------------
@@ -128,13 +151,11 @@ def build_prompt(state):
     # Always-on patient identity & structure
     # ------------------------------------------------------------------
     primary_sections = []
-    reference_sections = []
-
     details = _ensure_details(getattr(profile, "details", None))
 
     # --- Demographics / identity ---
     if details and details.demographicAndSocioculturalInformation:
-        primary_sections = add_section(
+        primary_sections = _append_prompt_section(
             primary_sections,
             "🧍 Identity",
             details.demographicAndSocioculturalInformation.to_prompt(),
@@ -143,7 +164,7 @@ def build_prompt(state):
     if hasattr(profile, "stable_identity_facts_prompt"):
         stable_identity = profile.stable_identity_facts_prompt()
         if stable_identity:
-            primary_sections = add_section(
+            primary_sections = _append_prompt_section(
                 primary_sections,
                 "🔒 Stable Identity Facts",
                 _truncate_text(stable_identity, SECTION_MAX_CHARS),
@@ -153,13 +174,13 @@ def build_prompt(state):
     if hasattr(profile, "cognitive_style_prompt"):
         cognitive_style = profile.cognitive_style_prompt()
         if cognitive_style:
-            primary_sections = add_section(primary_sections, "Cognitive Style", cognitive_style)
+            primary_sections = _append_prompt_section(primary_sections, "Cognitive Style", cognitive_style)
 
     # --- Observed interaction style ---
     if details and details.behaviorDuringTestAdministration:
         observed = details.behaviorDuringTestAdministration.to_prompt()
         if observed:
-            primary_sections = add_section(
+            primary_sections = _append_prompt_section(
                 primary_sections,
                 "🎭 Observed Interaction Style",
                 _truncate_text(observed, SECTION_MAX_CHARS),
@@ -172,43 +193,25 @@ def build_prompt(state):
             hint = EMOTION_SYSTEM_HINTS.get(label, "colors your tone and reactions")
             display = EMOTION_LABELS.get(label, label.title())
             affect_lines.append(f"- {display} ({value:.2f}): {hint}")
-        primary_sections = add_section(
+        primary_sections = _append_prompt_section(
             primary_sections,
             "🎚️ Dominant Affective Systems",
             "\n".join(affect_lines),
         )
 
     primary_text = "\n".join(primary_sections)
-    reference_text = "\n".join(reference_sections)
 
     # ------------------------------------------------------------------
     # Topic-conditioned dynamic sections
     # ------------------------------------------------------------------
     dynamic_sections = []
 
-    def resolve_field(field_name: str):
-        details = getattr(profile, "details", None)
-        if not details:
-            return getattr(profile, field_name, None)
-        mapping = {
-            # New schema names
-            "demographicAndSocioculturalInformation": getattr(details, "demographicAndSocioculturalInformation", None),
-            "familyHistory": getattr(details, "familyHistory", None),
-            "educationAndEmployment": getattr(details, "educationAndEmployment", None),
-            "socialRelationshipsAndInteractions": getattr(details, "socialRelationshipsAndInteractions", None),
-            "treatmentsAndInterventions": getattr(details, "treatmentsAndInterventions", None),
-            "medicalAndPhysicalHistory": getattr(details, "medicalAndPhysicalHistory", None),
-            "behaviorDuringTestAdministration": getattr(details, "behaviorDuringTestAdministration", None),
-            "clinicalFunctioning": getattr(details, "clinicalFunctioning", None),
-        }
-        return mapping.get(field_name, getattr(profile, field_name, None))
-
     if top_topic in TOPICS_JSON:
         metadata = TOPICS_JSON[top_topic].get("metadata", {})
         profile_fields = metadata.get("profile_fields", [])
 
         for field_name in profile_fields:
-            section = resolve_field(field_name)
+            section = _resolve_profile_field(profile, field_name)
             if section and hasattr(section, "to_prompt"):
                 text = section.to_prompt()
                 if text:
@@ -321,8 +324,6 @@ Preserve their worldview, emotional tendencies, and relationship with the therap
 {primary_text}
 
 {history_text}
-
-{reference_text}
 
 {dynamic_text}
 
