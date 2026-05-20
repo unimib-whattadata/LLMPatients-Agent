@@ -87,12 +87,17 @@ def compute_emotional_state(
     *,
     volatility_level: str,
     event: str = "neutral",
+    salience: Optional[float] = None,
     previous_state: Optional[Dict[str, float]] = None,
 ) -> Dict[str, float]:
     """Combine baseline + noise + context modifiers to produce the momentary emotional map."""
     baseline = _normalized_baseline(trait_baseline)
-    salience = EVENT_SALIENCE.get(event, EVENT_SALIENCE["neutral"])
-    noise = sample_noise(volatility_level, salience=salience)
+    effective_salience = (
+        EVENT_SALIENCE.get(event, EVENT_SALIENCE["neutral"])
+        if salience is None
+        else clamp(salience)
+    )
+    noise = sample_noise(volatility_level, salience=effective_salience)
     modifiers = context_adjustments(event)
 
     target = {}
@@ -106,7 +111,7 @@ def compute_emotional_state(
     if not previous_state:
         return target
 
-    smoothing = _smoothing_factor(salience)
+    smoothing = _smoothing_factor(effective_salience)
     smoothed = {}
     for emotion in EMOTIONS:
         prev = clamp(previous_state.get(emotion, baseline[emotion]))

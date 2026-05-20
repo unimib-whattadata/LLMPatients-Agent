@@ -13,6 +13,11 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 import atexit
 
+try:
+    import torch
+except ImportError:
+    torch = None
+
 from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
 from agent.core.memory_store import JsonlMemoryStore
@@ -45,7 +50,13 @@ load_dotenv(dotenv_path=env_path)
 llm_runner = create_llm_runner()
 
 # === Load SentenceTransformer ===
-st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+if torch is not None and hasattr(torch, "xpu") and torch.xpu.is_available():
+    embedding_device = "xpu"
+    logger.info("Intel XPU detected. Using device='xpu' for embeddings.")
+else:
+    embedding_device = "cpu"
+
+st_model = SentenceTransformer("all-MiniLM-L6-v2", device=embedding_device)
 
 CHECKPOINTER = MemorySaver()
 PROFILE_CACHE: Dict[str, dict] = {}
