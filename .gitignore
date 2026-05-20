@@ -8,6 +8,8 @@ OLD/
 !data/questionnaire_results/old/
 !data/questionnaire_results/old/**
 .env
+.env.*
+!.env.example
 vertex-ai-api-key.json
 .android/
 .idea/

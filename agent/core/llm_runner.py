@@ -74,8 +74,10 @@ VERTEX_TOP_P = 0.95
 VERTEX_TOP_K = 40
 
 # === Load Environment ===
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../../config/.env"))
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+for env_file in (".env", "config/.env"):
+    load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, env_file))
+
 rel_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "config/vertex-ai-api-key.json")
 abs_path = os.path.join(PROJECT_ROOT, rel_path)
 
@@ -554,7 +556,7 @@ class VertexLLMRunner(LLMRunnerBase):
                     logger.error(
                         "Vertex AI (Gemini) generation failed after %s attempts: %s. "
                         "If this keeps happening on Standard/PAYG, try GCP_LOCATION=global "
-                        "and/or lower max_tokens in config/.env.",
+                        "and/or lower max_tokens in .env.",
                         self.max_attempts,
                         e,
                     )

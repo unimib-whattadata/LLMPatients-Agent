@@ -1,46 +1,32 @@
+name: llmpatients-agent
+
 services:
-  llmpatients-api:
-    init: true
-    image: llmpatients-agent:latest
+  # FastAPI patient/orchestrator backend
+  api:
+    image: ${LLMPATIENTS_AGENT_IMAGE:-llmpatients-agent:latest}
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        BASE_IMAGE: ${LLMPATIENTS_BASE_IMAGE:-intel/vllm}
+        BASE_IMAGE: ${LLMPATIENTS_AGENT_BASE_IMAGE:-intel/vllm}
+    init: true
+    env_file:
+      - .env
     ports:
-      - "${LLMPATIENTS_PORT:-8000}:8000"
-    environment:
-      PYTHONPATH: /app
-      PORT: 8000
-      model_provider: ${MODEL_PROVIDER:-local}
-      model_id: ${MODEL_ID:-}
-      temperature: ${TEMPERATURE:-0.7}
-      max_tokens: ${MAX_TOKENS:-512}
-      max_model_len: ${MAX_MODEL_LEN:-}
-      cache_path: /root/.cache/huggingface
-      GCP_PROJECT: ${GCP_PROJECT:-}
-      GCP_LOCATION: ${GCP_LOCATION:-us-central1}
-      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-config/vertex-ai-api-key.json}
-      PSYLLM_EXPORT_TOKEN: ${PSYLLM_EXPORT_TOKEN:-}
-      CLI_ARGS: ${CLI_ARGS:-}
-      PYTORCH_XPU_ALLOC_CONF: ${PYTORCH_XPU_ALLOC_CONF:-max_split_size_mb:512}
-      NEO_READ_XPU_MEM: ${NEO_READ_XPU_MEM:-1}
-      ONEAPI_DEVICE_SELECTOR: ${ONEAPI_DEVICE_SELECTOR:-level_zero:0}
-      DONT_SET_DEVICE_MAP: ${DONT_SET_DEVICE_MAP:-1}
-      PYTORCH_TRITON_XPU_CACHE_DIR: /tmp/triton_cache
-    devices:
-      - /dev/dri:/dev/dri
-      - /dev/dri/renderD128:/dev/dri/renderD128
-    ipc: host
-    group_add:
-      - "${LLMPATIENTS_RENDER_GROUP:-109}"
-    security_opt:
-      - label:disable
+      - "${LLMPATIENTS_AGENT_PORT:-8000}:8000"
     volumes:
       - ./data:/app/data
       - ./config:/app/config:ro
       - ./tests/runs:/app/tests/runs
       - huggingface-cache:/root/.cache/huggingface
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    ipc: host
+    group_add:
+      - "${LLMPATIENTS_AGENT_RENDER_GROUP:-109}"
+    security_opt:
+      - label:disable
     restart: unless-stopped
 
 volumes:

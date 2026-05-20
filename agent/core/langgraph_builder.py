@@ -42,8 +42,8 @@ logger = logging.getLogger(__name__)
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 # === Load Environment ===
-env_path = ROOT_DIR / "config" / ".env"
-load_dotenv(dotenv_path=env_path)
+for env_path in (ROOT_DIR / ".env", ROOT_DIR / "config" / ".env"):
+    load_dotenv(dotenv_path=env_path)
 
 
 # === Initialize LLM Runner ===

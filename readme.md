@@ -79,11 +79,10 @@ pip install --upgrade pip
 pip install -r agent/requirements.txt
 ```
 
-### 2. Create `config/.env`
+### 2. Create `.env`
 
 ```bash
-mkdir -p config
-touch config/.env
+cp .env.example .env
 ```
 
 Minimum local configuration:
@@ -151,6 +150,17 @@ curl -X POST http://localhost:8000/session-end \
 
 Keep `therapist_id`, `external_patient_id` and `session_id` stable during a session. Call `/session-end` when the simulation ends so memory is finalized.
 
+### 7. Pair with LLMPatients-App
+
+When LLMPatients-App runs in remote API mode against this service, set the App `.env` values to the Agent API:
+
+```env
+API="remote"
+API_BASE_URL="http://localhost:8000"
+API_INITIALIZE_PATIENT_ENDPOINT="/patients"
+API_CHAT_RESPONSE_ENDPOINT="/chat-response"
+```
+
 ## Environment Variables
 
 | Variable | Required | Description |
@@ -182,19 +192,14 @@ Keep `therapist_id`, `external_patient_id` and `session_id` stable during a sess
 
 ### Docker Compose Variables
 
-The Compose file reads uppercase convenience variables and maps them into the lowercase names used by the Python runtime.
+`docker-compose.yml` follows the same root `.env` convention as LLMPatients-App. Lowercase variables are passed directly to the Python runtime; `LLMPATIENTS_AGENT_*` variables configure Compose itself.
 
 | Variable | Description |
 | --- | --- |
-| `LLMPATIENTS_BASE_IMAGE` | Docker base image. Defaults to `intel/vllm`. |
-| `LLMPATIENTS_PORT` | Host port mapped to container port `8000`. Defaults to `8000`. |
-| `LLMPATIENTS_RENDER_GROUP` | Linux render group id for `/dev/dri`. Defaults to `109`. |
-| `MODEL_PROVIDER` | Compose-facing value mapped to `model_provider`. |
-| `MODEL_ID` | Compose-facing value mapped to `model_id`. |
-| `TEMPERATURE` | Compose-facing value mapped to `temperature`. |
-| `MAX_TOKENS` | Compose-facing value mapped to `max_tokens`. |
-| `MAX_MODEL_LEN` | Compose-facing value mapped to `max_model_len`. |
-| `CLI_ARGS` | Optional extra runtime metadata. |
+| `LLMPATIENTS_AGENT_IMAGE` | Image tag built and run by Compose. Defaults to `llmpatients-agent:latest`. |
+| `LLMPATIENTS_AGENT_BASE_IMAGE` | Docker base image. Defaults to `intel/vllm`. |
+| `LLMPATIENTS_AGENT_PORT` | Host port mapped to container port `8000`. Defaults to `8000`. |
+| `LLMPATIENTS_AGENT_RENDER_GROUP` | Linux render group id for `/dev/dri`. Defaults to `109`. |
 
 ## Runtime Workflow
 
@@ -253,8 +258,9 @@ SCID extracts are present as structured YAML data but are marked non-runnable be
 | `PYTHONPATH=. python3 scripts/run_questionnaire.py --patient juanita_delgado_001 --questionnaire phq9` | Run one questionnaire. |
 | `bash scripts/run_all_questionnaires.sh` | Run all runnable questionnaires for canonical `_001` patients. |
 | `curl -H "X-Export-Token: $PSYLLM_EXPORT_TOKEN" http://localhost:8000/export-logs -o logs.tar.gz` | Export run logs and memory files when token protection is enabled. |
-| `docker compose up -d --build llmpatients-api` | Build and start the API container. |
-| `docker compose logs -f llmpatients-api` | Follow API container logs. |
+| `docker compose up -d` | Start the API container with Docker Compose. |
+| `docker compose up -d --build` | Rebuild the image and start the API container after Dockerfile or dependency changes. |
+| `docker compose logs -f` | Follow Compose logs. |
 | `docker compose down` | Stop the Compose stack. |
 
 ## Testing
@@ -297,7 +303,7 @@ pip install -r agent/requirements.txt
 PYTHONPATH=. uvicorn agent.api.app:app --host 0.0.0.0 --port 8000
 ```
 
-Set `config/.env` before starting the service. For production, keep secrets out of the repository and use a process manager such as systemd, launchd, Docker, or your deployment platform.
+Set `.env` before starting the service. For production, keep secrets out of the repository and use a process manager such as systemd, launchd, Docker, or your deployment platform.
 
 ### Docker image
 
@@ -309,7 +315,7 @@ Run with local data mounted:
 
 ```bash
 docker run --rm \
-  --env-file config/.env \
+  --env-file .env \
   -p 8000:8000 \
   -v "$PWD/data:/app/data" \
   -v "$PWD/tests/runs:/app/tests/runs" \
@@ -321,12 +327,16 @@ For Vertex AI, mount the credentials file into `/app/config/` or inject credenti
 ### Docker Compose API service
 
 The current `docker-compose.yml` manages the API service and mounts local runtime data:
+The Compose project is named `llmpatients-agent`, parallel to LLMPatients-App's `llmpatients-app`.
 
 ```bash
-docker compose up -d --build llmpatients-api
-docker compose logs -f llmpatients-api
+cp .env.example .env
+docker compose up -d
+docker compose logs -f
 docker compose down
 ```
+
+Use `docker compose up -d --build` only when you need to force an image rebuild, such as after changing the `Dockerfile`, dependency files, or files copied into the image during build.
 
 Compose mounts:
 
@@ -363,6 +373,8 @@ tests/                     Unit tests, manual API smoke test and run ledgers
 notebooks/                 Experimental data management and inference notebooks
 Dockerfile                 API image build
 docker-compose.yml         API service with local mounts and HF cache volume
+.dockerignore              Docker build-context exclusions for local secrets and generated data
+.env.example               Example runtime and Compose environment file
 filter_reqs.py             Requirement filter for preloaded vLLM/XPU images
 main.py                    Full CLI entrypoint
 readme.md                  Project documentation
@@ -372,7 +384,7 @@ readme.md                  Project documentation
 
 ### `Missing model_id for LocalLLMRunner`
 
-Set `model_id` in `config/.env` or switch to Vertex AI:
+Set `model_id` in `.env` or switch to Vertex AI:
 
 ```env
 model_provider=local
@@ -437,7 +449,7 @@ to see which questionnaires can run.
 
 ## Security
 
-- Never commit `config/.env`, cloud credentials, API keys, model provider secrets or exported log archives.
+- Never commit `.env`, `config/.env`, cloud credentials, API keys, model provider secrets or exported log archives.
 - Treat `data/memory/`, `tests/runs/` and `data/questionnaire_results/` as sensitive simulation artifacts.
 - Rotate any credential that appears in logs, screenshots or shared messages.
 - Use `PSYLLM_EXPORT_TOKEN` before exposing `/export-logs` beyond local development.
