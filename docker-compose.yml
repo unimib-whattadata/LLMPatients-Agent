@@ -11,7 +11,8 @@ services:
         BASE_IMAGE: ${LLMPATIENTS_AGENT_BASE_IMAGE:-intel/vllm}
     init: true
     env_file:
-      - .env
+      - path: .env
+        required: false
     ports:
       - "${LLMPATIENTS_AGENT_PORT:-8000}:8000"
     volumes:
@@ -19,14 +20,6 @@ services:
       - ./config:/app/config:ro
       - ./tests/runs:/app/tests/runs
       - huggingface-cache:/root/.cache/huggingface
-    devices:
-      - /dev/dri:/dev/dri
-      - /dev/dri/renderD128:/dev/dri/renderD128
-    ipc: host
-    group_add:
-      - "${LLMPATIENTS_AGENT_RENDER_GROUP:-109}"
-    security_opt:
-      - label:disable
     restart: unless-stopped
 
 volumes:

@@ -159,7 +159,11 @@ API="remote"
 API_BASE_URL="http://localhost:8000"
 API_INITIALIZE_PATIENT_ENDPOINT="/patients"
 API_CHAT_RESPONSE_ENDPOINT="/chat-response"
+API_TIMEOUT_INITIALIZE_PATIENT="120000"
+API_TIMEOUT_CHAT_RESPONSE="120000"
 ```
+
+When LLMPatients-App itself runs in Docker and this Agent is exposed on the host, use `API_BASE_URL="http://host.docker.internal:8000"` in the App container.
 
 ## Environment Variables
 
@@ -199,7 +203,7 @@ API_CHAT_RESPONSE_ENDPOINT="/chat-response"
 | `LLMPATIENTS_AGENT_IMAGE` | Image tag built and run by Compose. Defaults to `llmpatients-agent:latest`. |
 | `LLMPATIENTS_AGENT_BASE_IMAGE` | Docker base image. Defaults to `intel/vllm`. |
 | `LLMPATIENTS_AGENT_PORT` | Host port mapped to container port `8000`. Defaults to `8000`. |
-| `LLMPATIENTS_AGENT_RENDER_GROUP` | Linux render group id for `/dev/dri`. Defaults to `109`. |
+| `LLMPATIENTS_AGENT_RENDER_GROUP` | Linux render group id for `/dev/dri` when using `docker-compose.xpu.yml`. Defaults to `109`. |
 
 ## Runtime Workflow
 
@@ -337,6 +341,7 @@ docker compose down
 ```
 
 Use `docker compose up -d --build` only when you need to force an image rebuild, such as after changing the `Dockerfile`, dependency files, or files copied into the image during build.
+The `.env` file is optional for Compose parsing, but the runtime still needs a valid provider configuration such as `model_provider` and `model_id`.
 
 Compose mounts:
 
@@ -348,12 +353,18 @@ Compose mounts:
 
 It also creates a named `huggingface-cache` volume for downloaded models.
 
+Intel XPU device mounts are kept in the optional override file so default Compose runs on Docker Desktop and non-XPU hosts:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.xpu.yml up -d
+```
+
 ### Deployment Notes
 
 - Keep `model_provider`, `model_id`, token limits and credential paths explicit in the runtime environment.
 - Call `/session-end` from the client when a simulation ends; otherwise the latest reflection/summary may not be finalized.
 - Treat `data/memory/`, `tests/runs/` and exported log archives as sensitive simulation data.
-- The Compose file includes Linux `/dev/dri` devices for Intel XPU deployments. Remove or override those entries on hosts without that device path.
+- Use `docker-compose.xpu.yml` only on Linux hosts with Intel XPU `/dev/dri` devices.
 - Do not bake cloud credentials, `.env` files, patient data or memory exports into Docker images.
 
 ## Project Structure
@@ -425,9 +436,13 @@ JSON patient profiles are not part of the current runtime profile loader.
 
 Use the same `therapist_id`, `external_patient_id` and `session_id` for all turns, then call `/session-end` once the session is complete.
 
-### `docker compose up` fails on `/dev/dri`
+### XPU device access is missing
 
-The Compose file targets Intel XPU/Linux hosts. On machines without `/dev/dri`, remove or override the `devices`, `group_add`, `ipc` and XPU-specific environment settings.
+Default Compose does not mount `/dev/dri`. On Linux hosts with Intel XPU devices, start with the optional override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.xpu.yml up -d
+```
 
 ### Docker cannot connect to the daemon
 
