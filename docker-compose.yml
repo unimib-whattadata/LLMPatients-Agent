@@ -17,8 +17,6 @@ services:
     env_file:
       - path: .env
         required: false
-    ports:
-      - "${LLMPATIENTS_AGENT_PORT:-8000}:8000"
     volumes:
       - ./data:/app/data
       - ./config:/app/config:ro
