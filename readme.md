@@ -424,11 +424,23 @@ model_dtype=half
 
 When deploying inside Docker on an Intel GPU/XPU host, the oneCCL communication library attempts to initialize inter-process communication for Level Zero buffers. If the default `pidfd` mechanism is blocked or unsupported, it falls back to a DRM-based (`drmfd`) exchange mechanism, which tries to scan the host's `/sys/class/drm` or `/dev/dri` directories. In restricted Docker environments (or deployments like Coolify), this leads to a permission/access crash.
 
-**Fix**: Instruct oneCCL to use a socket-based IPC exchange mechanism instead by adding the following variable to your `.env` file:
+Even when setting `CCL_ZE_IPC_EXCHANGE=sockets`, the oneCCL startup code still initializes the file descriptor manager (`ze_fd_manager`) and can still trigger a fallback to `drmfd` checking.
 
-```env
-CCL_ZE_IPC_EXCHANGE=sockets
-```
+**Fix**: Enable elevated container privileges so that the oneAPI Level Zero runtime can access host-level hardware device details under `/sys/class/drm` and `/dev/dri`:
+
+1. In your **`docker-compose.yml`**, add `privileged: true` under the API service:
+   ```yaml
+   services:
+     api:
+       init: true
+       privileged: true  # Add this to resolve Level Zero sysfs access failures
+       devices:
+         - /dev/dri:/dev/dri
+   ```
+2. Alternatively, in your **`.env`** file, ensure standard XPU socket-based handle sharing is active:
+   ```env
+   CCL_ZE_IPC_EXCHANGE=sockets
+   ```
 
 #### Highly Recommended Level Zero Performance Settings
 
