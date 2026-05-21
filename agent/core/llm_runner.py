@@ -261,16 +261,31 @@ class LocalLLMRunner(LLMRunnerBase):
             logger.info(f"Download dir: {download_dir}")
             logger.info(f"Loading model: {self.model_id}")
 
-            return LLM(
-                model=self.model_id,
-                tokenizer_mode="auto",
-                trust_remote_code=True,
-                enable_prefix_caching=True,
-                max_model_len=self.max_model_len,
-                download_dir=download_dir,
-                tensor_parallel_size=n_gpus,
-                device=device,
-            )
+            try:
+                return LLM(
+                    model=self.model_id,
+                    tokenizer_mode="auto",
+                    trust_remote_code=True,
+                    enable_prefix_caching=True,
+                    max_model_len=self.max_model_len,
+                    download_dir=download_dir,
+                    tensor_parallel_size=n_gpus,
+                    device=device,
+                )
+            except TypeError as te:
+                if "device" in str(te):
+                    logger.warning("vLLM does not accept 'device' argument. Retrying without it.")
+                    return LLM(
+                        model=self.model_id,
+                        tokenizer_mode="auto",
+                        trust_remote_code=True,
+                        enable_prefix_caching=True,
+                        max_model_len=self.max_model_len,
+                        download_dir=download_dir,
+                        tensor_parallel_size=n_gpus,
+                    )
+                else:
+                    raise
         except Exception as e:
             logger.error(f"Failed to load local model: {e}")
             raise
