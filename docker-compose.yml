@@ -3,13 +3,17 @@ name: llmpatients-agent
 services:
   # FastAPI patient/orchestrator backend
   api:
-    image: ${LLMPATIENTS_AGENT_IMAGE:-llmpatients-agent:latest}
+    #image: ${LLMPATIENTS_AGENT_IMAGE:-llmpatients-agent:latest}
     build:
       context: .
       dockerfile: Dockerfile
       args:
         BASE_IMAGE: ${LLMPATIENTS_AGENT_BASE_IMAGE:-intel/vllm}
     init: true
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${LLMPATIENTS_AGENT_RENDER_GROUP:-110}"
     env_file:
       - path: .env
         required: false
