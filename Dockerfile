@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     PORT=8000
 
-COPY ./agent/requirements.txt ./requirements.txt
+COPY ./agent/requirements-xpu.txt ./requirements.txt
 COPY ./filter_reqs.py ./filter_reqs.py
 
 # vLLM and XPU-compatible torch may already be installed in the base image.

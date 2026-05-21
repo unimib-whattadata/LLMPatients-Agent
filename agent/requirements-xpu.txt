@@ -1,0 +1,61 @@
+# ==============================================================================
+# LLMPatients-Agent Requirements (Optimized for Intel XPU / Docker Build)
+# ==============================================================================
+# NOTE ON HARDWARE ACCELERATION (INTEL XPU / vLLM):
+# PyTorch XPU and vLLM are pre-installed and optimized in the 'intel/vllm' base image.
+# DO NOT list or uncomment 'torch', 'torchvision', 'torchaudio', or 'vllm' as active 
+# packages in this file for Docker builds. Doing so will force pip to fetch generic 
+# CPU/CUDA packages from PyPI, overwriting your hardware-optimized Intel XPU libraries.
+# ==============================================================================
+
+# ==============================================================================
+# Hardware-Specific Core Frameworks (Pre-installed in the Docker Base Image)
+# ==============================================================================
+# torch==2.9.0
+# torchvision==0.24.0
+# torchaudio==2.9.0
+# vllm==0.8.3
+
+# ==============================================================================
+# Core Application & API Webserver
+# ==============================================================================
+fastapi>=0.115.0
+uvicorn>=0.30.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+PyYAML>=6.0
+
+# ==============================================================================
+# Graph & Memory Workflows (LangGraph Stack)
+# ==============================================================================
+langgraph>=0.1.0
+langgraph-checkpoint>=2.0.0
+langgraph-prebuilt>=0.1.0
+langgraph-sdk>=0.1.0
+langchain-core>=0.3.0
+
+# ==============================================================================
+# Embeddings & Inference Utilities (Semantic Memory Search)
+# ==============================================================================
+sentence-transformers>=3.0.0
+transformers>=4.40.0
+tokenizers>=0.19.0
+safetensors>=0.4.0
+huggingface-hub>=0.23.0
+
+# ==============================================================================
+# Cloud LLM Support (Vertex AI & Gemini)
+# ==============================================================================
+google-cloud-aiplatform>=1.100.0
+google-genai>=1.0.0
+
+# ==============================================================================
+# Utilities & System Support
+# ==============================================================================
+requests>=2.31.0
+httpx>=0.27.0
+tenacity>=8.3.0
+tqdm>=4.66.0
+jinja2>=3.1.0
+typing-extensions>=4.11.0

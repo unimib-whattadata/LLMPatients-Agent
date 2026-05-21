@@ -79,6 +79,10 @@ pip install --upgrade pip
 pip install -r agent/requirements.txt
 ```
 
+> [!NOTE]
+> For containerized deployments using the optimized Intel XPU Docker base image (`intel/vllm`), the `Dockerfile` automatically utilizes a separate lightweight dependency manifest at `agent/requirements-xpu.txt` to prevent conflict or override with preloaded hardware-specific libraries.
+
+
 ### 2. Create `.env`
 
 ```bash
@@ -291,7 +295,7 @@ The automated unit tests cover:
 Notes:
 
 - Use Python 3.10+ for tests because the codebase uses modern type syntax.
-- The full dependency set is in `agent/requirements.txt`.
+- The full local dependency set is in `agent/requirements.txt`, while the optimized dependency set for the Intel XPU Docker container build is maintained in `agent/requirements-xpu.txt` (which excludes pre-installed frameworks like `torch` and `vllm` to avoid overwriting hardware-optimized packages).
 - `tests/api-google-test.py` is a manual smoke test for provider initialization and generation, not part of the `unittest discover` pattern.
 
 ## Production
@@ -314,6 +318,9 @@ Set `.env` before starting the service. For production, keep secrets out of the 
 ```bash
 docker build -t llmpatients-agent .
 ```
+
+> [!TIP]
+> The `Dockerfile` is pre-configured to use `agent/requirements-xpu.txt` for dependencies when building the image. It uses `filter_reqs.py` to strip out already-installed packages in the base image, ensuring that optimized, pre-installed versions of PyTorch XPU and vLLM are never overwritten.
 
 Run with local data mounted:
 
