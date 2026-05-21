@@ -420,6 +420,30 @@ model_dtype=half
 ```
 
 
+### `RuntimeError: oneCCL: ze_fd_manager.cpp:144 init_device_fds: EXCEPTION: opendir failed: could not open device directory`
+
+When deploying inside Docker on an Intel GPU/XPU host, the oneCCL communication library attempts to initialize inter-process communication for Level Zero buffers. If the default `pidfd` mechanism is blocked or unsupported, it falls back to a DRM-based (`drmfd`) exchange mechanism, which tries to scan the host's `/sys/class/drm` or `/dev/dri` directories. In restricted Docker environments (or deployments like Coolify), this leads to a permission/access crash.
+
+**Fix**: Instruct oneCCL to use a socket-based IPC exchange mechanism instead by adding the following variable to your `.env` file:
+
+```env
+CCL_ZE_IPC_EXCHANGE=sockets
+```
+
+#### Highly Recommended Level Zero Performance Settings
+
+When running memory-intensive LLM inference via vLLM on Intel Arc, you can further optimize host CPU overhead and latency by adding these standard Intel Level Zero/oneAPI performance settings:
+
+```env
+# Enable System Management API to allow vLLM to read GPU telemetry/metrics
+ZES_ENABLE_SYSMAN=1
+
+# Enable immediate command lists to drastically reduce task submission overhead
+SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
+UR_L0_USE_IMMEDIATE_COMMANDLISTS=1
+```
+
+
 ### `vllm module is not installed`
 
 Local generation requires vLLM and compatible Torch packages. Use the Docker image based on `intel/vllm`, install vLLM in a compatible Python environment, or switch to:
