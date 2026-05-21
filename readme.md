@@ -347,7 +347,6 @@ Compose mounts:
 
 ```txt
 ./data       -> /app/data
-./config     -> /app/config:ro
 ./tests/runs -> /app/tests/runs
 ```
 

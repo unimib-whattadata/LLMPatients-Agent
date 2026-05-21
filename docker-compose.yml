@@ -18,9 +18,8 @@ services:
       - path: .env
         required: false
     volumes:
-      - ./data:/app/data
-      - ./config:/app/config:ro
       - ./tests/runs:/app/tests/runs
+      - /home/arc/vertex-ai-api-key.json:/app/config/vertex-ai-api-key.json:ro
       - huggingface-cache:/root/.cache/huggingface
     restart: unless-stopped
 
