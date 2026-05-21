@@ -178,6 +178,7 @@ When LLMPatients-App itself runs in Docker and this Agent is exposed on the host
 | `temperature` | Optional | Generation temperature. Defaults to `0.7`. |
 | `max_tokens` | Optional | Maximum output tokens per generation. Defaults to `512`. |
 | `max_model_len` | Local only | Total context length for vLLM. Useful for long questionnaire prompts. |
+| `model_dtype` | Optional | Datatype precision for local model execution (`auto`, `half`, `float16`, `bfloat16`). Set `half`/`float16` for Intel Arc A770. Defaults to `auto`. |
 | `cache_path` | Optional | HuggingFace model cache used by local vLLM. |
 | `HF_HOME` | Optional | Fallback HuggingFace cache directory. |
 | `GCP_PROJECT` | Vertex only | Google Cloud project for Vertex AI. |
@@ -407,6 +408,17 @@ Set `model_id` in `.env` or switch to Vertex AI:
 model_provider=local
 model_id=your-local-model-id
 ```
+
+### `ValueError: Intel Arc A770 have bfloat16 accuracy known issue`
+
+When running local models (like `Qwen 3.5` which defaults to `bfloat16` precision) on certain Intel Arc GPUs (like A770), vLLM will fail to initialize with a `bfloat16 accuracy known issue`.
+
+**Fix**: Set `model_dtype=half` or `model_dtype=float16` in your `.env` file to explicitly configure the model to run on float16 precision:
+
+```env
+model_dtype=half
+```
+
 
 ### `vllm module is not installed`
 

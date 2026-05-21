@@ -261,6 +261,9 @@ class LocalLLMRunner(LLMRunnerBase):
             logger.info(f"Download dir: {download_dir}")
             logger.info(f"Loading model: {self.model_id}")
 
+            # Allow configuring model precision/dtype (e.g. 'half' or 'float16' for Intel Arc A770)
+            model_dtype = os.getenv("model_dtype", "auto").strip().lower()
+
             try:
                 return LLM(
                     model=self.model_id,
@@ -271,6 +274,7 @@ class LocalLLMRunner(LLMRunnerBase):
                     download_dir=download_dir,
                     tensor_parallel_size=n_gpus,
                     device=device,
+                    dtype=model_dtype,
                 )
             except TypeError as te:
                 if "device" in str(te):
@@ -283,6 +287,7 @@ class LocalLLMRunner(LLMRunnerBase):
                         max_model_len=self.max_model_len,
                         download_dir=download_dir,
                         tensor_parallel_size=n_gpus,
+                        dtype=model_dtype,
                     )
                 else:
                     raise
