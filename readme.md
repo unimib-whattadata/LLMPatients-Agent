@@ -110,6 +110,14 @@ GCP_LOCATION=us-central1
 GOOGLE_APPLICATION_CREDENTIALS=config/vertex-ai-api-key.json
 ```
 
+Ollama configuration:
+
+```env
+model_provider=ollama
+model_id=Qwen3:4b
+ollama_base_url=http://localhost:11434
+```
+
 ### 3. Run the API
 
 ```bash
@@ -173,8 +181,8 @@ When LLMPatients-App itself runs in Docker and this Agent is exposed on the host
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `model_provider` | Yes | `local` or `vertex_ai`. Defaults to `local`. |
-| `model_id` | Yes | Local model id or Vertex/Gemini model id. |
+| `model_provider` | Yes | `local`, `vertex_ai`, or `ollama`. Defaults to `local`. |
+| `model_id` | Yes | Local model id, Vertex/Gemini model id, or Ollama model tag. |
 | `temperature` | Optional | Generation temperature. Defaults to `0.7`. |
 | `max_tokens` | Optional | Maximum output tokens per generation. Defaults to `512`. |
 | `max_model_len` | Local only | Total context length for vLLM. Useful for long questionnaire prompts. |
@@ -189,6 +197,7 @@ When LLMPatients-App itself runs in Docker and this Agent is exposed on the host
 | `VERTEX_RETRY_MAX_DELAY_SECONDS` | Optional | Maximum retry delay. |
 | `VERTEX_RATE_LIMIT_COOLDOWN_SECONDS` | Optional | Shared cooldown after rate limiting. |
 | `VERTEX_MIN_REQUEST_INTERVAL_SECONDS` | Optional | Minimum interval between Vertex requests. |
+| `ollama_base_url` | Ollama only | Custom base URL for the Ollama instance (defaults to `http://localhost:11434`). |
 | `QUESTIONNAIRE_MODEL_PROVIDER` | Optional | Provider override for questionnaire runs. |
 | `QUESTIONNAIRE_MODEL_ID` | Optional | Model override for questionnaire runs. |
 | `QUESTIONNAIRE_TEMPERATURE` | Optional | Temperature override for questionnaire runs. |
