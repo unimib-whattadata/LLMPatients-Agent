@@ -81,6 +81,12 @@ class OllamaLLMRunner(LLMRunnerBase):
         
         if therapist_input is not None:
             system_prompt = "\n".join(system_lines).strip()
+            # Append strict instructions to the system prompt to absolutely prohibit thinking out loud
+            system_prompt += (
+                "\n\nCRITICAL: Do NOT think out loud. Do NOT write down drafts, plans, or self-evaluations. "
+                "Do NOT include any thoughts, labels, or intros (like 'Draft:', 'Thoughts:', or 'Final response:'). "
+                "You must output ONLY the direct spoken response of the patient, in character, with no other text."
+            )
             messages = [
                 {
                     "role": "system",
@@ -88,7 +94,11 @@ class OllamaLLMRunner(LLMRunnerBase):
                 },
                 {
                     "role": "user",
-                    "content": therapist_input
+                    "content": (
+                        f"Therapist: \"{therapist_input}\"\n\n"
+                        "Provide the patient's direct spoken response. Do NOT think out loud, plan, or write drafts. "
+                        "Respond directly and stay in character. Output ONLY the spoken response."
+                    )
                 }
             ]
             logger.info(f"Ollama runner: Structured patient roleplay conversation with therapist input: '{therapist_input}'")
@@ -127,9 +137,28 @@ class OllamaLLMRunner(LLMRunnerBase):
             content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
             content = re.sub(r"<thought>.*?</thought>", "", content, flags=re.DOTALL).strip()
             
+            # If the model still generated a planning monologue/chain of thought ending with a "Final response:" or similar label
+            for marker in ["Final response:", "Final Response:", "Final response :", "Response:", "Patient:", "Alex:", "Alex Carter:", "Output:"]:
+                if marker in content:
+                    parts = content.split(marker, 1)
+                    if len(parts) > 1 and parts[1].strip():
+                        content = parts[1].strip()
+                        break
+            
             # Clean up common conversational prefixes that some models generate
             content = re.sub(r"^(Patient|Alex|Alex Carter|🧍 Patient|🧍 Alex):\s*", "", content, flags=re.IGNORECASE).strip()
             
+            # Strip leading/trailing quotes (even if mismatched or truncated)
+            content = content.strip()
+            if content.startswith('"'):
+                content = content[1:].strip()
+            if content.endswith('"'):
+                content = content[:-1].strip()
+            if content.startswith("'"):
+                content = content[1:].strip()
+            if content.endswith("'"):
+                content = content[:-1].strip()
+                
             return content
         except Exception as e:
             logger.error(f"Ollama chat generation error: {e}")
