@@ -194,9 +194,15 @@ When LLMPatients-App itself runs in Docker and this Agent is exposed on the host
 | `GOOGLE_APPLICATION_CREDENTIALS` | Vertex only | Credentials path, relative paths resolve from the repository root. |
 | `VERTEX_MAX_ATTEMPTS` | Optional | Retry attempts for Vertex generation. |
 | `VERTEX_RETRY_BASE_DELAY_SECONDS` | Optional | Base retry delay for Vertex transient errors. |
-| `VERTEX_RETRY_MAX_DELAY_SECONDS` | Optional | Maximum retry delay. |
-| `VERTEX_RATE_LIMIT_COOLDOWN_SECONDS` | Optional | Shared cooldown after rate limiting. |
-| `VERTEX_MIN_REQUEST_INTERVAL_SECONDS` | Optional | Minimum interval between Vertex requests. |
+| `VERTEX_RETRY_MAX_DELAY_SECONDS` | Optional | Exponential backoff cap, including jitter; defaults to `60`. Server retry hints and the configured cooldown floor can exceed it. |
+| `VERTEX_RATE_LIMIT_COOLDOWN_SECONDS` | Optional | Initial shared 429 cooldown; defaults to `15` seconds and grows exponentially across calls/processes. |
+| `VERTEX_REQUESTS_PER_MINUTE` | Optional | Aggregate request starts per minute per project/location/model on this host; defaults to `12`, spaced evenly with no initial burst. This is a client limit, not the provider quota. |
+| `VERTEX_MIN_REQUEST_INTERVAL_SECONDS` | Optional | Additional minimum spacing; the larger of this value and `60 / VERTEX_REQUESTS_PER_MINUTE` applies. |
+| `VERTEX_RATE_LIMIT_STATE_PATH` | Optional | Shared SQLite state file. Defaults to `$XDG_CACHE_HOME/llmpatients/vertex-rate-limit.sqlite3`, or `~/.cache/llmpatients/vertex-rate-limit.sqlite3`. |
+| `VERTEX_RATE_LIMIT_FAILURE_THRESHOLD` | Optional | Consecutive shared 429 responses before opening the capacity circuit; defaults to `3`. |
+| `VERTEX_RATE_LIMIT_CIRCUIT_SECONDS` | Optional | Minimum circuit cooldown before allowing one recovery probe; defaults to `300`. |
+| `VERTEX_RATE_LIMIT_MAX_WAIT_SECONDS` | Optional | Maximum time a generation attempt waits for a request slot; defaults to `120`. An open circuit fails immediately. |
+| `VERTEX_RATE_LIMIT_PROBE_SECONDS` | Optional | Lease for the single recovery probe; defaults to `300`. A crashed probe stops blocking others after the lease expires. |
 | `ollama_base_url` | Ollama only | Custom base URL for the Ollama instance (defaults to `http://localhost:11434`). |
 | `QUESTIONNAIRE_MODEL_PROVIDER` | Optional | Provider override for questionnaire runs. |
 | `QUESTIONNAIRE_MODEL_ID` | Optional | Model override for questionnaire runs. |
@@ -207,6 +213,26 @@ When LLMPatients-App itself runs in Docker and this Agent is exposed on the host
 | `DEFAULT_THERAPIST_ID` | Optional | CLI default therapist id. |
 | `LOG_LEVEL` | Optional | CLI logging level. Defaults to `INFO`. |
 | `PSYLLM_EXPORT_TOKEN` | Optional | If set, `/export-logs` requires `X-Export-Token`. |
+
+### Vertex rate limiting and temporary capacity failures
+
+The limiter shares request spacing, cooldowns and the consecutive 429 count between processes using the same SQLite file. All workers for a project/location/model should use the same limits and state path. Waiting workers recheck the shared state, so a later 429 also delays already waiting requests. Numeric and HTTP-date `Retry-After` headers and Google RPC `RetryInfo` delays are respected. Backoff jitter uses a separate random source and does not consume the patient's seeded simulation RNG.
+
+After three consecutive 429 responses, the default circuit stops network requests for at least five minutes. Calls made during that interval raise `VertexRateLimitError` immediately. Afterward, the next caller can send one recovery probe; a successful response permits normal paced traffic again. No probe is scheduled automatically. Late successes from requests started before a newer 429 cannot erase the new cooldown. If the shared state cannot be read, requests stop instead of bypassing the limit.
+
+An exhausted 429 retry budget raises `VertexRateLimitError` instead of returning empty patient text. Questionnaires preserve their existing partial files and stop without starting another validation retry cycle. Interactive generation and session finalization propagate the capacity error; the API responds with HTTP `503`, a `Retry-After` header and `detail.code=vertex_rate_limited`. The session remains available to retry, and incomplete session memory is not committed.
+
+These controls reduce request bursts and repeated failed calls. Provider capacity shortages can still return 429 even below the configured request rate; successful local tests do not establish that Vertex is currently available. Model, prompt, temperature and token settings are not changed by the limiter. Google recommends traffic smoothing and exponential backoff for [Vertex 429 errors](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/provisioned-throughput/error-code-429).
+
+The default file coordinates processes for the same OS user on one host. Containers must share a writable **local filesystem volume** and set `VERTEX_RATE_LIMIT_STATE_PATH` to that file; different hosts need an external distributed limiter. Do not use a SQLite file on a network filesystem. A process already inside an API request cannot be recalled when another request receives a 429. The RPM limit controls request starts, not tokens or the total number of requests in flight.
+
+Offline regression tests (including multiple processes and simulated 429 responses):
+
+```bash
+python -m unittest agent.test_vertex_rate_limit agent.test_vertex_generation agent.test_session_memory -v
+```
+
+Archived research snapshots retain their original code and hashes. Resuming an archived campaign with this new limiter requires a recorded runtime amendment and checkpoint validation; changing the live Agent alone does not alter those snapshots.
 
 ### Docker Compose Variables
 

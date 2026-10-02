@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 import os
 import re
 import tarfile
@@ -16,9 +17,10 @@ from pydantic import BaseModel, Field
 from agent.core.emotion_model import EMOTION_LABELS
 from agent.core.patient_profile import resolve_patient_profile_path
 from agent.utils.run_logger import RunLogger
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request, status
+from fastapi.responses import JSONResponse, StreamingResponse
 from agent.core.langgraph_builder import build_graph, finalize_session_memory
+from agent.core.vertex_rate_limit import VertexRateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,17 @@ DEFAULT_EMOTION = "seeking"
 MAX_EMOTION_TIMELINE_POINTS = 60
 
 app = FastAPI(title="LLMPatients-Agent API")
+
+@app.exception_handler(VertexRateLimitError)
+async def vertex_capacity_error_handler(request: Request, exc: VertexRateLimitError):
+    retry_after = max(1, math.ceil(exc.retry_after_seconds))
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"Retry-After": str(retry_after)},
+        content={"detail": {"code": "vertex_rate_limited", "retry_after_seconds": retry_after,
+                            "message": "The model is temporarily unavailable. Please retry after the indicated delay."}},
+    )
+
 
 graph = build_graph()
 session_loggers: dict[tuple[str, str, str], dict] = {}

@@ -1,8 +1,7 @@
 import logging
 import os
 import random
-import threading
-import time
+import re
 from typing import Optional
 
 from agent.core.llm_provider_base import (
@@ -11,6 +10,7 @@ from agent.core.llm_provider_base import (
     _env_positive_int,
     _env_non_negative_float,
 )
+from agent.core.vertex_rate_limit import VertexRateLimitError, VertexRateLimiter, retry_after_seconds
 
 try:
     import vertexai
@@ -53,17 +53,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_VERTEX_MAX_ATTEMPTS = 5
 DEFAULT_VERTEX_RETRY_BASE_DELAY_SECONDS = 1.0
 DEFAULT_VERTEX_RETRY_MAX_DELAY_SECONDS = 60.0
-DEFAULT_VERTEX_RATE_LIMIT_COOLDOWN_SECONDS = 15.0
-DEFAULT_VERTEX_MIN_REQUEST_INTERVAL_SECONDS = 0.0
-VERTEX_NO_TEXT_RECOVERY_MIN_TOKENS = 256
-VERTEX_NO_TEXT_RECOVERY_MAX_TOKENS = 512
+VERTEX_RECOVERY_MIN_TOKENS = 1024
+DEFAULT_VERTEX_MAX_RECOVERY_TOKENS = 8192
 DEFAULT_VERTEX_LOCATION = "us-central1"
 VERTEX_TOP_P = 0.95
 VERTEX_TOP_K = 40
 
-_VERTEX_RATE_LIMIT_LOCK = threading.Lock()
-_VERTEX_NEXT_REQUEST_AT = 0.0
-_VERTEX_LAST_REQUEST_AT = 0.0
+_RETRY_JITTER = random.SystemRandom()
 
 
 class VertexLLMRunner(LLMRunnerBase):
@@ -96,15 +92,11 @@ class VertexLLMRunner(LLMRunnerBase):
             "VERTEX_RETRY_MAX_DELAY_SECONDS",
             DEFAULT_VERTEX_RETRY_MAX_DELAY_SECONDS,
         )
-        self.rate_limit_cooldown_seconds = _env_non_negative_float(
-            "VERTEX_RATE_LIMIT_COOLDOWN_SECONDS",
-            DEFAULT_VERTEX_RATE_LIMIT_COOLDOWN_SECONDS,
-        )
-        self.min_request_interval_seconds = _env_non_negative_float(
-            "VERTEX_MIN_REQUEST_INTERVAL_SECONDS",
-            DEFAULT_VERTEX_MIN_REQUEST_INTERVAL_SECONDS,
-        )
+        self.rate_limiter = VertexRateLimiter.from_env(project, location, model_id)
         self.max_attempts = _env_positive_int("VERTEX_MAX_ATTEMPTS", DEFAULT_VERTEX_MAX_ATTEMPTS)
+        self.max_recovery_tokens = _env_positive_int(
+            "VERTEX_MAX_RECOVERY_TOKENS", DEFAULT_VERTEX_MAX_RECOVERY_TOKENS
+        )
         
         self.safety_settings = {
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -121,12 +113,6 @@ class VertexLLMRunner(LLMRunnerBase):
 
         message = str(exc).lower()
         retryable_markers = (
-            "408",
-            "429",
-            "500",
-            "502",
-            "503",
-            "504",
             "resource exhausted",
             "rate limit",
             "too many requests",
@@ -138,31 +124,21 @@ class VertexLLMRunner(LLMRunnerBase):
             "connection reset",
             "connection aborted",
         )
-        return any(marker in message for marker in retryable_markers)
+        return bool(re.search(r"\b(?:408|429|500|502|503|504)\b", message)) or any(
+            marker in message for marker in retryable_markers
+        )
 
     def _retry_delay_seconds(self, attempt: int) -> float:
         backoff = min(
             self.retry_base_delay_seconds * (2 ** max(attempt - 1, 0)),
             self.retry_max_delay_seconds,
         )
-        jitter = random.uniform(0.0, min(1.0, backoff * 0.25))
-        return backoff + jitter
+        jitter = _RETRY_JITTER.uniform(0.0, min(1.0, backoff * 0.25))
+        return min(self.retry_max_delay_seconds, backoff + jitter)
 
     @staticmethod
     def _retry_after_seconds(exc: Exception) -> float:
-        for attr_name in ("response", "http_response"):
-            response = getattr(exc, attr_name, None)
-            headers = getattr(response, "headers", None)
-            if not headers:
-                continue
-            retry_after = headers.get("retry-after") or headers.get("Retry-After")
-            if not retry_after:
-                continue
-            try:
-                return max(float(retry_after), 0.0)
-            except (TypeError, ValueError):
-                return 0.0
-        return 0.0
+        return retry_after_seconds(exc)
 
     @staticmethod
     def _is_rate_limited_error(exc: Exception) -> bool:
@@ -171,40 +147,18 @@ class VertexLLMRunner(LLMRunnerBase):
 
         message = str(exc).lower()
         rate_limit_markers = (
-            "429",
             "resource exhausted",
             "rate limit",
             "too many requests",
             "quota exceeded",
         )
-        return any(marker in message for marker in rate_limit_markers)
+        return bool(re.search(r"\b429\b", message)) or any(marker in message for marker in rate_limit_markers)
 
-    def _wait_for_request_slot(self) -> None:
-        global _VERTEX_LAST_REQUEST_AT
-        global _VERTEX_NEXT_REQUEST_AT
-
-        delay_seconds = 0.0
-        with _VERTEX_RATE_LIMIT_LOCK:
-            now = time.monotonic()
-            next_allowed_at = max(
-                _VERTEX_NEXT_REQUEST_AT,
-                _VERTEX_LAST_REQUEST_AT + self.min_request_interval_seconds,
-            )
-            scheduled_at = max(now, next_allowed_at)
-            delay_seconds = max(0.0, scheduled_at - now)
-            _VERTEX_LAST_REQUEST_AT = scheduled_at
-
-        if delay_seconds > 0:
-            time.sleep(delay_seconds)
+    def _wait_for_request_slot(self) -> int:
+        return self.rate_limiter.acquire()
 
     def _apply_shared_cooldown(self, delay_seconds: float) -> None:
-        global _VERTEX_NEXT_REQUEST_AT
-
-        if delay_seconds <= 0:
-            return
-
-        with _VERTEX_RATE_LIMIT_LOCK:
-            _VERTEX_NEXT_REQUEST_AT = max(_VERTEX_NEXT_REQUEST_AT, time.monotonic() + delay_seconds)
+        self.rate_limiter.defer(delay_seconds)
 
     @staticmethod
     def _candidate_finish_reasons(response) -> list[str]:
@@ -212,22 +166,23 @@ class VertexLLMRunner(LLMRunnerBase):
         for candidate in getattr(response, "candidates", []) or []:
             finish_reason = getattr(candidate, "finish_reason", None)
             if finish_reason:
-                reasons.append(str(finish_reason))
+                # The SDK exposes an IntEnum: str(MAX_TOKENS) is "2", not
+                # "MAX_TOKENS". Preserve names for both SDK and test responses.
+                reasons.append(getattr(finish_reason, "name", str(finish_reason)))
         return reasons
 
     @staticmethod
-    def _candidate_has_visible_parts(response) -> bool:
-        for candidate in getattr(response, "candidates", []) or []:
-            content = getattr(candidate, "content", None)
-            parts = getattr(content, "parts", None) or []
-            if parts:
-                return True
-        return False
+    def _usage_counts(response) -> dict[str, Optional[int]]:
+        usage = getattr(response, "usage_metadata", None)
+        return {
+            name: getattr(usage, name, None)
+            for name in ("prompt_token_count", "candidates_token_count", "thoughts_token_count")
+        }
 
     def _recovery_max_tokens(self, current_max_tokens: int) -> int:
         return min(
-            max(current_max_tokens * 2, VERTEX_NO_TEXT_RECOVERY_MIN_TOKENS),
-            max(VERTEX_NO_TEXT_RECOVERY_MAX_TOKENS, current_max_tokens),
+            max(current_max_tokens * 2, VERTEX_RECOVERY_MIN_TOKENS),
+            max(self.max_recovery_tokens, current_max_tokens),
         )
 
     @staticmethod
@@ -237,31 +192,69 @@ class VertexLLMRunner(LLMRunnerBase):
             content = getattr(candidate, "content", None)
             parts = getattr(content, "parts", None) or []
             for part in parts:
+                if getattr(part, "thought", False):
+                    continue
                 value = getattr(part, "text", None)
                 if value:
                     text_chunks.append(value)
         return "\n".join(text_chunks).strip()
 
-    def generate(self, prompt: str, temperature: Optional[float] = None, max_tokens: Optional[int] = None) -> str:
+    def generate(self, prompt: str, temperature: Optional[float] = None, max_tokens: Optional[int] = None,
+                 *, thinking_budget: Optional[int] = None) -> str:
         """Proxy prompt execution to Vertex AI with consistent config and error handling."""
         temp = temperature if temperature is not None else self.temperature
         max_tok = max_tokens if max_tokens is not None else self.max_tokens
         current_max_tok = max_tok
+        if thinking_budget is not None and (
+            not isinstance(thinking_budget, int) or isinstance(thinking_budget, bool)
+            or thinking_budget < 128 or thinking_budget >= max_tok
+        ):
+            raise ValueError("thinking_budget must be an integer >= 128 and smaller than max_tokens")
 
         for attempt in range(1, self.max_attempts + 1):
             try:
-                self._wait_for_request_slot()
+                generation = self._wait_for_request_slot()
+                config = {
+                    "temperature": temp,
+                    "max_output_tokens": current_max_tok,
+                    "stop_sequences": STOP_SEQUENCES,
+                    "top_p": VERTEX_TOP_P,
+                    "top_k": VERTEX_TOP_K,
+                }
+                if thinking_budget is not None:
+                    config["thinking_config"] = {"thinking_budget": thinking_budget}
                 response = self.model.generate_content(
                     prompt,
-                    generation_config={
-                        "temperature": temp,
-                        "max_output_tokens": current_max_tok,
-                        "stop_sequences": STOP_SEQUENCES,
-                        "top_p": VERTEX_TOP_P,
-                        "top_k": VERTEX_TOP_K,
-                    },
+                    generation_config=config,
                     safety_settings=self.safety_settings
                 )
+                self.rate_limiter.record_success(generation)
+                finish_reasons = self._candidate_finish_reasons(response)
+                logger.info(
+                    "Vertex generation: model=%s finish_reasons=%s max_output_tokens=%s usage=%s",
+                    self.model_id, finish_reasons, current_max_tok, self._usage_counts(response),
+                )
+                # Never accept a partial completion, even when response.text
+                # exists. Thinking tokens share the model's output budget.
+                if "MAX_TOKENS" in finish_reasons:
+                    next_max_tok = self._recovery_max_tokens(current_max_tok)
+                    if attempt < self.max_attempts and next_max_tok > current_max_tok:
+                        logger.warning(
+                            "Vertex AI stopped with MAX_TOKENS on attempt %s/%s. "
+                            "Discarding partial output and retrying with max_output_tokens=%s (was %s).",
+                            attempt, self.max_attempts, next_max_tok, current_max_tok,
+                        )
+                        current_max_tok = next_max_tok
+                        continue
+                    logger.error(
+                        "Vertex AI output remained incomplete at max_output_tokens=%s after %s attempts; "
+                        "discarding it. model=%s",
+                        current_max_tok, attempt, self.model_id,
+                    )
+                    return ""
+                if any(reason != "STOP" for reason in finish_reasons):
+                    logger.warning("Vertex AI returned no completed candidate: finish_reasons=%s", finish_reasons)
+                    return ""
                 try:
                     return response.text.strip()
                 except Exception as text_error:
@@ -272,44 +265,33 @@ class VertexLLMRunner(LLMRunnerBase):
                             text_error,
                         )
                         return extracted
-                    finish_reasons = self._candidate_finish_reasons(response)
-                    if (
-                        "MAX_TOKENS" in finish_reasons
-                        and not self._candidate_has_visible_parts(response)
-                        and attempt < self.max_attempts
-                    ):
-                        next_max_tok = self._recovery_max_tokens(current_max_tok)
-                        if next_max_tok > current_max_tok:
-                            logger.warning(
-                                "Vertex AI returned no visible text and stopped with MAX_TOKENS on attempt %s/%s. "
-                                "Retrying with max_output_tokens=%s (was %s).",
-                                attempt,
-                                self.max_attempts,
-                                next_max_tok,
-                                current_max_tok,
-                            )
-                            current_max_tok = next_max_tok
-                            continue
-                    if "MAX_TOKENS" in finish_reasons and not self._candidate_has_visible_parts(response):
-                        logger.error(
-                            "Vertex AI stopped with MAX_TOKENS before emitting visible text. "
-                            "finish_reasons=%s model=%s requested_max_output_tokens=%s",
-                            finish_reasons,
-                            self.model_id,
-                            current_max_tok,
-                        )
                     raise text_error
+            except VertexRateLimitError:
+                # Do not turn an outage into empty patient content. The caller
+                # must stop this operation and retain resumable progress.
+                raise
             except Exception as e:
+                if self._is_rate_limited_error(e):
+                    backoff = self.rate_limiter.record_rate_limit(self._retry_after_seconds(e))
+                    logger.warning(
+                        "Vertex rate limit: attempt=%s/%s shared_failures=%s wait=%.2fs circuit_open=%s",
+                        attempt, self.max_attempts, backoff.failures, backoff.delay_seconds, backoff.circuit_open,
+                    )
+                    if backoff.circuit_open or attempt == self.max_attempts:
+                        raise VertexRateLimitError(
+                            backoff.delay_seconds, failures=backoff.failures,
+                            reason="repeated 429 responses" if backoff.circuit_open else "429 retry budget exhausted",
+                        ) from e
+                    # The shared gate owns this wait, including any later
+                    # cooldown extension from another process.
+                    continue
                 retryable = self._is_retryable_error(e)
                 if retryable and attempt < self.max_attempts:
                     delay_seconds = max(
                         self._retry_delay_seconds(attempt),
                         self._retry_after_seconds(e),
                     )
-                    shared_cooldown_seconds = delay_seconds
-                    if self._is_rate_limited_error(e):
-                        shared_cooldown_seconds = max(shared_cooldown_seconds, self.rate_limit_cooldown_seconds)
-                    self._apply_shared_cooldown(shared_cooldown_seconds)
+                    self._apply_shared_cooldown(delay_seconds)
                     logger.warning(
                         "Vertex AI transient generation error on attempt %s/%s: %s. Retrying in %.2fs.",
                         attempt,
@@ -317,19 +299,14 @@ class VertexLLMRunner(LLMRunnerBase):
                         e,
                         delay_seconds,
                     )
-                    time.sleep(delay_seconds)
                     continue
 
                 if retryable:
-                    final_cooldown_seconds = max(
-                        self._retry_after_seconds(e),
-                        self.rate_limit_cooldown_seconds if self._is_rate_limited_error(e) else 0.0,
-                    )
+                    final_cooldown_seconds = self._retry_after_seconds(e)
                     self._apply_shared_cooldown(final_cooldown_seconds)
                     logger.error(
                         "Vertex AI (Gemini) generation failed after %s attempts: %s. "
-                        "If this keeps happening on Standard/PAYG, try GCP_LOCATION=global "
-                        "and/or lower max_tokens in .env.",
+                        "Inspect the provider's capacity and service status before retrying.",
                         self.max_attempts,
                         e,
                     )

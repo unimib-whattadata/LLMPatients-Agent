@@ -22,6 +22,7 @@ from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
 from agent.core.memory_store import JsonlMemoryStore
 from agent.core.llm_runner import create_llm_runner
+from agent.core.vertex_rate_limit import VertexRateLimitError
 from agent.core.emotion_model import EMOTIONS, EVENT_SALIENCE, compute_emotional_state
 from agent.core.patient_profile import (
     PatientProfile,
@@ -391,6 +392,8 @@ def _summarize_episode(
     )
     try:
         summary_update = llm_runner.generate(prompt=prompt, max_tokens=EPISODE_SUMMARY_MAX_TOKENS).strip()
+    except VertexRateLimitError:
+        raise
     except Exception as exc:
         logger.warning(f"⚠️ Async episode generation failed: {exc}")
         return ""
@@ -753,6 +756,8 @@ def classify_topic_and_emotion(
     )
     try:
         raw = llm_runner.generate(prompt=prompt, temperature=0.0, max_tokens=JOINT_CLASSIFICATION_MAX_TOKENS).strip()
+    except VertexRateLimitError:
+        raise
     except Exception as exc:
         logger.warning(f"⚠️ Joint classification failed: {exc}")
         return "unknown", "SEEKING"
@@ -1037,6 +1042,8 @@ def classify_topic_and_emotion_pre(state):
             patient_text=last_patient,
             context_text=text_input,
         )
+    except VertexRateLimitError:
+        raise
     except Exception as exc:
         logger.warning(f"⚠️ Joint classification failed: {exc}")
         topic_label, emotion_label = "unknown", "SEEKING"
@@ -1109,6 +1116,8 @@ def generate_response(state):
                 logger.info(f"✅ Response generated on attempt {attempt}")
                 return {"response": _enforce_response_format(result.strip())}
             logger.warning(f"⚠️ Empty response on attempt {attempt}")
+        except VertexRateLimitError:
+            raise
         except Exception as exc:
             last_error = exc
             logger.warning(f"⚠️ LLM generation failed on attempt {attempt}: {exc}")

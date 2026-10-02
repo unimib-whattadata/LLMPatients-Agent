@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -40,7 +41,7 @@ def _env_non_negative_float(name: str, default: float) -> float:
         return default
     try:
         value = float(raw_value)
-        if value < 0:
+        if not math.isfinite(value) or value < 0:
             raise ValueError
         return value
     except ValueError:
