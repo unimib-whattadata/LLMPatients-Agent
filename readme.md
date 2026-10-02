@@ -272,6 +272,11 @@ Each `/chat-response` or CLI turn runs through the LangGraph state machine:
 | `long_term_summary` | `data/memory/<therapist_id>__<patient_id>.jsonl` | Rolling summary for continuity across sessions. |
 | Run snapshots | `tests/runs/<therapist_id>.json` | Session ledger and final state snapshots used by `RunLogger`. |
 
+The durable original-turn and source-attributed fact channel is documented in
+[Conversation facts and their sources](docs/factual-memory.md), including quarantine,
+versioning, bounded retrieval and consolidation status. Evaluation evidence and
+offline recomputation are indexed in the [application reviewer package](https://github.com/unimib-whattadata/LLMPatients-App/tree/main/evaluation/reviewer-comment-1).
+
 ### Questionnaire Workflow
 
 Questionnaire definitions live in `data/questionnaires/`. Runnable questionnaires can be listed and executed from the CLI.

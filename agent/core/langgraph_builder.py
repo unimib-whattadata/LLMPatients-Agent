@@ -21,7 +21,8 @@ except ImportError:
 from langgraph.graph import StateGraph
 from agent.core.prompt_builder import build_prompt
 from agent.core.memory_store import JsonlMemoryStore
-from agent.core.llm_runner import create_llm_runner
+from agent.core.factual_memory import EvidenceMemory, MemoryExtractionError
+from agent.core.llm_runner import VertexLLMRunner, create_llm_runner
 from agent.core.vertex_rate_limit import VertexRateLimitError
 from agent.core.emotion_model import EMOTIONS, EVENT_SALIENCE, compute_emotional_state
 from agent.core.patient_profile import (
@@ -62,10 +63,19 @@ st_model = SentenceTransformer("all-MiniLM-L6-v2", device=embedding_device)
 CHECKPOINTER = MemorySaver()
 PROFILE_CACHE: Dict[str, dict] = {}
 MAX_LLM_RETRIES = 2
-EPISODE_SUMMARY_MAX_TOKENS = 256
-JOINT_CLASSIFICATION_MAX_TOKENS = 192
-SESSION_REFLECTION_MAX_TOKENS = 320
-LONG_TERM_SUMMARY_MAX_TOKENS = 512
+
+
+def _internal_generation_budget(legacy_budget: int) -> int:
+    """Leave room for Gemini reasoning as well as the requested visible text."""
+    if isinstance(llm_runner, VertexLLMRunner) and llm_runner.model_id.startswith("gemini-"):
+        return max(legacy_budget, 4096)
+    return legacy_budget
+
+
+EPISODE_SUMMARY_MAX_TOKENS = _internal_generation_budget(256)
+JOINT_CLASSIFICATION_MAX_TOKENS = _internal_generation_budget(192)
+SESSION_REFLECTION_MAX_TOKENS = _internal_generation_budget(320)
+LONG_TERM_SUMMARY_MAX_TOKENS = _internal_generation_budget(512)
 
 
 def _summary_executor_max_workers() -> int:
@@ -256,6 +266,10 @@ def _append_memory_record(record: dict) -> None:
 
 
 def _index_memory_record(record: dict) -> None:
+    # EvidenceMemory searches original turns and fact batches separately. They
+    # are not narrative summaries and must not be embedded as empty text.
+    if record.get("type") in {"conversation_turn", "fact_batch"}:
+        return
     patient_id = record.get("patient_id")
     therapist_id = record.get("therapist_id")
     if not patient_id or not therapist_id:
@@ -649,33 +663,26 @@ def fetch_relevant_episodic_memories(
         return []
 
     namespace = _memory_namespace(patient_id, therapist_id)
-    filters = {"type": "episode_summary"}
-    if topic:
-        filters["topic_key"] = _topic_key(topic)
-
     try:
-        results = LONG_TERM_STORE.search(
-            namespace,
-            query=query or None,
-            filter=filters,
-            limit=limit,
-        )
-        if not results and len(filters) > 1:
-            results = LONG_TERM_STORE.search(
+        # Topic classification is a ranking hint, never an exclusion filter.
+        # Old reflections can contain facts omitted by the episode summarizer.
+        results = []
+        for record_type in ("episode_summary", "session_reflection", "long_term_summary"):
+            results.extend(LONG_TERM_STORE.search(
                 namespace,
                 query=query or None,
-                filter={"type": "episode_summary"},
+                filter={"type": record_type},
                 limit=limit,
-            )
+            ))
+        results.sort(key=lambda item: (item.score or 0.0) +
+                     (0.03 if topic and item.value.get("topic_key") == _topic_key(topic) else 0.0), reverse=True)
     except Exception as exc:
         logger.warning(f"⚠️ Episodic memory search failed: {exc}")
         return []
 
-    return [
-        item.value.get("text", "")
-        for item in results
-        if item and item.value.get("text")
-    ]
+    texts = list(dict.fromkeys(item.value.get("text", "") for item in results
+                              if item and item.value.get("text")))
+    return texts[:limit]
 
 # === Load Topic Tree JSON ===
 TOPIC_PATH = ROOT_DIR / "data" / "topics_tree.json"
@@ -806,8 +813,10 @@ class State(BaseModel):
     history: list = Field(default_factory=list)
     summary: str = ""
     session_reflection: str = ""
+    memory_consolidation: dict = Field(default_factory=dict)
     long_term_context: list[str] = Field(default_factory=list)
     episodic_context: list[str] = Field(default_factory=list)
+    evidence_context: list[dict] = Field(default_factory=list)
     messages: List[BaseMessage] = Field(default_factory=list)
     total_turns: int = 0
     last_episode_turn: int = 0
@@ -1169,7 +1178,13 @@ def hydrate_long_term_context(state):
         logger.info(f"🗂️ Retrieved {len(notes)} relevant episodic memories.")
     else:
         logger.info("🗂️ No matching episodic memories for this turn.")
-    return {"long_term_context": notes, "episodic_context": notes}
+    evidence = []
+    if state.patient_id and state.therapist_id:
+        evidence = EvidenceMemory(MEMORY_STORE).retrieve(
+            patient_id=state.patient_id, therapist_id=state.therapist_id,
+            query=state.safe_user_input or state.user_input or "", embed=_embed_texts,
+        )
+    return {"long_term_context": notes, "episodic_context": notes, "evidence_context": evidence}
 
 
 def sanitize_user_input(state):
@@ -1216,6 +1231,14 @@ def update_memory(state):
     }
     state.history.append(new_turn)
     state.total_turns = (state.total_turns or 0) + 1
+
+    if state.patient_id and state.therapist_id and state.session_id:
+        EvidenceMemory(MEMORY_STORE).record_turn(
+            patient_id=state.patient_id, therapist_id=state.therapist_id,
+            session_id=state.session_id, turn_index=state.total_turns,
+            therapist_text=state.user_input or "", patient_text=state.response or "",
+            topic=state.intent_topic, usable=not bool(state.safety_flags),
+        )
 
     logger.info(f"🧾 Added new turn. Total turns overall: {state.total_turns}")
     logger.debug(f"🧩 New turn content: {json.dumps(new_turn, indent=2)}")
@@ -1303,15 +1326,19 @@ def _load_session_episode_texts(patient_id: str, therapist_id: str, session_id: 
 
 
 def _generate_session_reflection(episode_texts: list[str], fallback_history: list[dict]) -> str:
+    context_parts = []
     if episode_texts:
         bullets = "\n".join(f"- {text}" for text in episode_texts)
-        context = f"Episodes:\n{bullets}"
-    else:
+        context_parts.append(f"Episodes:\n{bullets}")
+    # Recent turns can follow the last completed episode summary. Retain them
+    # even when earlier episodes exist, so the end of the session is not lost.
+    if fallback_history:
         turns = "\n".join(
             f"Therapist: {h.get('therapist')}\nPatient: {h.get('patient')}"
             for h in fallback_history[-EPISODE_BATCH_SIZE:]
         )
-        context = f"Recent turns:\n{turns}"
+        context_parts.append(f"Recent turns:\n{turns}")
+    context = "\n\n".join(context_parts)
 
     prompt = (
         "You are producing a session reflection for a therapy patient. "
@@ -1323,12 +1350,14 @@ def _generate_session_reflection(episode_texts: list[str], fallback_history: lis
     )
     try:
         return llm_runner.generate(prompt=prompt, max_tokens=SESSION_REFLECTION_MAX_TOKENS).strip()
+    except VertexRateLimitError:
+        raise
     except Exception as exc:
         logger.warning(f"⚠️ Session reflection generation failed: {exc}")
         return ""
 
 
-def _update_long_term_summary_from_reflection(
+def _generate_long_term_summary_from_reflection(
     patient_id: str,
     therapist_id: str,
     reflection_text: str,
@@ -1345,17 +1374,29 @@ def _update_long_term_summary_from_reflection(
     )
     try:
         updated = llm_runner.generate(prompt=prompt, max_tokens=LONG_TERM_SUMMARY_MAX_TOKENS).strip()
+    except VertexRateLimitError:
+        raise
     except Exception as exc:
         logger.warning(f"⚠️ Long-term summary update failed: {exc}")
-        return existing
-    if updated:
-        persist_long_term_summary(
-            patient_id=patient_id,
-            therapist_id=therapist_id,
-            summary_text=updated,
-        )
-        return updated
-    return existing
+        return ""
+    return updated
+
+
+class SessionMemoryError(RuntimeError):
+    """Memory could not be completed; keep the active session available to retry."""
+
+
+def _generate_factual_memory(prompt: str) -> str:
+    # Gemini's reasoning and JSON share the output allowance. Reserve enough
+    # room for the facts instead of accepting a truncated extraction.
+    options = {}
+    budget = 2048
+    if isinstance(llm_runner, VertexLLMRunner) and llm_runner.model_id.startswith("gemini-"):
+        budget = 8192
+    if isinstance(llm_runner, VertexLLMRunner) and llm_runner.model_id.startswith("gemini-2.5"):
+        options["thinking_budget"] = 1024
+    return llm_runner.generate(prompt=prompt, temperature=0.2,
+                               max_tokens=budget, **options)
 
 
 def finalize_session_memory(state: dict) -> dict:
@@ -1369,20 +1410,51 @@ def finalize_session_memory(state: dict) -> dict:
     _drain_episode_futures(patient_id, therapist_id)
     episode_texts = _load_session_episode_texts(patient_id, therapist_id, session_id)
     reflection = _generate_session_reflection(episode_texts, state.get("history", []))
-    if reflection:
-        persist_session_reflection(
-            patient_id=patient_id,
-            therapist_id=therapist_id,
-            session_id=session_id,
-            reflection_text=reflection,
-        )
-        updated_summary = _update_long_term_summary_from_reflection(
-            patient_id=patient_id,
-            therapist_id=therapist_id,
-            reflection_text=reflection,
-        )
-        state["session_reflection"] = reflection
-        state["summary"] = updated_summary
+    if not reflection:
+        raise SessionMemoryError("Session reflection generation did not complete; retry session finalization.")
+    updated_summary = _generate_long_term_summary_from_reflection(
+        patient_id=patient_id,
+        therapist_id=therapist_id,
+        reflection_text=reflection,
+    )
+    if not updated_summary:
+        raise SessionMemoryError("Long-term summary generation did not complete; retry session finalization.")
+
+    # Consolidate only after the narrative generators have succeeded. Every
+    # original turn is already durable. Completed extractions with invalid
+    # claims retain only validated facts and quarantine the rest. Provider,
+    # empty-completion and persistence failures still leave the session open.
+    evidence = EvidenceMemory(MEMORY_STORE)
+    try:
+        while evidence.consolidate_session(
+            patient_id=patient_id, therapist_id=therapist_id,
+            session_id=state.get("session_id") or "unknown",
+            generate=_generate_factual_memory,
+            invalid_policy="quarantine",
+        ) is not None:
+            pass
+    except MemoryExtractionError as exc:
+        raise SessionMemoryError("Factual memory generation did not complete; retry finalization.") from exc
+    consolidation = evidence.consolidation_status(patient_id, therapist_id, session_id)
+    if consolidation["status"] == "partial":
+        logger.warning("Factual memory partially consolidated for %s/%s/%s: %s",
+                       patient_id, therapist_id, session_id, consolidation)
+    # Generate both artifacts before appending either. A failed generation must
+    # neither replace the previous memory nor report successful finalization.
+    persist_session_reflection(
+        patient_id=patient_id,
+        therapist_id=therapist_id,
+        session_id=session_id,
+        reflection_text=reflection,
+    )
+    persist_long_term_summary(
+        patient_id=patient_id,
+        therapist_id=therapist_id,
+        summary_text=updated_summary,
+    )
+    state["session_reflection"] = reflection
+    state["summary"] = updated_summary
+    state["memory_consolidation"] = consolidation
     return state
 
 # === Build LangGraph ===

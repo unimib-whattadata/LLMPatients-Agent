@@ -58,6 +58,7 @@ def _state_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
         "session_id": state.get("session_id"),
         "summary": state.get("summary", ""),
         "session_reflection": state.get("session_reflection", ""),
+        "memory_consolidation": state.get("memory_consolidation", {}),
         "history": state.get("history", []),
         "long_term_context": state.get("long_term_context", []),
         "episodic_context": state.get("episodic_context", []),

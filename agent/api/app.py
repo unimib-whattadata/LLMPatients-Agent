@@ -36,6 +36,7 @@ MAX_EMOTION_TIMELINE_POINTS = 60
 
 app = FastAPI(title="LLMPatients-Agent API")
 
+
 @app.exception_handler(VertexRateLimitError)
 async def vertex_capacity_error_handler(request: Request, exc: VertexRateLimitError):
     retry_after = max(1, math.ceil(exc.retry_after_seconds))
@@ -140,6 +141,8 @@ class SessionEndResponse(BaseModel):
     status: Literal["finalized", "not_found"]
     message: str
     timestamp: str
+    memory_status: Literal["complete", "partial"] | None = None
+    memory_warnings: list[str] = Field(default_factory=list)
 
 
 def _profile_value(profile, *keys, default=None):
@@ -546,10 +549,15 @@ async def end_session(req: SessionEndRequest):
         run_logger.finalize(state or {})
     session_loggers.pop(session_key, None)
 
+    memory_status = state.get("memory_consolidation", {}).get("status", "complete")
     return SessionEndResponse(
         status="finalized",
         message="Session memory finalized.",
         timestamp=_utc_now(),
+        memory_status=memory_status,
+        memory_warnings=([
+            "Some extracted facts could not be verified. Original conversation sources were retained."
+        ] if memory_status == "partial" else []),
     )
 
 

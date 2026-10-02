@@ -20,3 +20,6 @@ CLAUDE.md
 questionnaiers/
 .claude/
 tests/
+
+# OS-generated metadata
+.DS_Store
