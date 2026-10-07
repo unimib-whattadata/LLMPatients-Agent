@@ -10,6 +10,8 @@ services:
       args:
         BASE_IMAGE: ${LLMPATIENTS_AGENT_BASE_IMAGE:-intel/vllm}
     init: true
+    ports:
+      - "${LLMPATIENTS_AGENT_PORT:-8000}:8000"
     privileged: true
     devices:
       - /dev/dri:/dev/dri

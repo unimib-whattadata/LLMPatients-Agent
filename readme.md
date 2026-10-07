@@ -3,6 +3,7 @@
 Stateful virtual patient agent backend for psychotherapy training, built with FastAPI, LangGraph, structured YAML clinical profiles and JSONL long-term memory.
 
 ![Status](https://img.shields.io/badge/status-prototype-orange)
+![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-green)
 ![API](https://img.shields.io/badge/api-FastAPI-blue)
 ![Workflow](https://img.shields.io/badge/workflow-LangGraph-blue)
@@ -22,6 +23,7 @@ Stateful virtual patient agent backend for psychotherapy training, built with Fa
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Security](#security)
+- [License](#license)
 - [Citation](#citation)
 
 ## Overview
@@ -564,16 +566,34 @@ to see which questionnaires can run.
 - Use `PSYLLM_EXPORT_TOKEN` before exposing `/export-logs` beyond local development.
 - Do not mount broad host directories into the container when a narrower `data`, `config` or cache mount is sufficient.
 
+## License
+
+The source code in this repository is licensed under the **GNU Affero General Public License v3.0 or later** (`AGPL-3.0-or-later`). See the `LICENSE` file for the full license text.
+
+This license applies to the source code in this repository. Third-party dependencies, model-provider services, clinical instruments, generated patient assets, transcripts, annotation materials, memory artifacts, run logs and other sensitive runtime data remain governed by their respective licenses, terms of use or access conditions.
+
 ## Citation
 
 If you use LLMPatients for research, cite the reference paper or project record used by your group:
 
 ```bibtex
-@article{llmpatient2025,
-  title={LLMPatient: un sistema esperto ibrido per la simulazione multi-sessione di pazienti virtuali nella formazione psicoterapeutica},
-  author={UNIMIB Team},
-  journal={TBD},
-  year={2025},
-  url={https://github.com/unimib-whattadata/LLMPatients-Agent}
+@software{llmpatients_agent_2026,
+  title = {LLMPatients-Agent: Agent Runtime for Multi-Session LLM Virtual-Patient Training},
+  author = {Cremaschi, Marco and Fanti, Erika and Pisati, Elisa and La Barbera, David},
+  year = {2026},
+  url = {https://github.com/unimib-whattadata/LLMPatients-Agent},
+  license = {AGPL-3.0-or-later}
+}
+```
+
+Also cite the associated manuscript once its final bibliographic details are available:
+
+```bibtex
+@article{cremaschi_llmpatients_2026,
+  title = {LLMPatients: An Interpretable Multi-Session LLM Virtual-Patient Software Platform for AI-Enabled Psychotherapy Training},
+  author = {Cremaschi, Marco and Fanti, Erika and Pisati, Elisa and La Barbera, David},
+  journal = {Frontiers in Digital Health},
+  year = {2026},
+  note = {Manuscript prepared for the Digital Mental Health section as a Technology and Code article}
 }
 ```

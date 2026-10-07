@@ -2,11 +2,17 @@
 import asyncio
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
+
+# The local .env may enable LangSmith tracing. Offline tests must not export
+# even synthetic graph traces, independently of installed SDK defaults.
+for _tracing_flag in ("LANGCHAIN_TRACING", "LANGCHAIN_TRACING_V2", "LANGSMITH_TRACING"):
+    os.environ[_tracing_flag] = "false"
 
 from agent.core.llm_provider_vertex import VertexLLMRunner
 from agent.core.memory_store import JsonlMemoryStore
@@ -18,9 +24,20 @@ _runner.model_id = "gemini-2.5-pro"
 _runner.max_tokens = 4096
 _encoder = Mock()
 _encoder.get_sentence_embedding_dimension.return_value = 3
-with patch("agent.core.llm_runner.create_llm_runner", return_value=_runner), \
-     patch("sentence_transformers.SentenceTransformer", return_value=_encoder):
-    from agent.core import langgraph_builder as builder
+# These tests never use a real embedding model. Stub the optional ML package
+# before import so an offline test run does not load Torch/SciPy or fetch models.
+_sentence_transformers = ModuleType("sentence_transformers")
+_sentence_transformers.SentenceTransformer = Mock(return_value=_encoder)
+_original_sentence_transformers = sys.modules.get("sentence_transformers")
+sys.modules["sentence_transformers"] = _sentence_transformers
+try:
+    with patch("agent.core.llm_runner.create_llm_runner", return_value=_runner):
+        from agent.core import langgraph_builder as builder
+finally:
+    if _original_sentence_transformers is None:
+        sys.modules.pop("sentence_transformers", None)
+    else:
+        sys.modules["sentence_transformers"] = _original_sentence_transformers
 
 # RunLogger migrates relative legacy files on import; isolate that import too.
 with tempfile.TemporaryDirectory() as _import_dir:

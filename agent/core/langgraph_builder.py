@@ -90,7 +90,7 @@ MAX_SHORT_TERM_TURNS = 5
 MAX_MESSAGE_WINDOW = 10
 EPISODE_BATCH_SIZE = 5
 
-MEMORY_DIR = ROOT_DIR / "data" / "memory"
+MEMORY_DIR = Path(os.getenv("LLMPATIENTS_MEMORY_DIR", str(ROOT_DIR / "data" / "memory")))
 MEMORY_STORE = JsonlMemoryStore(MEMORY_DIR)
 MEMORY_CACHE_LOADED: Dict[tuple[str, str], Optional[float]] = {}
 LATEST_SUMMARY_CACHE: Dict[tuple[str, str], str] = {}

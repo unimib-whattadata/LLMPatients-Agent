@@ -14,16 +14,30 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Install dependencies
-        run: python -m pip install --upgrade pip && pip install -r agent/requirements.txt
+        run: python -m pip install --upgrade pip && pip install -r agent/requirements-test-lock.txt
+
+      - name: Run offline runtime contracts
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          LANGCHAIN_TRACING: "false"
+          LANGCHAIN_TRACING_V2: "false"
+          LANGSMITH_TRACING: "false"
+        run: |
+          python -m unittest discover -s agent -t . -p 'test_*.py' -v
+          python -m unittest discover -s tests -p 'test_*.py' -v
 
       - name: Run scripted evaluation (optional)
         env:
           RUN_EVAL_SUITE: ${{ vars.RUN_EVAL_SUITE }}
         run: |
           if [ "${RUN_EVAL_SUITE}" = "true" ]; then
+            python scripts/run_eval_suite.py --validate-only
+            pip install -r agent/requirements-runtime.txt
             python scripts/run_eval_suite.py --output-dir tests/eval_runs
           else
             echo "RUN_EVAL_SUITE not enabled; skipping generation step."

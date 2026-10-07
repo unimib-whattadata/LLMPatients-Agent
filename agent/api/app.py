@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 PATIENTS_DIR = ROOT_DIR / "data" / "patients"
-RUNS_DIR = ROOT_DIR / "tests" / "runs"
-MEMORY_DIR = ROOT_DIR / "data" / "memory"
+RUNS_DIR = Path(os.getenv("LLMPATIENTS_RUNS_DIR", str(ROOT_DIR / "tests" / "runs")))
+MEMORY_DIR = Path(os.getenv("LLMPATIENTS_MEMORY_DIR", str(ROOT_DIR / "data" / "memory")))
 EXPORT_TOKEN = os.getenv("PSYLLM_EXPORT_TOKEN")
 DEFAULT_THERAPIST_ID = "therapist0"
 DEFAULT_TOPIC = "general"
@@ -561,6 +561,7 @@ async def end_session(req: SessionEndRequest):
     )
 
 
+@app.post("/patients", response_model=PatientInitResponse)
 @app.post("/patient", response_model=PatientInitResponse)
 async def create_patient(req: PatientInitRequest):
     """Create a patient file if it does not already exist."""

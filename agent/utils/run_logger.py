@@ -3,6 +3,7 @@
 import copy
 import json
 import logging
+import os
 from datetime import datetime
 from itertools import count
 from pathlib import Path
@@ -13,7 +14,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 logger = logging.getLogger(__name__)
 
 DEFAULT_THERAPIST_ID = "therapist0"
-RUNS_BASE_DIR = Path("tests") / "runs"
+RUNS_BASE_DIR = Path(os.getenv("LLMPATIENTS_RUNS_DIR", str(Path("tests") / "runs")))
 RUNS_BASE_DIR.mkdir(parents=True, exist_ok=True)
 
 

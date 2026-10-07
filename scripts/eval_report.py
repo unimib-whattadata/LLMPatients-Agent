@@ -53,11 +53,17 @@ def load_summary(path: Path) -> Dict[str, dict]:
     if not path.exists():
         raise FileNotFoundError(f"Summary file not found: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list) or not data["results"]:
+        raise ValueError("Evaluation summary must contain a nonempty 'results' array.")
     results = {}
-    for item in data.get("results", []):
+    for item in data["results"]:
+        if not isinstance(item, dict):
+            raise ValueError("Every evaluation result must be an object.")
         scenario_id = item.get("scenario_id") or item.get("scenario", {}).get("id")
         if not scenario_id:
-            continue
+            raise ValueError("Every evaluation result must identify a scenario.")
+        if scenario_id in results:
+            raise ValueError(f"Duplicate result for scenario '{scenario_id}'.")
         results[scenario_id] = item
     return results
 

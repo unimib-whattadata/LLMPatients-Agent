@@ -2,6 +2,7 @@
 """Run scripted evaluation scenarios and emit scenario-level metrics."""
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -9,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from agent.eval import load_scenarios, run_suite  # noqa: E402
+from agent.eval import load_scenarios, run_suite, validate_scenarios  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,6 +37,11 @@ def parse_args() -> argparse.Namespace:
         help="Prefix for auto-generated therapist ids used in the run logger.",
     )
     parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Check scenario definitions and patient files without loading models or making requests.",
+    )
+    parser.add_argument(
         "--no-summary",
         action="store_true",
         help="Skip writing the aggregated summary JSON file.",
@@ -52,10 +58,25 @@ def main() -> int:
     if args.scenarios and args.scenarios != ["all"]:
         selected = args.scenarios
 
+    errors = validate_scenarios(scenarios, selected_ids=selected)
+    if errors:
+        for error in errors:
+            print(f"[INVALID] {error}", file=sys.stderr)
+        return 2
+    if args.validate_only:
+        print(f"Validated {len(selected or scenarios)} scenarios; no generation performed.")
+        return 0
+
+    # Configure isolated paths before the graph/logger lazy imports. Historical
+    # patient memory and session logs must not be changed by a replay campaign.
+    output_dir = Path(args.output_dir).resolve()
+    os.environ["LLMPATIENTS_MEMORY_DIR"] = str(output_dir / "memory")
+    os.environ["LLMPATIENTS_RUNS_DIR"] = str(output_dir / "session_logs")
+
     results = run_suite(
         scenarios,
         selected_ids=selected,
-        output_dir=Path(args.output_dir),
+        output_dir=output_dir,
         therapist_prefix=args.therapist_prefix,
         write_summary=not args.no_summary,
     )

@@ -24,11 +24,10 @@ class EmotionTraits(BaseModel):
         """Return a full trait vector with missing values filled and clamped."""
         normalized = {}
         for key in EMOTIONS:
-            raw_value = (
-                self.trait_baseline.get(key)
-                or self.trait_baseline.get(key.lower())
-                or self.trait_baseline.get(key.capitalize())
-                or 0.5
+            raw_value = next(
+                (self.trait_baseline[name] for name in (key, key.lower(), key.capitalize())
+                 if self.trait_baseline.get(name) is not None),
+                0.5,
             )
             normalized[key] = _clamp_emotion_value(raw_value)
         return normalized
