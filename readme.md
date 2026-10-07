@@ -430,7 +430,6 @@ data/questionnaires pdf/   Source questionnaire PDFs
 data/eval/                 Evaluation scenarios
 scripts/                   CLI chat, evaluation and questionnaire scripts
 tests/                     Unit tests, manual API smoke test and run ledgers
-notebooks/                 Experimental data management and inference notebooks
 Dockerfile                 API image build
 docker-compose.yml         API service with local mounts and HF cache volume
 .dockerignore              Docker build-context exclusions for local secrets and generated data

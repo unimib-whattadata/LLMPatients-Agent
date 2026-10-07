@@ -8,8 +8,11 @@ contracts, not clinical validity or real language-model response quality.
 
 ## Recreate the test environment
 
-Use Python 3.12 in a new environment. The existing workstation `.venv` points to
-a removed Homebrew interpreter and should not be copied to another machine.
+Use Python 3.12 in a new environment. The old workstation `.venv` pointed to
+a removed Homebrew interpreter and was deleted during final cleanup. It held
+223 standard installed packages, with no editable source installations or
+model weights; it was not an experimental source snapshot. Recreate the active
+environment from the test lock or runtime manifest below.
 
 ```sh
 python3.12 -m venv .venv-review
@@ -104,9 +107,27 @@ remains a ratio of categorical emotion changes.
 - Offline session-memory tests stub the encoder package before import, avoiding
   accidental model downloads or unnecessary ML-library loading.
 - OS metadata and Python bytecode caches were removed. Patient profiles,
-  memories, questionnaire results, notebooks and session logs were preserved.
-- `LLMPatients-Agent-runtime-anonymous.zip` was retained: 12 of its 34 files
-  differ from the current tree and two are absent, so it is a distinct snapshot.
+  memories, questionnaire results and session logs were preserved.
+- The initial audit preserved the exploratory notebooks. Final cleanup removed
+  their six unchanged files because they are outside the used runtime and the
+  paper's experiment scope. Their original content remains in Git commit
+  `05c3a84adf3a997f006b5a45ebbd4a1c8bc62709`, including the source HTML and JSON
+  files. To recover the historical directory without changing the current tree:
+
+  ```sh
+  git archive --format=tar --output=/tmp/LLMPatients-Agent-notebooks.tar 05c3a84adf3a997f006b5a45ebbd4a1c8bc62709 notebooks
+  ```
+- The initial audit retained `LLMPatients-Agent-runtime-anonymous.zip` because
+  12 of its 34 files differ from the current tree and two are absent. The final
+  cleanup removed the obsolete working-tree copy after verifying that Git
+  preserves it unchanged in commit `abb6cfe118b4528a8142eb750db1cf8cb1d5f6cc`,
+  blob `6669637a8e43945b192c48f0b77da39bbceacf63`. Its SHA-256 is
+  `36f6601818f0301f7b4b96cc76f35cfdb7a1f92168d46c2ad30542eb61c21c2a`.
+  To recover that historical snapshot:
+
+  ```sh
+  git show abb6cfe118b4528a8142eb750db1cf8cb1d5f6cc:LLMPatients-Agent-runtime-anonymous.zip > /tmp/LLMPatients-Agent-runtime-anonymous.zip
+  ```
 
 No `.tex` file was edited. Live provider availability, container startup on an
 Intel XPU host, and concurrent multiworker session durability require separate
